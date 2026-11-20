@@ -44,6 +44,7 @@ frontend/dist/*
 !frontend/dist/index.html
 .vite/
 *.tsbuildinfo
+*.md5
 
 # Go build & runtime artifacts
 vendor/

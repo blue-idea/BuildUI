@@ -37,15 +37,15 @@
 
 ---
 
-- [ ] **TASK-002 · 脚手架目录展开与应用初始化服务（AppService）**
+- [x] **TASK-002 · 脚手架目录展开与应用初始化服务（AppService）**
 
   > 依赖：TASK-001  
   > 官方源码参考：[scaffold/](https://github.com/dyad-sh/dyad/tree/main/scaffold) 与 [src/ipc/handlers/createFromTemplate.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/handlers/createFromTemplate.ts)
 
-  - [ ] 固化内置应用脚手架 `scaffold/`（集成 React 19、Tailwind CSS、40+ shadcn/ui 组件与 `AI_RULES.md`）
-  - [ ] 在 Go 后端实现 `AppService.CreateApp` 方法，使用递归复制将模板文件展开至目标用户目录
-  - [ ] 在展开的目标目录下调用 Git CLI 初始化本地仓库，生成首个干净提交（`Initial commit from Blot scaffold`）
-  - [ ] 在 SQLite `apps` 表中持久化应用记录并返回 `CreateAppResponse`
+  - [x] 固化内置应用脚手架 `scaffold/`（集成 React 19、Tailwind CSS、40+ shadcn/ui 组件与 `AI_RULES.md`）
+  - [x] 在 Go 后端实现 `AppService.CreateApp` 方法，使用递归复制将模板文件展开至目标用户目录
+  - [x] 在展开的目标目录下调用 Git CLI 初始化本地仓库，生成首个干净提交（`Initial commit from Blot scaffold`）
+  - [x] 在 SQLite `apps` 表中持久化应用记录并返回 `CreateAppResponse`
 
   **验证方式：**
   ```bash
