@@ -1,0 +1,19 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "BuildUI",
+  "outputfilename": "buildui",
+  "frontend:install": "pnpm install",
+  "frontend:build": "pnpm build",
+  "frontend:dev:watcher": "pnpm dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "BuildUI Team"
+  },
+  "info": {
+    "companyName": "BuildUI",
+    "productName": "Blot-UI",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright 2026",
+    "comments": "AI App Builder"
+  }
+}

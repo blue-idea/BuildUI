@@ -40,7 +40,8 @@ pnpm-debug.log*
 # Frontend & Vite build outputs
 dist/
 dist-ssr/
-frontend/dist/
+frontend/dist/*
+!frontend/dist/index.html
 .vite/
 *.tsbuildinfo
 

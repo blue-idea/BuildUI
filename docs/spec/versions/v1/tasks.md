@@ -15,15 +15,15 @@
 
 ---
 
-- [ ] **TASK-001 · Wails v2 + React 19 基础底座与纯 Go SQLite 数据层**
+- [x] **TASK-001 · Wails v2 + React 19 基础底座与纯 Go SQLite 数据层**
 
   > 依赖：无  
   > 官方源码参考：[src/db/schema.ts](https://github.com/dyad-sh/dyad/blob/main/src/db/schema.ts) 与 [src/db/index.ts](https://github.com/dyad-sh/dyad/blob/main/src/db/index.ts)
 
-  - [ ] 初始化 Wails v2 项目骨架（Go 1.26 后端 + React 19 / Vite / TypeScript 前端）
-  - [ ] 引入 `modernc.org/sqlite` 驱动，编写数据库迁移工具，实现 `apps`、`chats`、`messages`、`blueprints`、`versions` 数据表创建
-  - [ ] 实现基础领域错误类型 `BlotError`（支持 `Validation`、`NotFound`、`Precondition`、`External`、`Internal`）
-  - [ ] 编写 Go 单元测试验证数据库连接、表结构自动迁移与基础 CRUD 操作
+  - [x] 初始化 Wails v2 项目骨架（Go 1.26 后端 + React 19 / Vite / TypeScript 前端）
+  - [x] 引入 `modernc.org/sqlite` 驱动，编写数据库迁移工具，实现 `apps`、`chats`、`messages`、`blueprints`、`versions` 数据表创建
+  - [x] 实现基础领域错误类型 `BlotError`（支持 `Validation`、`NotFound`、`Precondition`、`External`、`Internal`）
+  - [x] 编写 Go 单元测试验证数据库连接、表结构自动迁移与基础 CRUD 操作
 
   **验证方式：**
   ```bash
