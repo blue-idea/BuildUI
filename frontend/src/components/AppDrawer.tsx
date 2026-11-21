@@ -14,6 +14,7 @@ export interface AppDrawerProps {
   activeAppId: number;
   onSelectApp: (id: number) => void;
   onCreateApp: () => void;
+  onOpenTemplates?: () => void;
   onDeleteApp: (id: number) => void;
 }
 
@@ -24,6 +25,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
   activeAppId,
   onSelectApp,
   onCreateApp,
+  onOpenTemplates,
   onDeleteApp,
 }) => {
   if (!isOpen) return null;
@@ -51,17 +53,28 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
           </button>
         </div>
 
-        {/* 头部操作：新建应用 */}
-        <div className="p-3 border-b border-slate-800/80">
+        {/* 头部操作：新建应用与模版中心 */}
+        <div className="p-3 border-b border-slate-800/80 flex items-center gap-2">
           <button
             type="button"
             onClick={onCreateApp}
             aria-label="New Application"
-            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors"
           >
             <span>+</span>
             <span>New Application</span>
           </button>
+          {onOpenTemplates && (
+            <button
+              type="button"
+              onClick={onOpenTemplates}
+              aria-label="Browse Templates"
+              className="flex items-center justify-center gap-1.5 rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
+            >
+              <span>✨</span>
+              <span>Templates</span>
+            </button>
+          )}
         </div>
 
         {/* 应用列表滚动区 */}
