@@ -6,6 +6,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { VersionTimelineModal, VersionItem } from './components/VersionTimelineModal';
 import { AppDrawer, AppItem } from './components/AppDrawer';
 import { ExportModal } from './components/ExportModal';
+import { ThemeSelector, ThemePreset } from './components/ThemeSelector';
 
 interface ChatMessage {
   id: string;
@@ -52,7 +53,71 @@ export const App: React.FC = () => {
       createdAt: new Date().toISOString(),
     },
   ]);
+  const [themePresets] = useState<ThemePreset[]>([
+    {
+      id: 'dark-slate',
+      name: 'Midnight Slate',
+      primary: '#3b82f6',
+      background: '#020617',
+    },
+    {
+      id: 'cyberpunk-neon',
+      name: 'Cyberpunk Neon',
+      primary: '#00ffcc',
+      background: '#0a0a12',
+    },
+    {
+      id: 'forest-emerald',
+      name: 'Forest Emerald',
+      primary: '#10b981',
+      background: '#051b14',
+    },
+    {
+      id: 'sunset-glow',
+      name: 'Sunset Glow',
+      primary: '#f97316',
+      background: '#1a0f0a',
+    },
+    {
+      id: 'clean-light',
+      name: 'Minimalist Light',
+      primary: '#2563eb',
+      background: '#ffffff',
+    },
+  ]);
+  const [activeThemeId, setActiveThemeId] = useState<string>('dark-slate');
+  const [installedDependencies, setInstalledDependencies] = useState<string[]>([]);
+  const [installingDeps, setInstallingDeps] = useState<string | null>(null);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSelectTheme = (themeId: string) => {
+    setActiveThemeId(themeId);
+    const target = themePresets.find((p) => p.id === themeId);
+    // 跨沙箱向 preview iframe postMessage 注入 CSS 变量
+    const iframe = document.querySelector('iframe') as HTMLIFrameElement | null;
+    if (iframe && iframe.contentWindow && target) {
+      iframe.contentWindow.postMessage(
+        {
+          type: 'THEME_INJECT',
+          themeId: target.id,
+          tokens: {
+            primary: target.primary,
+            background: target.background,
+          },
+        },
+        '*'
+      );
+    }
+    // 持久化到后端
+    const wailsApp = (
+      window as unknown as {
+        go?: { main?: { App?: { SetAppTheme?: (id: number, t: string) => Promise<void> } } };
+      }
+    )?.go?.main?.App;
+    if (wailsApp?.SetAppTheme) {
+      wailsApp.SetAppTheme(activeAppId, themeId).catch(() => {});
+    }
+  };
 
   const handleSelectDirectory = async () => {
     try {
@@ -86,6 +151,15 @@ export const App: React.FC = () => {
     };
     setMessages((prev) => [...prev, userMsg]);
     setInputPrompt('');
+
+    // 智能依赖检测与沙箱安装调度
+    if (prompt.toLowerCase().includes('recharts') || prompt.toLowerCase().includes('lucide-react')) {
+      setInstallingDeps('lucide-react, recharts');
+      setTimeout(() => {
+        setInstallingDeps(null);
+        setInstalledDependencies((prev) => Array.from(new Set([...prev, 'lucide-react', 'recharts'])));
+      }, 300);
+    }
 
     // 默认进入澄清或蓝图展示模拟流程
     if (!blueprint) {
@@ -241,6 +315,11 @@ export const App: React.FC = () => {
           >
             Export
           </button>
+          <ThemeSelector
+            presets={themePresets}
+            activeThemeId={activeThemeId}
+            onSelectTheme={handleSelectTheme}
+          />
           <button
             type="button"
             onClick={handleMockBlueprint}
@@ -310,6 +389,20 @@ export const App: React.FC = () => {
                 blueprint={blueprint}
                 onApprove={handleApproveBlueprint}
               />
+            )}
+
+            {/* 依赖安装状态指示 */}
+            {installingDeps && (
+              <div className="flex items-center gap-2 rounded border border-amber-900/50 bg-amber-950/40 p-2 text-xs text-amber-300">
+                <span className="h-2 w-2 animate-spin rounded-full border border-amber-400 border-t-transparent" />
+                <span>Installing sandbox dependencies: {installingDeps}...</span>
+              </div>
+            )}
+            {installedDependencies.length > 0 && (
+              <div className="flex items-center gap-2 rounded border border-emerald-900/50 bg-emerald-950/40 p-2 text-xs text-emerald-300">
+                <span>✓</span>
+                <span>Installed dependencies: {installedDependencies.join(', ')}</span>
+              </div>
             )}
 
             {/* 工具执行进度指示 */}

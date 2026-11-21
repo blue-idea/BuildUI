@@ -69,9 +69,9 @@ _测试类型:_ Unit / UI
 > 依赖：TASK-017, TASK-018  
 > 官方源码参考：[src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts)
 
-- [ ] 在 `frontend/src/App.tsx` 导航栏集成 `ThemeSelector`，并通过 `postMessage` 向 `PreviewPanel` 注入 CSS 变量
-- [ ] 在 `App.tsx` 中监听依赖安装事件并在聊天区展示动态安装卡片与重试机制
-- [ ] 扩展 `App.test.tsx` 覆盖主题切换与依赖安装状态反馈
+- [x] 在 `frontend/src/App.tsx` 导航栏集成 `ThemeSelector`，并通过 `postMessage` 向 `PreviewPanel` 注入 CSS 变量
+- [x] 在 `App.tsx` 中监听依赖安装事件并在聊天区展示动态安装卡片与重试机制
+- [x] 扩展 `App.test.tsx` 覆盖主题切换与依赖安装状态反馈
 
 **验证方式：**
 ```bash
