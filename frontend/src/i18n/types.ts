@@ -85,6 +85,10 @@ export interface I18nDictionary {
     noFileLoaded: string;
     files: string;
     noFiles: string;
+    problems: string;
+    noProblems: string;
+    line: string;
+    column: string;
   };
   theme: {
     light: string;

@@ -12,9 +12,13 @@ import {
   ChevronUp,
   Loader2,
   Scan,
+  AlertCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { FileTree } from './FileTree';
+import { CodeEditorViewer } from './CodeEditorViewer';
+import type { DiagnosticItem } from '../services/wailsBridge';
 
 export type WorkspaceView = 'preview' | 'code' | 'publish';
 
@@ -31,6 +35,8 @@ export interface WorkspacePanelProps {
   focusedFile?: string;
   onReadFile?: (path: string) => Promise<string>;
   systemLogs?: string[];
+  diagnostics?: DiagnosticItem[];
+  onSelectDiagnostic?: (diagnostic: DiagnosticItem) => void;
   isInspectMode?: boolean;
   onToggleInspect?: () => void;
   onSelectComponent?: (path: string, prompt: string) => void;
@@ -52,6 +58,8 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   focusedFile,
   onReadFile,
   systemLogs = [],
+  diagnostics = [],
+  onSelectDiagnostic,
   isInspectMode = false,
   onToggleInspect,
   onSelectComponent,
@@ -61,6 +69,8 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
 }) => {
   const { t } = useI18n();
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+  const [isProblemsOpen, setIsProblemsOpen] = useState(true);
+  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState<string>(files[0]?.path || '');
   const [source, setSource] = useState<{ path: string; text: string; error: boolean } | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -106,6 +116,21 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
   }, [activeView, isInspectMode, onSelectComponent, previewOrigin]);
+
+  const handleSelectDiagnostic = (diag: DiagnosticItem) => {
+    if (diag.file) {
+      const matchingPath = codePaths.find(
+        (p) => p === diag.file || p.endsWith(diag.file) || diag.file.endsWith(p)
+      );
+      if (matchingPath) {
+        setSelectedFilePath(matchingPath);
+      } else {
+        setSelectedFilePath(diag.file);
+      }
+    }
+    setHighlightedLine(diag.line);
+    onSelectDiagnostic?.(diag);
+  };
 
   return (
     <section className="flex-1 h-full flex flex-col bg-white dark:bg-zinc-950 border-l border-slate-200 dark:border-zinc-800 overflow-hidden transition-colors">
@@ -286,34 +311,110 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
               <FileTree
                 paths={codePaths}
                 selectedPath={activePath}
-                onSelectPath={(path) => setSelectedFilePath(path)}
+                onSelectPath={(path) => {
+                  setSelectedFilePath(path);
+                  setHighlightedLine(null);
+                }}
               />
             </div>
 
-            {/* 右侧：文件内容展示区 */}
+            {/* 右侧：文件内容展示区（适配明暗主题） */}
             <div
               data-testid="code-file-content"
-              className="flex-1 h-full flex flex-col overflow-hidden bg-slate-900 text-slate-100"
+              className="flex-1 h-full flex flex-col overflow-hidden bg-white dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 transition-colors"
             >
               {/* 右侧顶部：当前文件路径信息条 */}
               {activePath && (
-                <div className="h-9 px-4 border-b border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400 bg-slate-950/60 shrink-0 select-none">
-                  <span className="truncate text-slate-300 font-medium">
+                <div className="h-9 px-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs font-mono text-slate-500 dark:text-zinc-400 bg-slate-100/70 dark:bg-zinc-900/60 shrink-0 select-none">
+                  <span className="truncate text-slate-700 dark:text-zinc-200 font-medium">
                     {activePath}
                   </span>
                 </div>
               )}
 
               {/* 代码展示主体 */}
-              <div className="flex-1 p-4 overflow-auto font-mono text-xs">
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 {source?.error && source.path === activePath ? (
-                  <p role="alert" className="text-rose-400">{source.text}</p>
+                  <div className="flex-1 p-4 overflow-auto font-mono text-xs">
+                    <p role="alert" className="text-rose-600 dark:text-rose-400">{source.text}</p>
+                  </div>
                 ) : (
-                  <pre className="whitespace-pre font-mono leading-relaxed">
-                    {sourcePaths && activePath
-                      ? (source?.path === activePath ? source.text : 'Loading source…')
-                      : activeFile?.content ?? t('workspace.noFileLoaded')}
-                  </pre>
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <CodeEditorViewer
+                      code={
+                        sourcePaths && activePath
+                          ? (source?.path === activePath ? source.text : 'Loading source…')
+                          : activeFile?.content ?? t('workspace.noFileLoaded')
+                      }
+                      filePath={activePath}
+                      highlightedLine={highlightedLine}
+                      diagnostics={diagnostics}
+                      onLineClick={(line) => setHighlightedLine(line)}
+                    />
+                  </div>
+                )}
+
+                {/* 错误诊断问题面板（适配明暗主题） */}
+                {diagnostics && diagnostics.length > 0 && (
+                  <div
+                    data-testid="diagnostics-panel"
+                    className="border-t border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 text-xs flex flex-col shrink-0 select-none max-h-48 transition-colors"
+                  >
+                    <button
+                      type="button"
+                      data-testid="diagnostics-toggle"
+                      onClick={() => setIsProblemsOpen(!isProblemsOpen)}
+                      className="w-full h-8 px-3 flex items-center justify-between bg-slate-100/90 dark:bg-zinc-900/90 text-slate-700 dark:text-zinc-300 font-sans hover:bg-slate-200/80 dark:hover:bg-zinc-800/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 font-medium">
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
+                        <span>{t('workspace.problems')} ({diagnostics.length})</span>
+                      </div>
+                      {isProblemsOpen ? (
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-400" />
+                      ) : (
+                        <ChevronUp className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-400" />
+                      )}
+                    </button>
+
+                    {isProblemsOpen && (
+                      <div className="overflow-y-auto max-h-40 divide-y divide-slate-200/80 dark:divide-zinc-800/60 p-1">
+                        {diagnostics.map((diag, idx) => (
+                          <div
+                            key={idx}
+                            data-testid={`diagnostic-item-${idx}`}
+                            onClick={() => handleSelectDiagnostic(diag)}
+                            className="px-2.5 py-1.5 flex items-start gap-2 hover:bg-slate-200/60 dark:hover:bg-zinc-800/70 rounded cursor-pointer transition-colors text-slate-700 dark:text-zinc-200 group"
+                          >
+                            {diag.severity === 'error' ? (
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400 shrink-0 mt-0.5" />
+                            ) : (
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-purple-600 dark:text-purple-300 text-[11px] group-hover:underline font-medium">
+                                  {diag.file}:{diag.line}:{diag.column}
+                                </span>
+                                <span
+                                  className={`text-[10px] px-1 py-0.2 rounded uppercase font-semibold ${
+                                    diag.severity === 'error'
+                                      ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800'
+                                      : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800'
+                                  }`}
+                                >
+                                  {diag.severity}
+                                </span>
+                              </div>
+                              <p className="text-slate-600 dark:text-zinc-300 text-xs mt-0.5 font-sans break-words">
+                                {diag.message}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

@@ -30,6 +30,7 @@ import {
   desktopApp,
   essentialEvent,
   isWailsAvailable,
+  DiagnosticItem,
 } from './services/wailsBridge';
 import { Plus, Send, Square, Hammer, ChevronDown } from 'lucide-react';
 
@@ -127,6 +128,15 @@ const AppContent: React.FC = () => {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>(desktop ? [] : [
+    {
+      file: 'src/components/RecipeCard.tsx',
+      line: 3,
+      column: 14,
+      message: 'Unused component import or prop type declaration.',
+      severity: 'warning',
+    },
+  ]);
   const [systemLogs, setSystemLogs] = useState<string[]>(desktop ? [] : [
     'Vite dev server listening on http://localhost:5173',
     'Compiled src/components/PantryList.tsx in 14ms',
@@ -244,6 +254,7 @@ const AppContent: React.FC = () => {
       setSystemLogs((logs) => [...logs, `Preview is running at ${result.previewUrl}`]);
       if (verify) {
         const result = await desktopApp().CheckTypeScript({ appId: id, paths: [] });
+        setDiagnostics(result.problems ?? []);
         setSystemLogs((logs) => [
           ...logs,
           ...(result.hasErrors
@@ -281,6 +292,7 @@ const AppContent: React.FC = () => {
     setAttachments([]);
     setSourcePaths([]);
     setVersions([]);
+    setDiagnostics([]);
     setSystemLogs([]);
     setPreviewUrl('');
     setIsInspectMode(false);
@@ -301,6 +313,7 @@ const AppContent: React.FC = () => {
     setAttachments([]);
     setSourcePaths([]);
     setVersions([]);
+    setDiagnostics([]);
     setSystemLogs([]);
     setPreviewUrl(active.previewUrl || '');
     setWorkspaceView('preview');
@@ -1095,6 +1108,10 @@ const AppContent: React.FC = () => {
           sourceRevision={sourceRevision}
           focusedFile={focusedFile}
           onReadFile={desktop ? readProjectFile : undefined}
+          diagnostics={diagnostics}
+          onSelectDiagnostic={(diag) => {
+            if (diag.file) setFocusedFile(diag.file);
+          }}
           isInspectMode={isInspectMode}
           onToggleInspect={() => setIsInspectMode((prev) => !prev)}
           onSelectComponent={(path, prompt) => {

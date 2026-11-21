@@ -85,6 +85,10 @@ export const en: I18nDictionary = {
     noFileLoaded: '// No file loaded.',
     files: 'Files',
     noFiles: 'No files',
+    problems: 'Problems',
+    noProblems: 'No problems detected',
+    line: 'Line',
+    column: 'Column',
   },
   theme: {
     light: 'Light Theme',

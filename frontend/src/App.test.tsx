@@ -312,6 +312,34 @@ describe('App Main Split Layout & Workflow', () => {
     expect(within(fileContent).queryByText(/Pantry Inventory/)).toBeNull();
   });
 
+  it('在代码检视面板中展示行号、轻量语法高亮与错误诊断项并支持点击直接跳转对应代码行', async () => {
+    render(<App />);
+
+    // 切换至代码检视视图
+    const codeTab = screen.getByTestId('tab-code');
+    fireEvent.click(codeTab);
+
+    // 验证轻量代码编辑器与行号指示渲染
+    expect(screen.getByTestId('code-editor-viewer')).toBeDefined();
+    expect(screen.getByTestId('code-line-number-1')).toBeDefined();
+
+    // 验证诊断问题面板存在
+    const diagPanel = screen.getByTestId('diagnostics-panel');
+    expect(diagPanel).toBeDefined();
+
+    // 点击诊断项（指向 RecipeCard.tsx 的第 3 行）
+    const diagItem = screen.getByTestId('diagnostic-item-0');
+    fireEvent.click(diagItem);
+
+    // 验证自动切换到目标文件 RecipeCard.tsx
+    const fileContent = screen.getByTestId('code-file-content');
+    expect(within(fileContent).getByText(/Dinner Suggestion/)).toBeDefined();
+
+    // 验证对应代码行被高亮
+    const line3 = screen.getByTestId('code-line-3');
+    expect(line3.getAttribute('data-highlighted-line')).toBe('true');
+  });
+
   it('closes active project when clicking the project tab close button in header', async () => {
     render(<App />);
 

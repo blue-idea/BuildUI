@@ -85,6 +85,10 @@ export const zh: I18nDictionary = {
     noFileLoaded: '// 暂未加载文件。',
     files: '文件列表',
     noFiles: '暂无文件',
+    problems: '错误诊断',
+    noProblems: '未检测到代码错误',
+    line: '行',
+    column: '列',
   },
   theme: {
     light: '浅色主题',

@@ -21,9 +21,11 @@ describe('TASK-025: macOS Theme Tokens and Context Engine', () => {
     const el = document.createElement('div');
     applyThemeToElement(el, 'light');
     expect(el.style.getPropertyValue('--macos-user-bubble-bg')).toBe('#e8e5ff');
+    expect(el.style.colorScheme).toBe('light');
 
     applyThemeToElement(el, 'dark');
     expect(el.style.getPropertyValue('--macos-user-bubble-bg')).toBe('#312e81');
+    expect(el.style.colorScheme).toBe('dark');
   });
 
   const TestConsumer = () => {

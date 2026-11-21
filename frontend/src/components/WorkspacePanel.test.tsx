@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import type { ReactElement } from 'react';
 import { WorkspacePanel } from './WorkspacePanel';
@@ -103,5 +103,122 @@ describe('WorkspacePanel Code Review Layout', () => {
       const alert = screen.getByRole('alert');
       expect(alert.textContent).toContain('Failed to read file from disk');
     });
+  });
+
+  it('在代码检视区渲染轻量代码编辑器与行号指示，并支持语法高亮', () => {
+    renderWorkspace(
+      <WorkspacePanel
+        activeView="code"
+        files={mockFiles}
+      />
+    );
+
+    // 验证 CodeEditorViewer 与行号指示栏渲染
+    const codeViewer = screen.getByTestId('code-editor-viewer');
+    expect(codeViewer).toBeDefined();
+
+    const line1 = screen.getByTestId('code-line-number-1');
+    expect(line1).toBeDefined();
+    expect(line1.textContent?.trim()).toBe('1');
+  });
+
+  it('当存在诊断项时展示诊断问题面板，并支持点击同文件错误跳转高亮对应代码行', () => {
+    const mockDiagnostics = [
+      {
+        file: 'src/components/PantryList.tsx',
+        line: 1,
+        column: 14,
+        message: 'Type error: Cannot find module or its corresponding type declarations.',
+        severity: 'error' as const,
+      },
+    ];
+
+    renderWorkspace(
+      <WorkspacePanel
+        activeView="code"
+        files={mockFiles}
+        diagnostics={mockDiagnostics}
+      />
+    );
+
+    // 验证诊断问题面板存在并展示错误信息
+    const diagPanel = screen.getByTestId('diagnostics-panel');
+    expect(diagPanel).toBeDefined();
+    expect(within(diagPanel).getByText(/Cannot find module/)).toBeDefined();
+
+    // 点击诊断项
+    const diagItem = screen.getByTestId('diagnostic-item-0');
+    fireEvent.click(diagItem);
+
+    // 验证对应行号被高亮
+    const line1 = screen.getByTestId('code-line-1');
+    expect(line1.getAttribute('data-highlighted-line')).toBe('true');
+  });
+
+  it('点击跨文件诊断项时自动切换当前文件并高亮目标代码行', () => {
+    const mockDiagnostics = [
+      {
+        file: 'src/components/RecipeCard.tsx',
+        line: 1,
+        column: 14,
+        message: 'Unused import in RecipeCard',
+        severity: 'warning' as const,
+      },
+    ];
+
+    renderWorkspace(
+      <WorkspacePanel
+        activeView="code"
+        files={mockFiles}
+        diagnostics={mockDiagnostics}
+      />
+    );
+
+    // 初始状态下展示 PantryList.tsx
+    expect(screen.getByText(/export const PantryList/)).toBeDefined();
+
+    // 点击属于 RecipeCard.tsx 的诊断项
+    const diagItem = screen.getByTestId('diagnostic-item-0');
+    fireEvent.click(diagItem);
+
+    // 验证自动切换至 RecipeCard.tsx 并展示对应内容
+    expect(screen.getByText(/export const RecipeCard/)).toBeDefined();
+    expect(screen.queryByText(/export const PantryList/)).toBeNull();
+
+    // 验证 RecipeCard 中的第 1 行被高亮
+    const line1 = screen.getByTestId('code-line-1');
+    expect(line1.getAttribute('data-highlighted-line')).toBe('true');
+  });
+
+  it('代码检视区右侧容器与诊断面板遵循全局明暗主题配色类名', () => {
+    const mockDiagnostics = [
+      {
+        file: 'src/components/PantryList.tsx',
+        line: 1,
+        column: 14,
+        message: 'Type error: Cannot find module',
+        severity: 'error' as const,
+      },
+    ];
+
+    renderWorkspace(
+      <WorkspacePanel
+        activeView="code"
+        files={mockFiles}
+        diagnostics={mockDiagnostics}
+      />
+    );
+
+    // 验证右侧内容区具备浅色与深色自适应类
+    const content = screen.getByTestId('code-file-content');
+    expect(content.className).toContain('bg-white');
+    expect(content.className).toContain('dark:bg-zinc-950');
+
+    // 验证诊断问题面板具备浅色与深色自适应边框与背景类
+    const diagPanel = screen.getByTestId('diagnostics-panel');
+    expect(diagPanel.className).toContain('bg-slate-50');
+    expect(diagPanel.className).toContain('dark:bg-zinc-950');
+    expect(diagPanel.className).toContain('border-slate-200');
+    expect(diagPanel.className).toContain('dark:border-zinc-800');
   });
 });

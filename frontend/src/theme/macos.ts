@@ -55,6 +55,7 @@ export const macosTokens: Record<ThemeMode, MacOSThemeColors> = {
  */
 export function applyThemeToElement(el: HTMLElement, mode: ThemeMode) {
   const tokens = macosTokens[mode];
+  el.style.colorScheme = mode;
   el.style.setProperty('--macos-canvas-bg', tokens.canvasBg);
   el.style.setProperty('--macos-surface-bg', tokens.surfaceBg);
   el.style.setProperty('--macos-header-bg', tokens.headerBg);
