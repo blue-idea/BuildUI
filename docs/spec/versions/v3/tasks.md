@@ -25,10 +25,10 @@
 > 依赖：无  
 > 官方源码参考：[src/ipc/handlers/apps_handlers.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/handlers/apps_handlers.ts)
 
-- [ ] 在 `internal/db/app_repository.go` 中扩展 `SetActiveAppID`、`GetActiveAppID` 以及带事务外键级联检查的 `DeleteApp` 逻辑
-- [ ] 在 `internal/app/app_service.go` 中实现 `SwitchApp` 方法：停止旧应用的开发服务器，原子切换活动应用指针，重新挂载对应的工作区与历史会话
-- [ ] 在 `app.go` 中暴露 `SwitchApp` 与 `DeleteApp` Wails RPC 绑定
-- [ ] 在前端构建 `AppDrawer.tsx`：提供侧边抽屉式多应用面板，显示应用列表、当前活跃徽标、新建应用按钮与删除非活跃应用按钮
+- [x] 在 `internal/db/app_repository.go` 中扩展 `SetActiveAppID`、`GetActiveAppID` 以及带事务外键级联检查的 `DeleteApp` 逻辑
+- [x] 在 `internal/app/app_service.go` 中实现 `SwitchApp` 方法：停止旧应用的开发服务器，原子切换活动应用指针，重新挂载对应的工作区与历史会话
+- [x] 在 `app.go` 中暴露 `SwitchApp` 与 `DeleteApp` Wails RPC 绑定
+- [x] 在前端构建 `AppDrawer.tsx`：提供侧边抽屉式多应用面板，显示应用列表、当前活跃徽标、新建应用按钮与删除非活跃应用按钮
 
 **验证方式：**
 ```bash

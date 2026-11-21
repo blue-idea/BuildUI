@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"buildui/internal/errs"
@@ -187,6 +188,38 @@ func (r *AppRepository) Delete(ctx context.Context, id int64) error {
 	}
 	if rowsAffected == 0 {
 		return errs.NewNotFoundError(fmt.Sprintf("app %d not found for deletion", id), nil)
+	}
+	return nil
+}
+
+// GetActiveAppID 获取当前用户活跃应用 ID（存储在 settings 表中的 app.active_id）
+func (r *AppRepository) GetActiveAppID(ctx context.Context) (int64, error) {
+	query := `SELECT value FROM settings WHERE key = 'app.active_id';`
+	row := r.db.SQLDB().QueryRowContext(ctx, query)
+	var val string
+	if err := row.Scan(&val); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil
+		}
+		return 0, errs.NewInternalError("failed to query active app id", err)
+	}
+	id, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		return 0, nil
+	}
+	return id, nil
+}
+
+// SetActiveAppID 设置当前用户活跃应用 ID
+func (r *AppRepository) SetActiveAppID(ctx context.Context, id int64) error {
+	query := `
+		INSERT INTO settings (key, value, updated_at)
+		VALUES ('app.active_id', ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP;
+	`
+	_, err := r.db.SQLDB().ExecContext(ctx, query, strconv.FormatInt(id, 10))
+	if err != nil {
+		return errs.NewInternalError(fmt.Sprintf("failed to set active app id %d", id), err)
 	}
 	return nil
 }

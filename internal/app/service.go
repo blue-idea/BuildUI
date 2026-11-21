@@ -38,6 +38,16 @@ type AppDTO struct {
 	NeedsAppBlueprint bool   `json:"needsAppBlueprint"`
 }
 
+// ActiveAppResponse 活跃应用状态响应
+type ActiveAppResponse struct {
+	AppID             int64  `json:"appId"`
+	Name              string `json:"name"`
+	Path              string `json:"path"`
+	PreviewURL        string `json:"previewUrl"`
+	LatestCommitHash  string `json:"latestCommitHash"`
+	BlueprintApproved bool   `json:"blueprintApproved"`
+}
+
 // AppService 负责应用管理与脚手架初始化
 type AppService struct {
 	appRepo *db.AppRepository
@@ -168,6 +178,80 @@ func (s *AppService) StopApp(ctx context.Context, req runner.StopAppRequest) err
 	}
 
 	return s.runner.StopApp(ctx, req.AppID)
+}
+
+// SwitchApp 切换当前活跃工程，并停止旧开发服务
+func (s *AppService) SwitchApp(ctx context.Context, targetAppID int64) (*ActiveAppResponse, error) {
+	if targetAppID <= 0 {
+		return nil, errs.NewValidationError("target app id must be positive", nil)
+	}
+
+	appEntity, err := s.appRepo.GetByID(ctx, targetAppID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 停止之前正在运行的开发服务器
+	currentActiveID, _ := s.appRepo.GetActiveAppID(ctx)
+	if currentActiveID > 0 && currentActiveID != targetAppID && s.runner != nil {
+		_ = s.runner.StopApp(ctx, currentActiveID)
+	}
+
+	// 更新活跃 ID
+	if err := s.appRepo.SetActiveAppID(ctx, targetAppID); err != nil {
+		return nil, err
+	}
+
+	// 读取当前工程最新 Commit Hash
+	commitHash := ""
+	if entries, err := os.ReadDir(filepath.Join(appEntity.Path, ".git")); err == nil && len(entries) > 0 {
+		cmd := exec.Command("git", "rev-parse", "HEAD")
+		cmd.Dir = appEntity.Path
+		if out, err := cmd.Output(); err == nil {
+			commitHash = strings.TrimSpace(string(out))
+		}
+	}
+
+	return &ActiveAppResponse{
+		AppID:             appEntity.ID,
+		Name:              appEntity.Name,
+		Path:              appEntity.Path,
+		PreviewURL:        "http://localhost:5173",
+		LatestCommitHash:  commitHash,
+		BlueprintApproved: !appEntity.NeedsAppBlueprint,
+	}, nil
+}
+
+// DeleteApp 删除非活跃应用及其关联数据
+func (s *AppService) DeleteApp(ctx context.Context, appID int64) error {
+	if appID <= 0 {
+		return errs.NewValidationError("app id must be positive", nil)
+	}
+
+	activeID, _ := s.appRepo.GetActiveAppID(ctx)
+	if activeID == appID {
+		return errs.NewPreconditionError("cannot delete currently active application", nil)
+	}
+
+	return s.appRepo.Delete(ctx, appID)
+}
+
+// GetActiveApp 获取当前活跃应用状态
+func (s *AppService) GetActiveApp(ctx context.Context) (*ActiveAppResponse, error) {
+	activeID, err := s.appRepo.GetActiveAppID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if activeID == 0 {
+		apps, err := s.appRepo.List(ctx)
+		if err != nil || len(apps) == 0 {
+			return nil, errs.NewNotFoundError("no applications found", nil)
+		}
+		activeID = apps[0].ID
+	}
+
+	return s.SwitchApp(ctx, activeID)
 }
 
 // initGitRepository 初始化 Git 仓库、安全配置临时身份并提交初始状态

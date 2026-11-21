@@ -112,4 +112,19 @@ describe('App Main Split Layout & Workflow', () => {
     fireEvent.click(workspaceBtn);
     expect(screen.getByText(/my-blot-app/i)).toBeDefined();
   });
+
+  it('opens applications drawer and supports switching apps', () => {
+    render(<App />);
+
+    const appsBtn = screen.getByRole('button', { name: /open applications drawer/i });
+    fireEvent.click(appsBtn);
+
+    expect(screen.getByText('Applications')).toBeDefined();
+    expect(screen.getByText('Default Application')).toBeDefined();
+
+    const closeBtn = screen.getByRole('button', { name: /close applications drawer/i });
+    fireEvent.click(closeBtn);
+
+    expect(screen.queryByText('Applications')).toBeNull();
+  });
 });
