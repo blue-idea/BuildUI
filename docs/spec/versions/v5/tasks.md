@@ -26,9 +26,9 @@
 > 依赖：无  
 > 官方源码参考：[src/services/template_service.ts](https://github.com/dyad-sh/dyad/blob/main/src/services/template_service.ts)
 
-- [ ] 在 `internal/template/template.go` 中注册 4 套官方内置模版（SaaS Dashboard, Portfolio, Landing Page, Storefront）
-- [ ] 实现 `TemplateService.InstantiateTemplate`：解压模版代码、初始化 Git 仓库、关联 SQLite 活跃应用
-- [ ] 在 `app.go` 中暴露 `GetAppTemplates` 与 `CreateAppFromTemplate` Wails RPC 接口
+- [x] 在 `internal/template/template.go` 中注册 4 套官方内置模版（SaaS Dashboard, Portfolio, Landing Page, Storefront）
+- [x] 实现 `TemplateService.InstantiateTemplate`：解压模版代码、初始化 Git 仓库、关联 SQLite 活跃应用
+- [x] 在 `app.go` 中暴露 `GetAppTemplates` 与 `CreateAppFromTemplate` Wails RPC 接口
 
 **验证方式：**
 ```bash
