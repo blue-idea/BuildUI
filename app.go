@@ -15,6 +15,7 @@ import (
 	"buildui/internal/export"
 	"buildui/internal/inspector"
 	"buildui/internal/settings"
+	"buildui/internal/theme"
 	"buildui/internal/verification/tsc"
 	"buildui/internal/version"
 )
@@ -43,6 +44,7 @@ type App struct {
 	problemsService  *tsc.ProblemsService
 	settingsService  *settings.SettingsService
 	versionService   *version.VersionService
+	themeService     *theme.ThemeService
 }
 
 // NewApp 创建 App 实例
@@ -82,6 +84,7 @@ func (a *App) startup(ctx context.Context) {
 		settingsRepo := db.NewSettingsRepository(database)
 		a.settingsService = settings.NewSettingsService(settingsRepo)
 		a.versionService = version.NewVersionService(versionRepo, a.appRepo, emitter)
+		a.themeService = theme.NewThemeService(a.appRepo)
 	}
 }
 
@@ -271,4 +274,20 @@ func (a *App) InstallDependencies(appID int64, packages []string) error {
 		runtime.EventsEmit(a.ctx, "dep_install_success", packages)
 	}
 	return nil
+}
+
+// GetThemePresets 暴露给前端的获取系统预设主题集 RPC 方法
+func (a *App) GetThemePresets() []theme.ThemePreset {
+	if a.themeService == nil {
+		return theme.GetDefaultThemePresets()
+	}
+	return a.themeService.GetThemePresets()
+}
+
+// SetAppTheme 暴露给前端的更新应用主题 RPC 方法
+func (a *App) SetAppTheme(appID int64, themeID string) error {
+	if a.themeService == nil {
+		return nil
+	}
+	return a.themeService.SetAppTheme(a.ctx, appID, themeID)
 }

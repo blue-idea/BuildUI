@@ -47,9 +47,9 @@ _测试类型:_ Unit / Integration
 > 依赖：无  
 > 官方源码参考：[src/themes/theme_manager.ts](https://github.com/dyad-sh/dyad/blob/main/src/themes/theme_manager.ts)
 
-- [ ] 在 `internal/theme/theme.go` 中定义 5 组内置主题预设，并在 `app.go` 暴露 `GetThemePresets` 与 `SetAppTheme`
-- [ ] 在前端实现 `frontend/src/components/ThemeSelector.tsx`：提供优雅的主题下拉切换器，呈现主题色标
-- [ ] 编写前端单元测试 `ThemeSelector.test.tsx`
+- [x] 在 `internal/theme/theme.go` 中定义 5 组内置主题预设，并在 `app.go` 暴露 `GetThemePresets` 与 `SetAppTheme`
+- [x] 在前端实现 `frontend/src/components/ThemeSelector.tsx`：提供优雅的主题下拉切换器，呈现主题色标
+- [x] 编写前端单元测试 `ThemeSelector.test.tsx`
 
 **验证方式：**
 ```bash
