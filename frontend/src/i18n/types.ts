@@ -41,6 +41,8 @@ export interface I18nDictionary {
     inspectFile: string;
     stopGeneration: string;
     addAttachment: string;
+    removeAttachment: string;
+    attachedImage: string;
     installedDeps: string;
     installingDeps: string;
     executingTool: string;

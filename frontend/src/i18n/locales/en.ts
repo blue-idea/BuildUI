@@ -41,6 +41,8 @@ export const en: I18nDictionary = {
     inspectFile: 'Inspect component code',
     stopGeneration: 'Stop Generation',
     addAttachment: 'Add attachment',
+    removeAttachment: 'Remove attachment',
+    attachedImage: 'Attached image',
     installedDeps: 'Installed dependencies:',
     installingDeps: 'Installing sandbox dependencies:',
     executingTool: 'Executing tool:',

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { App } from './App';
 
@@ -230,5 +230,29 @@ describe('App Main Split Layout & Workflow', () => {
 
     // 模版弹窗应关闭
     expect(screen.queryByText('Application Templates')).toBeNull();
+  });
+
+  it('supports selecting and previewing image attachments before sending', async () => {
+    render(<App />);
+
+    const uploadInput = screen.getByLabelText(/upload attachment input/i);
+    expect(uploadInput).toBeDefined();
+
+    const file = new File(['dummy-bytes'], 'design-mockup.png', { type: 'image/png' });
+    fireEvent.change(uploadInput, { target: { files: [file] } });
+
+    // 等待异步文件读取并验证待发送预览条出现
+    await waitFor(() => {
+      expect(screen.getByText('design-mockup.png')).toBeDefined();
+    });
+
+    // 点击发送
+    const sendBtn = screen.getByRole('button', { name: /send prompt/i });
+    fireEvent.click(sendBtn);
+
+    // 验证用户消息已成功附带该附件
+    await waitFor(() => {
+      expect(screen.getByText('design-mockup.png')).toBeDefined();
+    });
   });
 });

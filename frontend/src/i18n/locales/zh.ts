@@ -41,6 +41,8 @@ export const zh: I18nDictionary = {
     inspectFile: '查看文件代码',
     stopGeneration: '停止生成',
     addAttachment: '添加附件',
+    removeAttachment: '移除附件',
+    attachedImage: '已附设计图',
     installedDeps: '已安装依赖:',
     installingDeps: '正在安装沙箱依赖:',
     executingTool: '正在执行工具:',

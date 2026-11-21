@@ -29,10 +29,17 @@ import {
 } from './services/wailsBridge';
 import { Plus, Send, Square, Hammer, ChevronDown } from 'lucide-react';
 
+export interface AttachmentItem {
+  id: string;
+  name: string;
+  dataUrl: string;
+}
+
 interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
   content: string;
+  attachments?: AttachmentItem[];
   fileChanges?: FileActionItem[];
 }
 
@@ -87,6 +94,8 @@ const AppContent: React.FC = () => {
   ]);
 
   const [inputPrompt, setInputPrompt] = useState('');
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [buildMode, setBuildMode] = useState<'build' | 'plan'>('build');
   const [extraSandboxItems, setExtraSandboxItems] = useState<string[]>([]);
   const [blueprint, setBlueprint] = useState<BlueprintDTO | null>(null);
@@ -284,18 +293,40 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        const dataUrl = uploadEvent.target?.result as string;
+        if (dataUrl) {
+          setAttachments((prev) => [
+            ...prev,
+            { id: String(Date.now() + Math.random()), name: file.name, dataUrl },
+          ]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
   const handleSendPrompt = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const prompt = inputPrompt.trim();
-    if (!prompt) return;
+    if (!prompt && attachments.length === 0) return;
 
+    const currentAttachments = [...attachments];
     const userMsg: ChatMessage = {
       id: String(Date.now()),
       sender: 'user',
-      content: prompt,
+      content: prompt || (currentAttachments.length > 0 ? t('chat.attachedImage') : ''),
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
     };
     setMessages((prev) => [...prev, userMsg]);
     setInputPrompt('');
+    setAttachments([]);
 
     if (prompt.toLowerCase().includes('recharts') || prompt.toLowerCase().includes('lucide-react')) {
       setInstallingDeps('lucide-react, recharts');
@@ -590,6 +621,23 @@ const AppContent: React.FC = () => {
                   }`}
                 >
                   {renderMessageContent(msg)}
+
+                  {/* 消息附带的图片/多模态附件展示 */}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {msg.attachments.map((att) => (
+                        <div
+                          key={att.id}
+                          className="relative overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/5"
+                        >
+                          <img src={att.dataUrl} alt={att.name} className="w-28 h-20 object-cover" />
+                          <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-[9px] text-white truncate">
+                            {att.name}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* 文件修改进度卡片群 */}
@@ -662,6 +710,29 @@ const AppContent: React.FC = () => {
               onSubmit={handleSendPrompt}
               className="rounded-2xl border border-slate-200 dark:border-zinc-700/80 bg-slate-50/50 dark:bg-zinc-800/40 p-2.5 shadow-2xs focus-within:border-purple-400 dark:focus-within:border-purple-500 focus-within:bg-white dark:focus-within:bg-zinc-800 transition-all"
             >
+              {/* 已选附件缩略条 */}
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2 p-1.5 bg-white dark:bg-zinc-850 rounded-lg border border-slate-200 dark:border-zinc-700">
+                  {attachments.map((att) => (
+                    <div
+                      key={att.id}
+                      className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 dark:bg-zinc-750 rounded-md text-[11px] text-slate-700 dark:text-zinc-200 shadow-2xs"
+                    >
+                      <img src={att.dataUrl} alt={att.name} className="w-4 h-4 rounded object-cover" />
+                      <span className="truncate max-w-[120px] font-mono">{att.name}</span>
+                      <button
+                        type="button"
+                        aria-label={`${t('chat.removeAttachment')} ${att.name}`}
+                        onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                        className="text-slate-400 hover:text-rose-500 ml-1 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <textarea
                 value={inputPrompt}
                 onChange={(e) => setInputPrompt(e.target.value)}
@@ -700,8 +771,17 @@ const AppContent: React.FC = () => {
 
                 {/* 右侧附件与发送按钮 */}
                 <div className="flex items-center gap-1.5">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    accept="image/*"
+                    aria-label="Upload attachment input"
+                    className="hidden"
+                  />
                   <button
                     type="button"
+                    onClick={() => fileInputRef.current?.click()}
                     title={t('chat.addAttachment')}
                     className="p-1.5 text-slate-400 hover:text-slate-600 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
                   >
