@@ -1,0 +1,57 @@
+import { I18nDictionary } from '../types';
+
+export const zh: I18nDictionary = {
+  common: {
+    appName: 'Blot-UI',
+    proBadge: 'Pro 专业版',
+    manageApp: '管理应用',
+    loading: '加载中...',
+    confirm: '确认',
+    cancel: '取消',
+    save: '保存',
+    close: '关闭',
+  },
+  dock: {
+    toggle: '折叠/展开侧栏',
+    home: '主页',
+    settings: '偏好设置',
+    docs: '开发文档',
+    templates: '模版中心',
+    components: '组件库',
+    help: '帮助与反馈',
+  },
+  chat: {
+    newChat: '新建对话',
+    version: '版本历史',
+    placeholder: '给应用发送指令...',
+    send: '发送指令',
+    modeBuild: '构建模式',
+    modePlan: '规划模式',
+    modelAuto: '模型: 自动',
+    writing: '正在写入...',
+    completed: '已完成',
+    inspectFile: '查看文件代码',
+    stopGeneration: '停止生成',
+  },
+  workspace: {
+    preview: '实时预览',
+    code: '代码检视',
+    publish: '打包发布',
+    startingApp: '正在启动您的应用程序...',
+    systemMessages: '系统运行日志',
+    reload: '刷新预览',
+    openExternal: '在新窗口中打开',
+    addressBar: '浏览器地址',
+    emptyConsole: '暂无系统日志，生成与构建过程将实时输出在此。',
+  },
+  theme: {
+    light: '浅色主题',
+    dark: '深色主题',
+    toggle: '切换明暗主题',
+  },
+  language: {
+    en: '英文',
+    zh: '中文',
+    toggle: 'Switch to English',
+  },
+};

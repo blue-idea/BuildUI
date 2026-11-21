@@ -13,7 +13,7 @@
 | 任务编号 | 任务名称 | 对应需求 | 预计产物 | 测试类型 | 状态 |
 | :--- | :--- | :--- | :--- | :---: | :---: |
 | **TASK-025** | macOS 设计令牌库与双模（Light / Dark）主题上下文引擎 | `v6.REQ-002` | `src/theme/macos.ts`, `ThemeContext.tsx`, `ThemeModeToggle.tsx` | Unit / UI | 已完成 |
-| **TASK-026** | 轻量强类型双语国际化引擎（i18n）与中英字典库 | `v6.REQ-003` | `src/i18n/`, `I18nContext.tsx`, `LanguageSwitcher.tsx` | Unit / UI | 待开始 |
+| **TASK-026** | 轻量强类型双语国际化引擎（i18n）与中英字典库 | `v6.REQ-003` | `src/i18n/`, `I18nContext.tsx`, `LanguageSwitcher.tsx` | Unit / UI | 已完成 |
 | **TASK-027** | macOS 标志性交通灯窗口头部、微坞、文件进度卡片与三态工作区重构 | `v6.REQ-001` | `WindowHeader.tsx`, `LeftDock.tsx`, `FileChangeCard.tsx`, `WorkspacePanel.tsx`, `App.tsx` | Unit / UI | 待开始 |
 | **TASK-028** | Blot-UI v6 双模双语视觉回归自动化验收与端到端测试 | `v6.REQ-001` ~ `v6.REQ-003` | `frontend/e2e/v6-workflow.spec.ts`, 4 组视觉截图 | E2E / Visual | 待开始 |
 

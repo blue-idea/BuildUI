@@ -1,0 +1,57 @@
+import { I18nDictionary } from '../types';
+
+export const en: I18nDictionary = {
+  common: {
+    appName: 'Blot-UI',
+    proBadge: 'Pro',
+    manageApp: 'Manage app',
+    loading: 'Loading...',
+    confirm: 'Confirm',
+    cancel: 'Cancel',
+    save: 'Save',
+    close: 'Close',
+  },
+  dock: {
+    toggle: 'Toggle Sidebar',
+    home: 'Home',
+    settings: 'Settings',
+    docs: 'Documentation',
+    templates: 'Templates',
+    components: 'Components',
+    help: 'Help & Feedback',
+  },
+  chat: {
+    newChat: 'New Chat',
+    version: 'Version',
+    placeholder: 'Send a message to Blot-UI...',
+    send: 'Send prompt',
+    modeBuild: 'Build',
+    modePlan: 'Plan',
+    modelAuto: 'Model: Auto',
+    writing: 'Writing...',
+    completed: 'Completed',
+    inspectFile: 'Inspect component code',
+    stopGeneration: 'Stop Generation',
+  },
+  workspace: {
+    preview: 'Preview',
+    code: 'Code',
+    publish: 'Publish',
+    startingApp: 'Starting up your app...',
+    systemMessages: 'System Messages',
+    reload: 'Reload Preview',
+    openExternal: 'Open in new tab',
+    addressBar: 'Address bar',
+    emptyConsole: 'No system logs yet. Logs will stream here during generation.',
+  },
+  theme: {
+    light: 'Light Theme',
+    dark: 'Dark Theme',
+    toggle: 'Toggle theme',
+  },
+  language: {
+    en: 'English',
+    zh: 'Chinese',
+    toggle: 'Switch to Chinese',
+  },
+};
