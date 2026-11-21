@@ -91,7 +91,7 @@ test.describe('Blot-UI v3 Full Lifecycle E2E Workflow', () => {
     await exportBtn.click();
 
     await expect(page.getByText('Export Project')).toBeVisible();
-    await expect(page.getByText('Project 2')).toBeVisible();
+    await expect(page.getByRole('dialog').getByText('Project 2')).toBeVisible();
 
     // 点击导出为 ZIP
     const exportZipBtn = page.getByRole('button', { name: /export as zip/i });

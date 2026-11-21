@@ -40,10 +40,10 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
 
   return (
     <header className="h-11 w-full bg-slate-100/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-zinc-800 flex items-center justify-between px-3 select-none z-30 transition-colors">
-      {/* 左侧：交通灯 + Blot-UI 标识 + Manage app + 项目标签页 */}
-      <div className="flex items-center gap-2.5">
+      {/* 左侧：交通灯 + Blot-UI 标识 + Wails 徽章 + Manage app + 项目标签页 */}
+      <div className="flex items-center gap-2">
         {/* macOS 经典红黄绿交通灯 */}
-        <div className="flex items-center gap-2 pl-1 pr-2">
+        <div className="flex items-center gap-2 pl-1 pr-1.5">
           <button
             type="button"
             data-testid="traffic-light-close"
@@ -64,10 +64,15 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
           />
         </div>
 
-        {/* 品牌标识 */}
-        <span className="font-semibold text-xs tracking-tight text-slate-700 dark:text-zinc-200 mr-1 hidden md:inline">
-          Blot-UI
-        </span>
+        {/* 品牌标识与技术栈标签 */}
+        <div className="flex items-center gap-1.5 mr-1">
+          <span className="font-semibold text-xs tracking-tight text-slate-700 dark:text-zinc-200">
+            Blot-UI
+          </span>
+          <span className="rounded bg-slate-200/80 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
+            Wails v2 + React 19
+          </span>
+        </div>
 
         {/* Manage app 按钮 */}
         <button
@@ -104,10 +109,11 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
             onClick={onSelectDirectory}
             aria-label="Select workspace directory"
             title={workspaceDir}
-            className="hidden xl:flex items-center gap-1 px-2 py-1 text-xs text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800 rounded-md transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-xs text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800 rounded-md transition-colors"
           >
             <FolderGit2 className="w-3.5 h-3.5 text-slate-400" />
-            <span className="max-w-[100px] truncate">{workspaceDir}</span>
+            <span className="text-slate-500">Workspace:</span>
+            <span className="max-w-[120px] truncate">{workspaceDir}</span>
           </button>
         )}
 
@@ -176,7 +182,7 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
             onClick={onOpenCommandPalette}
             aria-label="Open command palette"
             title="Open Command Palette (Ctrl+K)"
-            className="hidden sm:flex items-center gap-1 px-2 py-1 text-xs text-slate-500 dark:text-zinc-400 bg-white/80 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-md hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 dark:text-zinc-400 bg-white/80 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 rounded-md hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
           >
             <Command className="w-3 h-3" />
             <span>K</span>

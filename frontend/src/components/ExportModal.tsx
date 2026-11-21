@@ -44,13 +44,18 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="export-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+    >
       <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl text-slate-100">
         {/* 标题 */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
-            <h2 className="text-base font-semibold text-white">Export Project</h2>
+            <h2 id="export-modal-title" className="text-base font-semibold text-white">Export Project</h2>
           </div>
           <button
             type="button"

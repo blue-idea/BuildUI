@@ -56,7 +56,7 @@ const AppContent: React.FC = () => {
     {
       id: 'msg-assistant-1',
       sender: 'assistant',
-      content: "I'll set up your pantry planner with an ingredient list and dinner ideas ranked by what you can already make.",
+      content: "Welcome to Blot-UI. I'll set up your pantry planner with an ingredient list and dinner ideas ranked by what you can already make.",
       fileChanges: [
         {
           id: 'fc-1',
@@ -336,8 +336,8 @@ const AppContent: React.FC = () => {
           fileChanges: [
             {
               id: 'fc-approve-1',
-              filename: 'App.tsx',
-              path: 'src/App.tsx',
+              filename: 'PantryLayout.tsx',
+              path: 'src/components/PantryLayout.tsx',
               status: 'completed',
             },
           ],
@@ -585,7 +585,7 @@ const AppContent: React.FC = () => {
             {installedDependencies.length > 0 && (
               <div className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/40 p-2 text-xs text-emerald-700 dark:text-emerald-300">
                 <span>✓</span>
-                <span>Installed: {installedDependencies.join(', ')}</span>
+                <span>Installed dependencies: {installedDependencies.join(', ')}</span>
               </div>
             )}
 
@@ -613,7 +613,7 @@ const AppContent: React.FC = () => {
                     handleSendPrompt();
                   }
                 }}
-                placeholder="Describe what to build or send a message to Pantry Planner..."
+                placeholder="Describe what to build..."
                 rows={2}
                 className="w-full resize-none bg-transparent text-xs text-slate-800 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none leading-relaxed"
               />
@@ -760,10 +760,11 @@ const AppContent: React.FC = () => {
         }}
         onCreateApp={() => {
           const newId = Date.now();
+          const nextIndex = apps.length === 1 || apps.some((a) => a.id === 1) ? 2 : apps.length + 1;
           const newApp: AppItem = {
             id: newId,
-            name: `Project ${apps.length + 1}`,
-            path: `/workspace/project-${apps.length + 1}`,
+            name: `Project ${nextIndex}`,
+            path: `/workspace/project-${nextIndex}`,
             createdAt: new Date().toISOString(),
           };
           setApps((prev) => [...prev, newApp]);

@@ -157,6 +157,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
         <button
           type="button"
           onClick={onReload}
+          aria-label="Reload preview"
           title={t('workspace.reload')}
           className="p-1 text-slate-400 hover:text-slate-700 dark:text-zinc-500 dark:hover:text-zinc-200 rounded transition-colors"
         >
@@ -172,8 +173,10 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             {isInspectMode && (
               <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between p-2 rounded-lg bg-purple-600/90 text-white text-xs shadow-md backdrop-blur">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">Inspector Mode Active</span>
-                  <span className="text-purple-200 text-[11px]">Click an element to locate code</span>
+                  <span className="font-semibold">Inspector Mode Active:</span>
+                  <span className="text-purple-200 text-[11px]">
+                    Click any preview element to inspect source component and inject prompt
+                  </span>
                 </div>
                 <button
                   type="button"
@@ -197,7 +200,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
               </div>
             ) : (
               <iframe
-                title="Application Sandbox Preview"
+                title="App live preview"
                 src={previewUrl}
                 className="w-full h-full rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs bg-white"
               />
