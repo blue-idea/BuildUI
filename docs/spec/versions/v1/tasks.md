@@ -125,14 +125,14 @@
 
 ---
 
-- [ ] **TASK-006 · Git Worktree 隔离快照生产打包验证沙箱**
+- [x] **TASK-006 · Git Worktree 隔离快照生产打包验证沙箱**
 
   > 依赖：TASK-005  
   > 官方源码参考：[src/pro/main/ipc/handlers/local_agent/tools/run_build.ts](https://github.com/dyad-sh/dyad/blob/main/src/pro/main/ipc/handlers/local_agent/tools/run_build.ts) 与 [src/ipc/services/git_overlay_workspace.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/services/git_overlay_workspace.ts)
 
-  - [ ] 编写 Go Git Worktree 管理器，支持安全创建临时隔离分支 `.dyad-build-[hash]`
-  - [ ] 复制工作区修改并运行 `pnpm run build` 进行生产编译测试
-  - [ ] 捕获生产构建错误日志并自动清理临时 Worktree 工作区
+  - [x] 编写 Go Git Worktree 管理器，支持安全创建临时隔离分支 `.dyad-build-[hash]`
+  - [x] 复制工作区修改并运行 `pnpm run build` 进行生产编译测试
+  - [x] 捕获生产构建错误日志并自动清理临时 Worktree 工作区
 
   **验证方式：**
   ```bash
