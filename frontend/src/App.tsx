@@ -77,6 +77,7 @@ const AppContent: React.FC = () => {
 
   const [inputPrompt, setInputPrompt] = useState('');
   const [buildMode, setBuildMode] = useState<'build' | 'plan'>('build');
+  const [extraSandboxItems, setExtraSandboxItems] = useState<string[]>([]);
   const [blueprint, setBlueprint] = useState<BlueprintDTO | null>(null);
   const [questionnaire, setQuestionnaire] = useState<QuestionItem[] | null>(null);
   const [previewUrl] = useState('http://localhost:5173');
@@ -262,6 +263,12 @@ const AppContent: React.FC = () => {
         setInstallingDeps(null);
         setInstalledDependencies((prev) => Array.from(new Set([...prev, 'lucide-react', 'recharts'])));
       }, 300);
+    }
+
+    if (prompt.toLowerCase().includes('basil') || prompt.includes('罗勒')) {
+      setExtraSandboxItems((prev) => Array.from(new Set([...prev, locale === 'zh' ? '新鲜罗勒叶' : 'Fresh Basil'])));
+    } else if (prompt.toLowerCase().includes('cheese') || prompt.includes('芝士') || prompt.includes('奶酪')) {
+      setExtraSandboxItems((prev) => Array.from(new Set([...prev, locale === 'zh' ? '马苏里拉芝士' : 'Mozzarella Cheese'])));
     }
 
     if (!blueprint) {
@@ -693,7 +700,7 @@ const AppContent: React.FC = () => {
           onViewChange={setWorkspaceView}
           isLoading={isStartingApp}
           previewUrl={previewUrl}
-          previewDoc={generateSandboxDoc(activeApp.name, activeThemeId, blueprint, locale)}
+          previewDoc={generateSandboxDoc(activeApp.name, activeThemeId, blueprint, locale, extraSandboxItems)}
           isInspectMode={isInspectMode}
           onToggleInspect={() => setIsInspectMode((prev) => !prev)}
           onSelectComponent={(_path, prompt) => {

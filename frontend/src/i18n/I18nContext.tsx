@@ -33,6 +33,13 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children, initialLoc
       if (persisted === 'en' || persisted === 'zh') {
         return persisted;
       }
+      // 首次加载且无本地持久化记录时，根据系统语言环境自适应选择
+      if (typeof navigator !== 'undefined' && navigator.language) {
+        const sysLang = navigator.language.toLowerCase();
+        if (sysLang.startsWith('zh')) {
+          return 'zh';
+        }
+      }
     }
     return 'en';
   });

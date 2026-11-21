@@ -11,7 +11,8 @@ export function generateSandboxDoc(
   appName: string = 'Pantry Planner',
   themeId: string = 'clean-light',
   blueprint?: { appName?: string; designDirection?: string; primaryColor?: string } | null,
-  locale: Locale = 'en'
+  locale: Locale = 'en',
+  extraItems: string[] = []
 ): string {
   const isZh = locale === 'zh';
   const isDark =
@@ -37,7 +38,7 @@ export function generateSandboxDoc(
           subtitle: '智能晚餐搭配与剩余食材利用',
           badge: '实时沙箱运行中',
           pantryTitle: '🥫 食材库存清单',
-          itemCount: '5 件食材',
+          itemCount: `${5 + extraItems.length} 件食材`,
           inStock: '库存充足',
           placeholder: '添加新采购的食材...',
           addBtn: '+ 添加食材',
@@ -64,7 +65,7 @@ export function generateSandboxDoc(
           subtitle: 'Smart Dinner & Ingredient Matcher',
           badge: 'Live Sandbox',
           pantryTitle: '🥫 Pantry Inventory',
-          itemCount: '5 items',
+          itemCount: `${5 + extraItems.length} items`,
           inStock: 'In Stock',
           placeholder: 'Add new pantry item...',
           addBtn: '+ Add Ingredient',
@@ -257,6 +258,12 @@ export function generateSandboxDoc(
         <li class="ingredient-item"><span>${texts.i3}</span><span style="color: #10b981;">${texts.inStock}</span></li>
         <li class="ingredient-item"><span>${texts.i4}</span><span style="color: #10b981;">${texts.inStock}</span></li>
         <li class="ingredient-item"><span>${texts.i5}</span><span style="color: #10b981;">${texts.inStock}</span></li>
+        ${extraItems
+          .map(
+            (item) =>
+              `<li class="ingredient-item"><span>🌿 ${item}</span><span style="color: #10b981;">${texts.inStock}</span></li>`
+          )
+          .join('\n        ')}
       </ul>
       <div style="margin-top: 14px;">
         <input type="text" id="new-item" placeholder="${texts.placeholder}" class="input" />
