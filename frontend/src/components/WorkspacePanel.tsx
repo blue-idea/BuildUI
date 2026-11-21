@@ -22,6 +22,7 @@ export interface WorkspacePanelProps {
   onViewChange?: (view: WorkspaceView) => void;
   isLoading?: boolean;
   previewUrl?: string;
+  previewDoc?: string;
   files?: Array<{ path: string; content: string }>;
   systemLogs?: string[];
   isInspectMode?: boolean;
@@ -37,6 +38,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   onViewChange,
   isLoading = false,
   previewUrl = 'http://localhost:5173',
+  previewDoc,
   files = [],
   systemLogs = [],
   isInspectMode = false,
@@ -201,7 +203,8 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             ) : (
               <iframe
                 title="App live preview"
-                src={previewUrl}
+                src={previewDoc ? undefined : previewUrl}
+                srcDoc={previewDoc}
                 className="w-full h-full rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs bg-white"
               />
             )}

@@ -15,6 +15,7 @@ import { FileActionItem } from './types/fileAction';
 import { ThemePreset } from './components/ThemeSelector';
 import { ThemeProvider } from './context/ThemeContext';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
+import { generateSandboxDoc } from './utils/sandboxTemplate';
 import { Plus, Send, Square, Hammer, ChevronDown } from 'lucide-react';
 
 interface ChatMessage {
@@ -682,6 +683,7 @@ const AppContent: React.FC = () => {
           onViewChange={setWorkspaceView}
           isLoading={isStartingApp}
           previewUrl={previewUrl}
+          previewDoc={generateSandboxDoc(activeApp.name, activeThemeId, blueprint)}
           isInspectMode={isInspectMode}
           onToggleInspect={() => setIsInspectMode((prev) => !prev)}
           onSelectComponent={(_path, prompt) => {
