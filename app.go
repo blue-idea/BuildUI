@@ -12,6 +12,7 @@ import (
 	"buildui/internal/app/runner"
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
+	"buildui/internal/inspector"
 	"buildui/internal/settings"
 	"buildui/internal/verification/tsc"
 	"buildui/internal/version"
@@ -218,4 +219,10 @@ func (a *App) GetActiveApp() (*app.ActiveAppResponse, error) {
 		return nil, nil
 	}
 	return a.appService.GetActiveApp(a.ctx)
+}
+
+// ResolveComponent 暴露给前端的逆向组件解析 RPC 方法
+func (a *App) ResolveComponent(req inspector.ResolveComponentRequest) (*inspector.ResolvedComponentResponse, error) {
+	svc := inspector.NewInspectorService()
+	return svc.ResolveComponent(a.ctx, req)
 }

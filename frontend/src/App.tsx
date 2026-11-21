@@ -30,6 +30,7 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isInspectMode, setIsInspectMode] = useState(false);
   const [activeAppId, setActiveAppId] = useState<number>(1);
   const [apps, setApps] = useState<AppItem[]>([
     {
@@ -350,6 +351,12 @@ export const App: React.FC = () => {
           <PreviewPanel
             previewUrl={previewUrl}
             status={previewStatus}
+            isInspectMode={isInspectMode}
+            onToggleInspect={() => setIsInspectMode((prev) => !prev)}
+            onSelectComponent={(_path, prompt) => {
+              setInputPrompt(prompt);
+              setIsInspectMode(false);
+            }}
             onReload={() => {
               setPreviewStatus('starting');
               setTimeout(() => setPreviewStatus('running'), 600);

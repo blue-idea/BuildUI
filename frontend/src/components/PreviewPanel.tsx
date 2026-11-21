@@ -1,9 +1,13 @@
 import React from 'react';
+import { ComponentInspector } from './ComponentInspector';
 
 export interface PreviewPanelProps {
   previewUrl: string;
   status: 'idle' | 'starting' | 'running' | 'error';
   consoleErrors?: string[];
+  isInspectMode?: boolean;
+  onToggleInspect?: () => void;
+  onSelectComponent?: (componentPath: string, suggestedPrompt: string) => void;
   onReload: () => void;
   onStop: () => void;
 }
@@ -12,6 +16,9 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
   previewUrl,
   status,
   consoleErrors = [],
+  isInspectMode = false,
+  onToggleInspect,
+  onSelectComponent,
   onReload,
   onStop,
 }) => {
@@ -42,6 +49,18 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
         <div className="flex items-center gap-1.5">
           <button
             type="button"
+            aria-label="Toggle component inspector"
+            onClick={onToggleInspect}
+            className={`rounded px-2 py-1 text-xs transition-colors ${
+              isInspectMode
+                ? 'bg-indigo-600 text-white font-semibold'
+                : 'border border-indigo-900/50 bg-indigo-950/40 text-indigo-300 hover:bg-indigo-900/60 hover:text-white'
+            }`}
+          >
+            {isInspectMode ? 'Inspecting' : 'Inspect'}
+          </button>
+          <button
+            type="button"
             aria-label="Reload preview"
             onClick={onReload}
             className="rounded px-2 py-1 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
@@ -61,6 +80,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
 
       {/* 核心展示区 */}
       <div className="relative flex-1 bg-white">
+        {/* 审查模式控制条与浮层 */}
+        <ComponentInspector
+          isActive={isInspectMode}
+          onExit={() => onToggleInspect?.()}
+          onSelectComponent={(p, pr) => onSelectComponent?.(p, pr)}
+        />
         {status === 'starting' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-slate-300 z-10">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />

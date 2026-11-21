@@ -48,10 +48,10 @@ _测试类型:_ Unit / Integration
 > 依赖：TASK-013  
 > 官方源码参考：[src/pro/main/ipc/handlers/local_agent/tools/read_file.ts](https://github.com/dyad-sh/dyad/blob/main/src/pro/main/ipc/handlers/local_agent/tools/read_file.ts) 与 [scaffold/src/App.tsx](https://github.com/dyad-sh/dyad/blob/main/scaffold/src/App.tsx)
 
-- [ ] 在 `internal/inspector` 中实现 `InspectorService.ResolveComponent`：根据元素元数据逆向解析对应的 `.tsx` 组件路径并生成提示词模板
-- [ ] 在 `app.go` 中暴露 `ResolveComponent` RPC 方法
-- [ ] 在前端构建 `ComponentInspector.tsx`，在 `PreviewPanel.tsx` 增加“Inspect Component”切换开关与活动提示遮罩
-- [ ] 点击 DOM 元素时触发审查捕获，将 `@src/components/...: ` 自动预填至聊天输入框并获得焦点
+- [x] 在 `internal/inspector` 中实现 `InspectorService.ResolveComponent`：根据元素元数据逆向解析对应的 `.tsx` 组件路径并生成提示词模板
+- [x] 在 `app.go` 中暴露 `ResolveComponent` RPC 方法
+- [x] 在前端构建 `ComponentInspector.tsx`，在 `PreviewPanel.tsx` 增加“Inspect Component”切换开关与活动提示遮罩
+- [x] 点击 DOM 元素时触发审查捕获，将 `@src/components/...: ` 自动预填至聊天输入框并获得焦点
 
 **验证方式：**
 ```bash

@@ -127,4 +127,20 @@ describe('App Main Split Layout & Workflow', () => {
 
     expect(screen.queryByText('Applications')).toBeNull();
   });
+
+  it('toggles component inspector and injects prompt on element click', () => {
+    render(<App />);
+
+    const inspectBtn = screen.getByRole('button', { name: /toggle component inspector/i });
+    fireEvent.click(inspectBtn);
+
+    expect(screen.getByText(/Inspector Mode Active/i)).toBeDefined();
+
+    const mockElementBtn = screen.getByRole('button', { name: /inspect navbar element/i });
+    fireEvent.click(mockElementBtn);
+
+    expect(screen.queryByText(/Inspector Mode Active/i)).toBeNull();
+    const chatInput = screen.getByPlaceholderText(/describe what to build/i) as HTMLInputElement;
+    expect(chatInput.value).toBe('@src/components/Navbar.tsx: ');
+  });
 });
