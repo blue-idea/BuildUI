@@ -2,10 +2,25 @@ package runner
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestAppRunnerReportsFailedStartup(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"preview-fixture","scripts":{"dev":"node -e \"process.exit(3)\""}}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	runner := NewAppRunner(nil)
+	if _, err := runner.StartApp(ctx, 1, dir); err == nil || ctx.Err() != nil {
+		t.Fatalf("启动失败应即时返回进程退出错误：%v", err)
+	}
+}
 
 // v1.REQ-006-AC-001: 校验从 Vite 启动日志中动态提取监听端口 URL
 func TestPortParser_ExtractPreviewURL(t *testing.T) {
@@ -66,7 +81,7 @@ func newMockProcessLauncher() *mockProcessLauncher {
 	}
 }
 
-func (m *mockProcessLauncher) Launch(ctx context.Context, appPath string, onOutput func(string)) (int, error) {
+func (m *mockProcessLauncher) Launch(ctx context.Context, appPath string, onOutput func(string), onExit func(error)) (int, error) {
 	p := &mockProcess{
 		pid:        12345,
 		outputChan: make(chan string, 10),

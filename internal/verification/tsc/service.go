@@ -2,10 +2,10 @@ package tsc
 
 import (
 	"context"
-	"os/exec"
 
 	"buildui/internal/db"
 	"buildui/internal/errs"
+	"buildui/internal/workspace"
 )
 
 // TscRunner 抽象 TypeScript 执行器
@@ -17,8 +17,7 @@ type TscRunner interface {
 type defaultTscRunner struct{}
 
 func (d *defaultTscRunner) RunTsc(ctx context.Context, appPath string) (string, error) {
-	cmd := exec.CommandContext(ctx, "pnpm", "exec", "tsc", "--noEmit")
-	cmd.Dir = appPath
+	cmd := workspace.PnpmCommand(ctx, appPath, "exec", "tsc", "--noEmit")
 	out, err := cmd.CombinedOutput()
 	// tsc 在报错时通常返回 exit code 2，我们仍需返回完整的错误输出
 	return string(out), err
@@ -52,8 +51,11 @@ func (s *ProblemsService) CheckTypeScript(ctx context.Context, req CheckTypeScri
 		return nil, err
 	}
 
-	rawOutput, _ := s.runner.RunTsc(ctx, app.Path)
+	rawOutput, runErr := s.runner.RunTsc(ctx, app.Path)
 	allProblems := ParseDiagnostics(rawOutput)
+	if runErr != nil && len(allProblems) == 0 {
+		return nil, errs.NewExternalError("TypeScript check could not run: "+rawOutput, runErr)
+	}
 	filtered := FilterDiagnostics(allProblems, req.Paths)
 
 	hasErrors := false

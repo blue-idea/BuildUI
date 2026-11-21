@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -12,6 +13,7 @@ import (
 	"buildui/internal/app/runner"
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
+	"buildui/internal/errs"
 	"buildui/internal/export"
 	"buildui/internal/inspector"
 	"buildui/internal/settings"
@@ -19,6 +21,7 @@ import (
 	"buildui/internal/theme"
 	"buildui/internal/verification/tsc"
 	"buildui/internal/version"
+	"buildui/internal/workspace"
 )
 
 // wailsEventEmitter 适配 Wails runtime.EventsEmit
@@ -38,6 +41,7 @@ type App struct {
 	db               *db.DB
 	appRepo          *db.AppRepository
 	chatRepo         *db.ChatRepository
+	messageRepo      *db.MessageRepository
 	bpRepo           *db.BlueprintRepository
 	appService       *app.AppService
 	blueprintService *blueprint.BlueprintService
@@ -64,6 +68,9 @@ func (a *App) startup(ctx context.Context) {
 		configDir = "."
 	}
 	appDataDir := filepath.Join(configDir, "buildui")
+	if devDataDir := os.Getenv("BLOT_DEV_USER_DATA_DIR"); devDataDir != "" {
+		appDataDir = devDataDir
+	}
 	_ = os.MkdirAll(appDataDir, 0755)
 
 	dbPath := filepath.Join(appDataDir, "buildui.db")
@@ -72,11 +79,13 @@ func (a *App) startup(ctx context.Context) {
 		a.db = database
 		a.appRepo = db.NewAppRepository(database)
 		a.chatRepo = db.NewChatRepository(database)
+		a.messageRepo = db.NewMessageRepository(database)
 		a.bpRepo = db.NewBlueprintRepository(database)
 		versionRepo := db.NewVersionRepository(database)
 
 		emitter := &wailsEventEmitter{ctx: ctx}
 		a.appService = app.NewAppService(a.appRepo, database)
+		a.appService.SetWorkspaceRoot(filepath.Join(appDataDir, "workspace"))
 		a.appService.SetRunner(runner.NewAppRunner(emitter))
 		a.blueprintService = blueprint.NewBlueprintService(a.bpRepo, a.appRepo, database)
 		a.blueprintService.SetEmitter(emitter)
@@ -84,6 +93,7 @@ func (a *App) startup(ctx context.Context) {
 		a.chatService.SetVersionRepo(versionRepo)
 		a.problemsService = tsc.NewProblemsService(a.appRepo, nil)
 		settingsRepo := db.NewSettingsRepository(database)
+		a.chatService.SetModelRepositories(settingsRepo, a.messageRepo)
 		a.settingsService = settings.NewSettingsService(settingsRepo)
 		a.versionService = version.NewVersionService(versionRepo, a.appRepo, emitter)
 		a.themeService = theme.NewThemeService(a.appRepo)
@@ -111,6 +121,81 @@ func (a *App) ListApps() ([]app.AppDTO, error) {
 // GetBlueprint 暴露给前端的获取蓝图 RPC 方法
 func (a *App) GetBlueprint(chatID int64) (*blueprint.BlueprintDTO, error) {
 	return a.blueprintService.GetBlueprint(a.ctx, chatID)
+}
+
+type ProjectChat struct {
+	ChatID    int64                   `json:"chatId"`
+	Blueprint *blueprint.BlueprintDTO `json:"blueprint"`
+	Messages  []*db.MessageEntity     `json:"messages"`
+}
+
+// GetProjectChat 加载项目最近的会话，或创建首次会话。
+func (a *App) GetProjectChat(appID int64) (*ProjectChat, error) {
+	chats, err := a.chatRepo.ListByAppID(a.ctx, appID)
+	if err != nil {
+		return nil, err
+	}
+	if len(chats) == 0 {
+		return a.CreateProjectChat(appID)
+	}
+	id := chats[0].ID
+	bp, err := a.GetBlueprint(id)
+	var missing *errs.BlotError
+	if err != nil && !(errors.As(err, &missing) && missing.Kind == errs.KindNotFound) {
+		return nil, err
+	}
+	messages, err := a.messageRepo.ListByChatID(a.ctx, id)
+	return &ProjectChat{ChatID: id, Blueprint: bp, Messages: messages}, err
+}
+
+// CreateProjectChat 创建会话并继承已审批的项目蓝图。
+func (a *App) CreateProjectChat(appID int64) (*ProjectChat, error) {
+	project, err := a.appRepo.GetByID(a.ctx, appID)
+	if err != nil {
+		return nil, err
+	}
+	var approved *blueprint.BlueprintDTO
+	if !project.NeedsAppBlueprint {
+		chats, err := a.chatRepo.ListByAppID(a.ctx, appID)
+		if err != nil {
+			return nil, err
+		}
+		for _, chat := range chats {
+			if bp, err := a.GetBlueprint(chat.ID); err == nil && bp.Approved {
+				approved = bp
+				break
+			}
+		}
+	}
+	id, err := a.chatRepo.Create(a.ctx, &db.ChatEntity{AppID: appID, Title: project.Name})
+	if err != nil {
+		return nil, err
+	}
+	if approved != nil {
+		approved.ChatID = id
+		if err := a.blueprintService.SaveBlueprint(a.ctx, *approved); err != nil {
+			return nil, err
+		}
+	}
+	return &ProjectChat{ChatID: id, Blueprint: approved, Messages: []*db.MessageEntity{}}, nil
+}
+
+// ListProjectFiles 返回代码检视所用的项目文件路径。
+func (a *App) ListProjectFiles(appID int64) ([]string, error) {
+	project, err := a.appRepo.GetByID(a.ctx, appID)
+	if err != nil {
+		return nil, err
+	}
+	return workspace.ListSources(project.Path)
+}
+
+// ReadProjectFile 读取工作区中的源码。
+func (a *App) ReadProjectFile(appID int64, path string) (string, error) {
+	project, err := a.appRepo.GetByID(a.ctx, appID)
+	if err != nil {
+		return "", err
+	}
+	return workspace.ReadSource(project.Path, path)
 }
 
 // ApproveBlueprint 暴露给前端的审批蓝图 RPC 方法

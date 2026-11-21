@@ -33,4 +33,9 @@ func TestScaffold_Extract(t *testing.T) {
 	if len(content) == 0 {
 		t.Fatalf("expected non-empty package.json")
 	}
+	for _, required := range []string{"src/index.css", "postcss.config.cjs", "tailwind.config.ts"} {
+		if _, err := os.Stat(filepath.Join(targetDir, required)); err != nil {
+			t.Errorf("脚手架缺少构建所需文件 %s：%v", required, err)
+		}
+	}
 }

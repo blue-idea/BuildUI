@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Eye,
   Code2,
@@ -23,7 +23,12 @@ export interface WorkspacePanelProps {
   isLoading?: boolean;
   previewUrl?: string;
   previewDoc?: string;
+  previewKey?: number;
   files?: Array<{ path: string; content: string }>;
+  sourcePaths?: string[];
+  sourceRevision?: number;
+  focusedFile?: string;
+  onReadFile?: (path: string) => Promise<string>;
   systemLogs?: string[];
   isInspectMode?: boolean;
   onToggleInspect?: () => void;
@@ -39,7 +44,12 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   isLoading = false,
   previewUrl = 'http://localhost:5173',
   previewDoc,
+  previewKey,
   files = [],
+  sourcePaths,
+  sourceRevision,
+  focusedFile,
+  onReadFile,
   systemLogs = [],
   isInspectMode = false,
   onToggleInspect,
@@ -51,8 +61,50 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   const { t } = useI18n();
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [selectedFilePath, setSelectedFilePath] = useState<string>(files[0]?.path || '');
+  const [source, setSource] = useState<{ path: string; text: string; error: boolean } | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const activeFile = files.find((f) => f.path === selectedFilePath) || files[0];
+  const codePaths = sourcePaths ?? files.map((file) => file.path);
+  const activePath = codePaths.includes(selectedFilePath) ? selectedFilePath : codePaths[0];
+  const previewOrigin = previewUrl && !previewDoc ? new URL(previewUrl).origin : '';
+
+  useEffect(() => {
+    if (focusedFile) setSelectedFilePath(focusedFile);
+  }, [focusedFile]);
+
+  useEffect(() => {
+    if (activeView !== 'code' || !activePath || !onReadFile) return;
+    let current = true;
+    setSource(null);
+    onReadFile(activePath).then(
+      (text) => { if (current) setSource({ path: activePath, text, error: false }); },
+      (error: unknown) => {
+        if (current) setSource({ path: activePath, text: error instanceof Error ? error.message : String(error), error: true });
+      },
+    );
+    return () => { current = false; };
+  }, [activePath, activeView, onReadFile, sourceRevision]);
+
+  const syncInspector = () => {
+    if (previewOrigin) {
+      iframeRef.current?.contentWindow?.postMessage({ type: 'buildui:inspect-mode', active: isInspectMode }, previewOrigin);
+    }
+  };
+
+  useEffect(syncInspector, [previewOrigin, isInspectMode, activeView, previewKey]);
+  useEffect(() => {
+    if (!isInspectMode || !previewOrigin || activeView !== 'preview') return;
+    const receive = (event: MessageEvent) => {
+      if (event.origin !== previewOrigin || event.source !== iframeRef.current?.contentWindow) return;
+      const { type, path } = event.data ?? {};
+      if (type === 'buildui:source-selected' && typeof path === 'string') {
+        onSelectComponent?.(path, `@${path}: `);
+      }
+    };
+    window.addEventListener('message', receive);
+    return () => window.removeEventListener('message', receive);
+  }, [activeView, isInspectMode, onSelectComponent, previewOrigin]);
 
   return (
     <section className="flex-1 h-full flex flex-col bg-white dark:bg-zinc-950 border-l border-slate-200 dark:border-zinc-800 overflow-hidden transition-colors">
@@ -107,6 +159,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
           <button
             type="button"
             onClick={onToggleInspect}
+            disabled={!previewUrl && !previewDoc}
             aria-label="Toggle component inspector"
             className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-all ${
               isInspectMode
@@ -152,7 +205,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
           data-testid="browser-address"
           className="flex-1 flex items-center px-2.5 py-1 text-xs text-slate-600 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md font-mono"
         >
-          <span>/</span>
+          <span className="truncate">{previewDoc ? '/' : previewUrl || 'Preview is stopped'}</span>
         </div>
 
         {/* 刷新按钮 */}
@@ -180,14 +233,14 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                     Click any preview element to inspect source component and inject prompt
                   </span>
                 </div>
-                <button
+                {previewDoc && <button
                   type="button"
                   onClick={() => onSelectComponent?.('src/components/Navbar.tsx', '@src/components/Navbar.tsx: ')}
                   aria-label="Inspect navbar element"
                   className="px-2 py-0.5 rounded bg-white text-purple-700 font-medium hover:bg-purple-50 transition-colors text-[11px]"
                 >
                   Mock Navbar
-                </button>
+                </button>}
               </div>
             )}
 
@@ -200,39 +253,53 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                   {t('workspace.startingApp')}
                 </span>
               </div>
-            ) : (
+            ) : previewDoc || previewUrl ? (
               <iframe
+                key={previewKey}
+                ref={iframeRef}
+                onLoad={syncInspector}
                 title="App live preview"
                 src={previewDoc ? undefined : previewUrl}
                 srcDoc={previewDoc}
+                sandbox={previewDoc ? undefined : 'allow-scripts allow-same-origin allow-forms'}
                 className="w-full h-full rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs bg-white"
               />
+            ) : (
+              <button type="button" onClick={onReload} className="text-sm font-medium text-purple-600">
+                Start preview
+              </button>
             )}
           </div>
         )}
 
         {activeView === 'code' && (
           <div className="w-full h-full flex flex-col">
-            {files.length > 0 && (
+            {codePaths.length > 0 && (
               <div className="flex items-center gap-1 px-3 py-2 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 overflow-x-auto text-xs font-mono">
-                {files.map((file) => (
+                {codePaths.map((path) => (
                   <button
-                    key={file.path}
+                    key={path}
                     type="button"
-                    onClick={() => setSelectedFilePath(file.path)}
+                    onClick={() => setSelectedFilePath(path)}
+                    title={path}
                     className={`px-2.5 py-1 rounded transition-colors ${
-                      (selectedFilePath || files[0]?.path) === file.path
+                      activePath === path
                         ? 'bg-white dark:bg-zinc-800 font-semibold text-purple-600 dark:text-purple-300 shadow-2xs'
                         : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
                     }`}
                   >
-                    {file.path.split('/').pop()}
+                    {path.split('/').pop()}
                   </button>
                 ))}
               </div>
             )}
             <div className="flex-1 p-4 overflow-auto font-mono text-xs bg-slate-900 text-slate-100">
-              <pre>{activeFile ? activeFile.content : t('workspace.noFileLoaded')}</pre>
+              {sourcePaths && activePath && <p className="mb-3 text-slate-400">{activePath}</p>}
+              {source?.error && source.path === activePath ? <p role="alert">{source.text}</p> : (
+                <pre>{sourcePaths && activePath
+                  ? (source?.path === activePath ? source.text : 'Loading source…')
+                  : activeFile?.content ?? t('workspace.noFileLoaded')}</pre>
+              )}
             </div>
           </div>
         )}

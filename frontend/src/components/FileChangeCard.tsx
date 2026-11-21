@@ -46,6 +46,7 @@ export const FileChangeCard: React.FC<FileChangeCardProps> = ({ item, onInspect 
           </div>
         )}
 
+        {item.status === 'error' && <span className="text-xs text-red-600">Write failed</span>}
         {/* 审查跳转箭头按钮 */}
         <button
           type="button"

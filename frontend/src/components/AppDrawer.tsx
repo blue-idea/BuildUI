@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useI18n } from '../i18n/I18nContext';
 
 export interface AppItem {
@@ -15,6 +15,9 @@ export interface AppDrawerProps {
   activeAppId: number;
   onSelectApp: (id: number) => void;
   onCreateApp: () => void;
+  onCreateNamedApp?: (name: string) => Promise<void>;
+  busy?: boolean;
+  error?: string;
   onOpenTemplates?: () => void;
   onDeleteApp: (id: number) => void;
 }
@@ -26,10 +29,15 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
   activeAppId,
   onSelectApp,
   onCreateApp,
+  onCreateNamedApp,
+  busy = false,
+  error,
   onOpenTemplates,
   onDeleteApp,
 }) => {
   const { t } = useI18n();
+  const [newProjectName, setNewProjectName] = useState<string | null>(null);
+  const close = () => { setNewProjectName(null); onClose(); };
 
   if (!isOpen) return null;
 
@@ -48,7 +56,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             aria-label="Close applications drawer"
             className="text-slate-400 hover:text-white transition-colors"
           >
@@ -60,7 +68,8 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
         <div className="p-3 border-b border-slate-800/80 flex items-center gap-2">
           <button
             type="button"
-            onClick={onCreateApp}
+            onClick={() => onCreateNamedApp ? setNewProjectName('') : onCreateApp()}
+            disabled={busy}
             aria-label={t('modals.newApp')}
             className="flex-1 flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors"
           >
@@ -80,6 +89,21 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
           )}
         </div>
 
+        {newProjectName !== null && onCreateNamedApp && (
+          <form className="px-3 py-2 space-y-2" onSubmit={(event) => {
+            event.preventDefault();
+            const name = newProjectName.trim();
+            if (name && !busy) void onCreateNamedApp(name);
+          }}>
+            <label className="block text-xs" htmlFor="new-project-name">Project name</label>
+            <input id="new-project-name" autoFocus value={newProjectName}
+              onChange={(event) => setNewProjectName(event.target.value)}
+              className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-xs" />
+            <button type="submit" disabled={busy || !newProjectName.trim()}
+              className="rounded bg-blue-600 px-3 py-2 text-xs disabled:opacity-50">Create project</button>
+          </form>
+        )}
+        {error && <p role="alert" className="px-3 py-2 text-xs text-red-300">{error}</p>}
         {/* 应用列表滚动区 */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {apps.map((app) => {
@@ -87,7 +111,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
             return (
               <div
                 key={app.id}
-                onClick={() => onSelectApp(app.id)}
+                onClick={() => { if (!busy) onSelectApp(app.id); }}
                 className={`group relative flex cursor-pointer flex-col rounded-lg border p-3 text-xs transition-all ${
                   isActive
                     ? 'border-blue-500 bg-blue-950/30 text-white shadow-sm'
@@ -103,6 +127,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
                   ) : (
                     <button
                       type="button"
+                      disabled={busy}
                       aria-label={`Delete ${app.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -122,7 +147,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
       </div>
 
       {/* 遮罩点击关闭区 */}
-      <div className="flex-1" onClick={onClose} />
+      <div className="flex-1" onClick={close} />
     </div>
   );
 };

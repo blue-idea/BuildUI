@@ -7,25 +7,32 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"buildui/internal/errs"
+	"buildui/internal/workspace"
 )
 
 // ProcessLauncher 抽象子应用进程启动器，支持测试 Mock
 type ProcessLauncher interface {
-	Launch(ctx context.Context, appPath string, onOutput func(string)) (int, error)
+	Launch(ctx context.Context, appPath string, onOutput func(string), onExit func(error)) (int, error)
 	Kill(pid int) error
 }
 
 // defaultProcessLauncher 默认启动器（执行 pnpm run dev）
 type defaultProcessLauncher struct{}
 
-func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onOutput func(string)) (int, error) {
-	cmd := exec.CommandContext(ctx, "pnpm", "run", "dev")
-	cmd.Dir = appPath
+func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onOutput func(string), onExit func(error)) (int, error) {
+	if _, err := os.Stat(filepath.Join(appPath, "node_modules")); os.IsNotExist(err) {
+		if out, err := workspace.PnpmCommand(ctx, appPath, "install").CombinedOutput(); err != nil {
+			return 0, fmt.Errorf("failed to install project dependencies: %w: %s", err, out)
+		}
+	}
+	cmd := workspace.PnpmCommand(ctx, appPath, "run", "dev", "--host", "127.0.0.1")
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -48,13 +55,22 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 		}
 	}
 
-	go readPipe(stdout)
-	go readPipe(stderr)
+	go func() {
+		var readers sync.WaitGroup
+		for _, pipe := range []io.Reader{stdout, stderr} {
+			readers.Go(func() { readPipe(pipe) })
+		}
+		readers.Wait()
+		onExit(cmd.Wait())
+	}()
 
 	return cmd.Process.Pid, nil
 }
 
 func (d *defaultProcessLauncher) Kill(pid int) error {
+	if runtime.GOOS == "windows" {
+		return exec.Command("taskkill", "/PID", fmt.Sprint(pid), "/T", "/F").Run()
+	}
 	p, err := os.FindProcess(pid)
 	if err != nil {
 		return err
@@ -70,6 +86,8 @@ type activeInstance struct {
 	previewURL string
 	cancel     context.CancelFunc
 	readyChan  chan string
+	done       chan struct{}
+	err        error
 }
 
 // AppRunner 负责本地开发服务器的监管、端口捕获与关停
@@ -97,13 +115,13 @@ func NewAppRunnerWithLauncher(launcher ProcessLauncher, emitter EventEmitter) *A
 // StartApp 启动子应用开发服务器并动态捕获预览 URL
 func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (*RunAppResponse, error) {
 	r.mu.Lock()
-	if inst, exists := r.active[appID]; exists && inst.previewURL != "" {
+	if inst, exists := r.active[appID]; exists {
+		result := &RunAppResponse{PreviewURL: inst.previewURL, ProcessID: inst.pid, Status: "running"}
 		r.mu.Unlock()
-		return &RunAppResponse{
-			PreviewURL: inst.previewURL,
-			ProcessID:  inst.pid,
-			Status:     "running",
-		}, nil
+		if result.PreviewURL == "" {
+			return nil, errs.NewPreconditionError("The preview is already starting.", nil)
+		}
+		return result, nil
 	}
 
 	procCtx, cancel := context.WithCancel(context.Background())
@@ -111,6 +129,7 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 		appID:     appID,
 		cancel:    cancel,
 		readyChan: make(chan string, 1),
+		done:      make(chan struct{}),
 	}
 	r.active[appID] = inst
 	r.mu.Unlock()
@@ -127,21 +146,43 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 		}
 	}
 
-	pid, err := r.launcher.Launch(procCtx, appPath, onOutput)
+	pid, err := r.launcher.Launch(procCtx, appPath, onOutput, func(err error) {
+		r.mu.Lock()
+		if r.active[appID] == inst {
+			delete(r.active, appID)
+			inst.err = err
+			close(inst.done)
+		}
+		r.mu.Unlock()
+		cancel()
+	})
 	if err != nil {
 		cancel()
 		r.mu.Lock()
-		delete(r.active, appID)
+		if r.active[appID] == inst {
+			delete(r.active, appID)
+		}
 		r.mu.Unlock()
-		return nil, errs.NewInternalError(fmt.Sprintf("failed to spawn dev server for app %d", appID), err)
+		return nil, errs.NewExternalError(fmt.Sprintf("Failed to start preview: %v", err), err)
 	}
 
+	r.mu.Lock()
 	inst.pid = pid
+	if r.active[appID] != inst {
+		r.mu.Unlock()
+		_ = r.launcher.Kill(pid)
+		return nil, errs.NewExternalError("The preview exited during startup.", inst.err)
+	}
+	r.mu.Unlock()
 
 	// 等待端口捕获就绪或超时
 	select {
 	case url := <-inst.readyChan:
 		r.mu.Lock()
+		if r.active[appID] != inst {
+			r.mu.Unlock()
+			return nil, errs.NewExternalError("The preview exited during startup.", inst.err)
+		}
 		inst.previewURL = url
 		r.mu.Unlock()
 		return &RunAppResponse{
@@ -149,17 +190,11 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 			ProcessID:  pid,
 			Status:     "running",
 		}, nil
+	case <-inst.done:
+		return nil, errs.NewExternalError("The preview exited during startup.", inst.err)
 	case <-time.After(15 * time.Second):
-		// 超时但进程在跑，返回预估默认端口
-		fallbackURL := "http://localhost:5173"
-		r.mu.Lock()
-		inst.previewURL = fallbackURL
-		r.mu.Unlock()
-		return &RunAppResponse{
-			PreviewURL: fallbackURL,
-			ProcessID:  pid,
-			Status:     "running",
-		}, nil
+		_ = r.StopApp(context.Background(), appID)
+		return nil, errs.NewExternalError("The preview did not report a listening URL.", nil)
 	case <-ctx.Done():
 		_ = r.StopApp(context.Background(), appID)
 		return nil, ctx.Err()
@@ -175,14 +210,15 @@ func (r *AppRunner) StopApp(ctx context.Context, appID int64) error {
 		return nil
 	}
 	delete(r.active, appID)
+	close(inst.done)
+	pid := inst.pid
 	r.mu.Unlock()
 
+	if pid > 0 {
+		_ = r.launcher.Kill(pid)
+	}
 	if inst.cancel != nil {
 		inst.cancel()
-	}
-
-	if inst.pid > 0 {
-		_ = r.launcher.Kill(inst.pid)
 	}
 
 	return nil
@@ -194,6 +230,16 @@ func (r *AppRunner) IsRunning(appID int64) bool {
 	defer r.mu.RUnlock()
 	_, exists := r.active[appID]
 	return exists
+}
+
+// PreviewURL 返回实际运行的预览地址。
+func (r *AppRunner) PreviewURL(appID int64) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if inst := r.active[appID]; inst != nil {
+		return inst.previewURL
+	}
+	return ""
 }
 
 // HandleProcessOutput 检查并转发控制台异常日志

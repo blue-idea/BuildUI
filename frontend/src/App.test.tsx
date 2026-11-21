@@ -1,6 +1,35 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { App } from './App';
+
+it('桌面工作台从后端加载空项目列表并使用真实创建入口', async () => {
+  const create = vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' });
+  vi.stubGlobal('go', { main: { App: {
+    GetSettings: vi.fn().mockResolvedValue({}),
+    ListApps: vi.fn().mockResolvedValue([]),
+    CreateApp: create,
+    SwitchApp: vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' }),
+    GetProjectChat: vi.fn().mockResolvedValue({ chatId: 7, messages: [] }),
+    GetVersions: vi.fn().mockResolvedValue([]),
+    ListProjectFiles: vi.fn().mockResolvedValue([]),
+  } } });
+  try {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /open applications drawer/i }));
+    expect(screen.queryAllByText('Pantry Planner')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: /mock blueprint/i })).toBeNull();
+    const newApp = screen.getByRole<HTMLButtonElement>('button', { name: /new app/i });
+    await waitFor(() => expect(newApp.disabled).toBe(false));
+    fireEvent.click(newApp);
+    fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'Fitness Check-in' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Fitness Check-in' })));
+    await waitFor(() => expect(screen.queryByText('Fitness Check-in')).toBeDefined());
+  } finally {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  }
+});
 
 describe('App Main Split Layout & Workflow', () => {
   it('renders dual-pane split layout with chat and preview panels', () => {

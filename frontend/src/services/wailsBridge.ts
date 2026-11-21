@@ -3,8 +3,61 @@
  * 封装前端与 Go 后端的方法调用与事件监听，提供桌面环境与测试环境下的透明降级。
  */
 
-import { AppItem } from '../components/AppDrawer';
-import { VersionItem, VersionDiffResult } from '../components/VersionTimelineModal';
+import type { AppItem } from '../components/AppDrawer';
+import type { BlueprintDTO } from '../components/BlueprintCard';
+import type { VersionItem, VersionDiffResult } from '../components/VersionTimelineModal';
+
+interface ActiveProject {
+  appId: number;
+  name: string;
+  path: string;
+  previewUrl: string;
+  blueprintApproved: boolean;
+}
+
+interface ProjectChat {
+  chatId: number;
+  blueprint: BlueprintDTO | null;
+  messages: Array<{ id: number; role: 'user' | 'assistant'; content: string }> | null;
+}
+
+interface DesktopMethods {
+  ListApps: () => Promise<AppItem[] | null>;
+  CreateApp: (req: { name: string; customPath?: string }) => Promise<ActiveProject>;
+  CreateAppFromTemplate: (req: { templateId: string; appName: string; destPath?: string }) => Promise<ActiveProject>;
+  DeleteApp: (id: number) => Promise<void>;
+  SwitchApp: (id: number) => Promise<ActiveProject>;
+  GetActiveApp: () => Promise<ActiveProject>;
+  GetProjectChat: (id: number) => Promise<ProjectChat>;
+  CreateProjectChat: (id: number) => Promise<ProjectChat>;
+  ApproveBlueprint: (chatId: number) => Promise<void>;
+  StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[] }) => Promise<void>;
+  CancelChat: (chatId: number) => Promise<void>;
+  RunApp: (req: { appId: number }) => Promise<{ previewUrl: string }>;
+  ListProjectFiles: (appId: number) => Promise<string[]>;
+  ReadProjectFile: (appId: number, path: string) => Promise<string>;
+  SetAppTheme: (appId: number, themeId: string) => Promise<void>;
+  GetVersions: (appId: number) => Promise<VersionItem[] | null>;
+  GetVersionDiff: (appId: number, hash: string) => Promise<VersionDiffResult | null>;
+  RollbackVersion: (appId: number, hash: string) => Promise<void>;
+  GetSettings: () => Promise<Record<string, string>>;
+  SaveSettings: (settings: Record<string, string>) => Promise<void>;
+  TestLLMConnection: (url: string, key: string, model: string) => Promise<void>;
+  SelectDirectory: (title: string) => Promise<string>;
+  ExportAppZip: (appId: number, targetDir: string) => Promise<string>;
+  OpenInFileManager: (path: string) => Promise<void>;
+  CheckTypeScript: (req: { appId: number; paths: string[] }) => Promise<ProblemsResponse>;
+}
+
+export function desktopApp(): DesktopMethods {
+  const app = getWailsApp();
+  if (!app) throw new Error('The desktop runtime is unavailable.');
+  return app as DesktopMethods;
+}
+
+export function essentialEvent<T>(name: string, handler: (data: T) => void): () => void {
+  return window.runtime?.EventsOn?.(name, handler) ?? (() => {});
+}
 
 export interface DiagnosticItem {
   file: string;
@@ -33,21 +86,7 @@ declare global {
   interface Window {
     go?: {
       main?: {
-        App?: {
-          GetSettings?: () => Promise<Record<string, string>>;
-          SaveSettings?: (settings: Record<string, string>) => Promise<void>;
-          TestLLMConnection?: (url: string, key: string, model: string) => Promise<void>;
-          ListApps?: () => Promise<Array<{ id: number; name: string; path: string }>>;
-          CreateApp?: (req: { name: string; path: string }) => Promise<{ appId: number }>;
-          DeleteApp?: (id: number) => Promise<void>;
-          SelectDirectory?: (title: string) => Promise<string>;
-          GetVersions?: (appId: number) => Promise<Array<{ id: number; commitHash: string; message: string; createdAt: string }>>;
-          GetVersionDiff?: (appId: number, hash: string) => Promise<any>;
-          RollbackVersion?: (appId: number, hash: string) => Promise<void>;
-          ExportAppZip?: (appId: number, targetDir: string) => Promise<string>;
-          OpenInFileManager?: (path: string) => Promise<void>;
-          CheckTypeScript?: (req: { appId: number; paths: string[] }) => Promise<ProblemsResponse>;
-        };
+        App?: Partial<DesktopMethods>;
       };
     };
     runtime?: {
@@ -146,19 +185,7 @@ export async function selectDirectory(title: string = 'Select Workspace Director
 export async function listApps(): Promise<AppItem[]> {
   const wails = getWailsApp();
   if (wails?.ListApps) {
-    try {
-      const result = await wails.ListApps();
-      if (result && result.length > 0) {
-        return result.map((item) => ({
-          id: item.id,
-          name: item.name,
-          path: item.path,
-          createdAt: new Date().toISOString(),
-        }));
-      }
-    } catch {
-      // 降级
-    }
+    return (await wails.ListApps()) ?? [];
   }
   return [
     {
@@ -181,7 +208,7 @@ export async function createApp(name: string, path: string): Promise<AppItem> {
   const wails = getWailsApp();
   if (wails?.CreateApp) {
     try {
-      const res = await wails.CreateApp({ name, path });
+      const res = await wails.CreateApp({ name, customPath: path });
       return {
         id: res.appId,
         name,
@@ -216,19 +243,7 @@ export async function deleteApp(id: number): Promise<void> {
 export async function fetchVersions(appId: number): Promise<VersionItem[]> {
   const wails = getWailsApp();
   if (wails?.GetVersions) {
-    try {
-      const res = await wails.GetVersions(appId);
-      if (res && res.length > 0) {
-        return res.map((v) => ({
-          id: v.id,
-          commitHash: v.commitHash,
-          message: v.message,
-          createdAt: v.createdAt || new Date().toISOString(),
-        }));
-      }
-    } catch {
-      // 降级
-    }
+    return (await wails.GetVersions(appId)) ?? [];
   }
   return [
     {
@@ -244,12 +259,7 @@ export async function fetchVersions(appId: number): Promise<VersionItem[]> {
 export async function fetchVersionDiff(appId: number, hash: string): Promise<VersionDiffResult | null> {
   const wails = getWailsApp();
   if (wails?.GetVersionDiff) {
-    try {
-      const res = await wails.GetVersionDiff(appId, hash);
-      if (res) return res;
-    } catch {
-      // 降级
-    }
+    return wails.GetVersionDiff(appId, hash);
   }
   return {
     commitHash: hash,
@@ -270,11 +280,7 @@ export async function fetchVersionDiff(appId: number, hash: string): Promise<Ver
 export async function rollbackVersion(appId: number, hash: string): Promise<void> {
   const wails = getWailsApp();
   if (wails?.RollbackVersion) {
-    try {
-      await wails.RollbackVersion(appId, hash);
-    } catch {
-      // 降级
-    }
+    await wails.RollbackVersion(appId, hash);
   }
 }
 

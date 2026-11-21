@@ -154,6 +154,9 @@ func TestVersionService_ListAndDiffAndRollback(t *testing.T) {
 	}
 
 	// 验证磁盘上的 App.tsx 内容恢复为 Version 1
+	if _, err := os.Stat(filepath.Join(appDir, "src", "utils.ts")); !os.IsNotExist(err) {
+		t.Fatalf("回滚后仍保留了目标版本不存在的文件：%v", err)
+	}
 	appBytes, err := os.ReadFile(filepath.Join(appDir, "src", "App.tsx"))
 	if err != nil {
 		t.Fatalf("failed to read App.tsx: %v", err)

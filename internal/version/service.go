@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
 	"buildui/internal/db"
 	"buildui/internal/errs"
 )
+
+var gitHash = regexp.MustCompile(`^[0-9a-f]{7,64}$`)
 
 // VersionService 版本时光机核心服务
 type VersionService struct {
@@ -56,6 +59,9 @@ func (s *VersionService) ListVersions(ctx context.Context, appID int64) ([]Versi
 
 // GetVersionDiff 提取指定版本的代码改动差异
 func (s *VersionService) GetVersionDiff(ctx context.Context, appID int64, commitHash string) (*VersionDiffResult, error) {
+	if !gitHash.MatchString(commitHash) {
+		return nil, errs.NewValidationError("Invalid commit hash.", nil)
+	}
 	app, err := s.appRepo.GetByID(ctx, appID)
 	if err != nil {
 		return nil, err
@@ -71,7 +77,7 @@ func (s *VersionService) GetVersionDiff(ctx context.Context, appID int64, commit
 	}
 
 	// 提取统一 patch diff
-	diffCmd := exec.CommandContext(ctx, "git", "show", "--patch", "--format=", commitHash)
+	diffCmd := exec.CommandContext(ctx, "git", "show", "--patch", "--format=", commitHash, "--")
 	diffCmd.Dir = app.Path
 	diffOut, err := diffCmd.Output()
 	if err != nil {
@@ -89,23 +95,24 @@ func (s *VersionService) GetVersionDiff(ctx context.Context, appID int64, commit
 
 // RollbackVersion 安全回滚工作区到指定的历史 Commit
 func (s *VersionService) RollbackVersion(ctx context.Context, appID int64, commitHash string) error {
+	if !gitHash.MatchString(commitHash) {
+		return errs.NewValidationError("Invalid commit hash.", nil)
+	}
 	app, err := s.appRepo.GetByID(ctx, appID)
 	if err != nil {
 		return err
 	}
 
-	// 执行 git checkout 将工作区所有文件还原至 target commit
-	checkoutCmd := exec.CommandContext(ctx, "git", "checkout", commitHash, "--", ".")
-	checkoutCmd.Dir = app.Path
-	if out, err := checkoutCmd.CombinedOutput(); err != nil {
-		return errs.NewInternalError(fmt.Sprintf("failed to checkout files to %s: %s", commitHash, string(out)), err)
+	status := exec.CommandContext(ctx, "git", "-C", app.Path, "status", "--porcelain", "--untracked-files=no")
+	if out, err := status.Output(); err != nil {
+		return errs.NewInternalError("Failed to check project changes.", err)
+	} else if len(out) > 0 {
+		return errs.NewPreconditionError("Commit or discard tracked local changes before restoring a version.", nil)
 	}
-
-	// 暂存所有还原改动并生成 Rollback 提交
-	addCmd := exec.CommandContext(ctx, "git", "add", "-A")
-	addCmd.Dir = app.Path
-	if out, err := addCmd.CombinedOutput(); err != nil {
-		return errs.NewInternalError(fmt.Sprintf("git add failed during rollback: %s", string(out)), err)
+	// restore 默认删除目标版本里不存在的已跟踪文件，索引与工作区保持一致。
+	restore := exec.CommandContext(ctx, "git", "-C", app.Path, "restore", "--source="+commitHash, "--staged", "--worktree", "--", ".")
+	if out, err := restore.CombinedOutput(); err != nil {
+		return errs.NewInternalError("Failed to restore project files: "+string(out), err)
 	}
 
 	shortHash := commitHash
@@ -118,9 +125,10 @@ func (s *VersionService) RollbackVersion(ctx context.Context, appID int64, commi
 	commitCmd.Dir = app.Path
 	if out, err := commitCmd.CombinedOutput(); err != nil {
 		// 如果内容与 HEAD 刚好一致没有改动，无需报错
-		if !strings.Contains(string(out), "nothing to commit") {
-			return errs.NewInternalError(fmt.Sprintf("git commit failed during rollback: %s", string(out)), err)
+		if strings.Contains(string(out), "nothing to commit") || strings.Contains(string(out), "nothing added to commit") {
+			return nil
 		}
+		return errs.NewInternalError(fmt.Sprintf("git commit failed during rollback: %s", string(out)), err)
 	}
 
 	// 提取最新的 HEAD commit

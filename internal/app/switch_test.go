@@ -57,6 +57,16 @@ func TestAppService_SwitchAppAndDeleteApp(t *testing.T) {
 	if switchResp.Name != "Second App" {
 		t.Fatalf("expected switched Name 'Second App', got '%s'", switchResp.Name)
 	}
+	// 加载已有工程是读取操作，不能因配置表暂不可写而失败。
+	_, err = database.SQLDB().ExecContext(ctx, `CREATE TRIGGER reject_active_write
+		BEFORE UPDATE ON settings WHEN NEW.key = 'app.active_id'
+		BEGIN SELECT RAISE(ABORT, 'active settings are read-only'); END;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if active, err := svc.GetActiveApp(ctx); err != nil || active.AppID != app2Resp.AppID {
+		t.Fatalf("加载项目时不应重写活跃配置：%+v, %v", active, err)
+	}
 
 	// 2. 尝试删除当前活跃的 Second App 应被拒绝
 	err = svc.DeleteApp(ctx, app2Resp.AppID)

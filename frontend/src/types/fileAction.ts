@@ -1,4 +1,4 @@
-export type FileActionStatus = 'writing' | 'completed' | 'idle';
+export type FileActionStatus = 'writing' | 'completed' | 'idle' | 'error';
 
 export interface FileActionItem {
   id: string;

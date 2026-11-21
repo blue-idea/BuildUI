@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
 	"buildui/internal/errs"
+	"buildui/internal/workspace"
 )
 
 // npmPackageRegex 匹配合法标准与 scope 包名 (带可选语义化版本)
@@ -36,9 +36,7 @@ type CommandExecutor interface {
 type defaultCommandExecutor struct{}
 
 func (d *defaultCommandExecutor) Execute(ctx context.Context, dir string, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Dir = dir
-	return cmd.Run()
+	return workspace.PnpmCommand(ctx, dir, args...).Run()
 }
 
 // packageJSON 对应 package.json 的精简结构

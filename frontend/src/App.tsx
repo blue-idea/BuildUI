@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BlueprintCard, BlueprintDTO } from './components/BlueprintCard';
 import { QuestionnaireCard, QuestionItem } from './components/QuestionnaireCard';
 import { SettingsModal } from './components/SettingsModal';
@@ -26,6 +26,9 @@ import {
   exportAppZip,
   openInFileManager,
   subscribeChatEvents,
+  desktopApp,
+  essentialEvent,
+  isWailsAvailable,
 } from './services/wailsBridge';
 import { Plus, Send, Square, Hammer, ChevronDown } from 'lucide-react';
 
@@ -45,11 +48,12 @@ interface ChatMessage {
 
 const AppContent: React.FC = () => {
   const { locale, t } = useI18n();
+  const desktop = isWailsAvailable();
 
   const [activeDockTab, setActiveDockTab] = useState<DockTab>('home');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('preview');
-  const [activeAppId, setActiveAppId] = useState<number>(1);
-  const [apps, setApps] = useState<AppItem[]>([
+  const [activeAppId, setActiveAppId] = useState<number>(desktop ? 0 : 1);
+  const [apps, setApps] = useState<AppItem[]>(desktop ? [] : [
     {
       id: 1,
       name: 'Pantry Planner',
@@ -64,9 +68,10 @@ const AppContent: React.FC = () => {
     },
   ]);
 
-  const activeApp = apps.find((a) => a.id === activeAppId) || apps[0];
+  const activeApp = apps.find((a) => a.id === activeAppId);
+  const readProjectFile = useCallback((path: string) => desktopApp().ReadProjectFile(activeAppId, path), [activeAppId]);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>(desktop ? [] : [
     {
       id: 'msg-user-1',
       sender: 'user',
@@ -100,7 +105,16 @@ const AppContent: React.FC = () => {
   const [extraSandboxItems, setExtraSandboxItems] = useState<string[]>([]);
   const [blueprint, setBlueprint] = useState<BlueprintDTO | null>(null);
   const [questionnaire, setQuestionnaire] = useState<QuestionItem[] | null>(null);
-  const [previewUrl] = useState('http://localhost:5173');
+  const [previewUrl, setPreviewUrl] = useState(desktop ? '' : 'http://localhost:5173');
+  const [previewKey, setPreviewKey] = useState(0);
+  const [sourcePaths, setSourcePaths] = useState<string[]>([]);
+  const [sourceRevision, setSourceRevision] = useState(0);
+  const [focusedFile, setFocusedFile] = useState('');
+  const [projectError, setProjectError] = useState('');
+  const [isChangingProject, setIsChangingProject] = useState(desktop);
+  const chatID = useRef(0);
+  const projectID = useRef(0);
+  const turn = useRef<{ id: string; commit: string; cancelled: boolean } | null>(null);
   const [isStartingApp, setIsStartingApp] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -111,15 +125,15 @@ const AppContent: React.FC = () => {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [systemLogs, setSystemLogs] = useState<string[]>([
+  const [systemLogs, setSystemLogs] = useState<string[]>(desktop ? [] : [
     'Vite dev server listening on http://localhost:5173',
     'Compiled src/components/PantryList.tsx in 14ms',
     'Updating AST module for src/components/RecipeCard.tsx',
   ]);
 
   const [settings, setSettings] = useState<Record<string, string>>({});
-  const [workspaceDir, setWorkspaceDir] = useState<string>('/workspace/default-app');
-  const [versions] = useState<VersionItem[]>([
+  const [workspaceDir, setWorkspaceDir] = useState<string>(desktop ? '' : '/workspace/default-app');
+  const [versions, setVersions] = useState<VersionItem[]>(desktop ? [] : [
     {
       id: 1,
       commitHash: '03176f3',
@@ -162,7 +176,7 @@ const AppContent: React.FC = () => {
   ]);
   const [activeThemeId, setActiveThemeId] = useState<string>('dark-slate');
 
-  const [installedDependencies, setInstalledDependencies] = useState<string[]>(['lucide-react']);
+  const [installedDependencies, setInstalledDependencies] = useState<string[]>(desktop ? [] : ['lucide-react']);
   const [installingDeps, setInstallingDeps] = useState<string | null>(null);
 
   const [templates] = useState<AppTemplate[]>([
@@ -206,6 +220,131 @@ const AppContent: React.FC = () => {
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const reportError = (error: unknown) => setProjectError(error instanceof Error ? error.message : String(error));
+
+  const refreshProject = async (id: number) => {
+    const [history, paths] = await Promise.all([
+      desktopApp().GetVersions(id),
+      desktopApp().ListProjectFiles(id),
+    ]);
+    setVersions(history ?? []);
+    setSourcePaths(paths);
+    setSourceRevision((revision) => revision + 1);
+    return history ?? [];
+  };
+
+  const startPreview = async (id: number, verify = false) => {
+    setIsStartingApp(true);
+    try {
+      const result = await desktopApp().RunApp({ appId: id });
+      setPreviewUrl(result.previewUrl);
+      setPreviewKey((key) => key + 1);
+      setSystemLogs((logs) => [...logs, `Preview is running at ${result.previewUrl}`]);
+      if (verify) {
+        const result = await desktopApp().CheckTypeScript({ appId: id, paths: [] });
+        setSystemLogs((logs) => [
+          ...logs,
+          ...(result.hasErrors
+            ? (result.problems ?? []).map((problem) => `${problem.file}:${problem.line}:${problem.column} ${problem.message}`)
+            : ['TypeScript check completed without errors.']),
+        ]);
+      }
+    } finally {
+      setIsStartingApp(false);
+    }
+  };
+
+  const loadChat = (projectChat: Awaited<ReturnType<ReturnType<typeof desktopApp>['GetProjectChat']>>) => {
+    chatID.current = projectChat.chatId;
+    setBlueprint(projectChat.blueprint);
+    setMessages((projectChat.messages ?? []).map((msg) => ({
+      id: String(msg.id),
+      sender: msg.role,
+      content: msg.content,
+    })));
+  };
+
+  const activateProject = async (id: number) => {
+    const active = await desktopApp().SwitchApp(id);
+    projectID.current = id;
+    chatID.current = 0;
+    setActiveAppId(id);
+    setWorkspaceDir(active.path);
+    setMessages([]);
+    setBlueprint(null);
+    setFocusedFile('');
+    setInputPrompt('');
+    setAttachments([]);
+    setSourcePaths([]);
+    setVersions([]);
+    setSystemLogs([]);
+    setPreviewUrl(active.previewUrl || '');
+    setWorkspaceView('preview');
+    setIsInspectMode(false);
+    setIsVersionsOpen(false);
+    const [projectChat, history] = await Promise.all([
+      desktopApp().GetProjectChat(id),
+      refreshProject(id),
+    ]);
+    loadChat(projectChat);
+    if (active.blueprintApproved && history.length > 1 && !active.previewUrl) {
+      await startPreview(id);
+    }
+  };
+
+  const updateProject = async (operation: () => Promise<void>) => {
+    setIsChangingProject(true);
+    setProjectError('');
+    try {
+      await operation();
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setIsChangingProject(false);
+    }
+  };
+
+  const createDesktopProject = (name: string, templateId?: string) => updateProject(async () => {
+    const api = desktopApp();
+    const created = templateId
+      ? await api.CreateAppFromTemplate({ appName: name, templateId })
+      : await api.CreateApp({ name });
+    setApps((previous) => [...previous, { id: created.appId, name: created.name, path: created.path }]);
+    setIsDrawerOpen(false);
+    setIsTemplateModalOpen(false);
+    await activateProject(created.appId);
+  });
+
+  const runDesktopTurn = async (prompt: string, images: string[], mode: 'build' | 'plan', approve = false) => {
+    if (!chatID.current || turn.current || isChangingProject) return;
+    const current = { id: `turn-${Date.now()}`, commit: '', cancelled: false };
+    turn.current = current;
+    setProjectError('');
+    setIsGenerating(true);
+    const id = chatID.current;
+    try {
+      if (approve) {
+        await desktopApp().ApproveBlueprint(id);
+        setBlueprint((bp) => bp && { ...bp, approved: true });
+      }
+      setMessages((previous) => [...previous, { id: current.id, sender: 'assistant', content: '' }]);
+      await desktopApp().StreamChat({ chatId: id, prompt, mode, attachments: images });
+      const history = await refreshProject(activeAppId);
+      if (current.commit || (mode === 'build' && (approve || blueprint?.approved) && history.length > 1)) {
+        await startPreview(activeAppId, true);
+      }
+    } catch (error) {
+      if (!current.cancelled) reportError(error);
+    } finally {
+      setMessages((previous) => previous.filter((message) => (
+        message.id !== current.id || message.content || message.fileChanges?.length
+      )));
+      turn.current = null;
+      setIsGenerating(false);
+      setActiveTool(null);
+    }
+  };
+
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -218,42 +357,77 @@ const AppContent: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchSettings().then((cfg) => {
+    (desktop ? desktopApp().GetSettings() : fetchSettings()).then((cfg) => {
       if (cfg && Object.keys(cfg).length > 0) {
         setSettings(cfg);
       }
+    }).catch(reportError);
+
+    if (!desktop) return;
+    void updateProject(async () => {
+      const api = desktopApp();
+      const projects = await api.ListApps() ?? [];
+      setApps(projects);
+      if (projects.length > 0) {
+        const active = await api.GetActiveApp();
+        await activateProject(active.appId);
+      }
     });
 
+    const forTurn = (id: number) => id === chatID.current ? turn.current : null;
+    const updateAssistant = (id: string, update: (message: ChatMessage) => ChatMessage) => {
+      setMessages((previous) => previous.map((message) => message.id === id ? update(message) : message));
+    };
     const unsubscribe = subscribeChatEvents({
       onChunk: (data) => {
-        setMessages((prev) => {
-          const last = prev[prev.length - 1];
-          if (last && last.sender === 'assistant') {
-            return [
-              ...prev.slice(0, -1),
-              { ...last, content: last.content + data.chunk },
-            ];
-          }
-          return prev;
-        });
+        const current = forTurn(data.chatId);
+        if (current) updateAssistant(current.id, (message) => ({ ...message, content: message.content + data.chunk }));
       },
       onToolStart: (data) => {
+        const current = forTurn(data.chatId);
+        if (!current) return;
         setActiveTool(`${data.tool}${data.path ? ': ' + data.path : ''}`);
+        const path = data.path;
+        if (path) updateAssistant(current.id, (message) => ({
+          ...message,
+          fileChanges: [...(message.fileChanges ?? []), {
+            id: `${current.id}-${message.fileChanges?.length ?? 0}`,
+            filename: path.split('/').pop() ?? path, path, status: 'writing',
+          }],
+        }));
       },
-      onToolEnd: () => {
+      onToolEnd: (data) => {
+        const current = forTurn(data.chatId);
+        if (!current) return;
         setActiveTool(null);
+        if (data.tool === 'write_file') updateAssistant(current.id, (message) => ({
+          ...message,
+          fileChanges: message.fileChanges?.map((file) => file.status === 'writing'
+            ? { ...file, status: data.success ? 'completed' : 'error' }
+            : file),
+        }));
       },
-      onEnd: () => {
-        setIsGenerating(false);
-        setActiveTool(null);
+      onEnd: (data) => {
+        const current = forTurn(data.chatId);
+        if (current) current.commit = data.commitHash;
       },
-      onCancelled: () => {
-        setIsGenerating(false);
-        setActiveTool(null);
+      onCancelled: (data) => {
+        const current = forTurn(data.chatId);
+        if (current) current.cancelled = true;
       },
     });
+    const stopBlueprint = essentialEvent<BlueprintDTO>('app-blueprint:update', (draft) => {
+      if (draft.chatId === chatID.current) setBlueprint(draft);
+    });
+    const stopConsole = essentialEvent<{ appId: number; message: string }>('preview:console', (event) => {
+      if (event.appId === projectID.current) setSystemLogs((logs) => [...logs, event.message]);
+    });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      stopBlueprint();
+      stopConsole();
+    };
   }, []);
 
   const renderMessageContent = (msg: ChatMessage) => {
@@ -267,6 +441,10 @@ const AppContent: React.FC = () => {
   };
 
   const handleSelectTheme = (themeId: string) => {
+    if (desktop && activeAppId) {
+      void desktopApp().SetAppTheme(activeAppId, themeId).then(() => setActiveThemeId(themeId)).catch(reportError);
+      return;
+    }
     setActiveThemeId(themeId);
     const target = themePresets.find((p) => p.id === themeId);
     const iframe = document.querySelector('iframe') as HTMLIFrameElement | null;
@@ -286,6 +464,15 @@ const AppContent: React.FC = () => {
   };
 
   const handleSelectDirectory = async () => {
+    if (desktop) {
+      try {
+        if (activeApp) await desktopApp().OpenInFileManager(activeApp.path);
+        else setIsDrawerOpen(true);
+      } catch (error) {
+        reportError(error);
+      }
+      return;
+    }
     setWorkspaceDir('/workspace/my-blot-app');
     const selected = await selectDirectory('Select Workspace Directory');
     if (selected) {
@@ -316,6 +503,11 @@ const AppContent: React.FC = () => {
     if (e) e.preventDefault();
     const prompt = inputPrompt.trim();
     if (!prompt && attachments.length === 0) return;
+    if (desktop && !chatID.current) {
+      setIsDrawerOpen(true);
+      return;
+    }
+    if (desktop && (turn.current || isChangingProject)) return;
 
     const currentAttachments = [...attachments];
     const userMsg: ChatMessage = {
@@ -327,6 +519,10 @@ const AppContent: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setInputPrompt('');
     setAttachments([]);
+    if (desktop) {
+      void runDesktopTurn(prompt, currentAttachments.map((attachment) => attachment.dataUrl), buildMode);
+      return;
+    }
 
     if (prompt.toLowerCase().includes('recharts') || prompt.toLowerCase().includes('lucide-react')) {
       setInstallingDeps('lucide-react, recharts');
@@ -389,6 +585,10 @@ const AppContent: React.FC = () => {
   };
 
   const handleCancelGeneration = () => {
+    if (desktop) {
+      void desktopApp().CancelChat(chatID.current).catch(reportError);
+      return;
+    }
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -405,8 +605,14 @@ const AppContent: React.FC = () => {
     ]);
   };
 
-  const handleApproveBlueprint = (_chatId: number) => {
+  const handleApproveBlueprint = (approvedChatId: number) => {
     if (!blueprint) return;
+    if (desktop) {
+      if (approvedChatId === chatID.current) {
+        void runDesktopTurn('Implement the approved blueprint and the original user request.', [], 'build', true);
+      }
+      return;
+    }
     setBlueprint({
       ...blueprint,
       approved: true,
@@ -457,6 +663,10 @@ const AppContent: React.FC = () => {
   const handleSelectTemplate = (templateId: string) => {
     const tmpl = templates.find((t) => t.id === templateId);
     if (!tmpl) return;
+    if (desktop) {
+      if (!isChangingProject && !isGenerating) void createDesktopProject(tmpl.name, templateId);
+      return;
+    }
 
     const newId = Date.now();
     const newApp: AppItem = {
@@ -479,16 +689,24 @@ const AppContent: React.FC = () => {
   };
 
   const handleInspectFile = (path: string) => {
+    setFocusedFile(path);
     setWorkspaceView('code');
     setSystemLogs((prev) => [...prev, `Inspecting source: ${path}`]);
   };
 
   const handleNewChat = () => {
+    if (desktop) {
+      if (!activeAppId) setIsDrawerOpen(true);
+      else if (!isGenerating && !isChangingProject) {
+        void updateProject(async () => loadChat(await desktopApp().CreateProjectChat(activeAppId)));
+      }
+      return;
+    }
     setMessages([
       {
         id: String(Date.now()),
         sender: 'assistant',
-        content: `Started a new conversation for ${activeApp.name}. What would you like to build next?`,
+        content: `Started a new conversation for ${activeApp?.name}. What would you like to build next?`,
       },
     ]);
   };
@@ -541,7 +759,7 @@ const AppContent: React.FC = () => {
     <div className="flex h-screen w-screen flex-col bg-slate-100 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 font-sans overflow-hidden transition-colors">
       {/* 顶部 macOS 窗口标题栏 */}
       <MacOSWindowHeader
-        appName={activeApp.name}
+        appName={activeApp?.name ?? 'No project selected'}
         workspaceDir={workspaceDir}
         themePresets={themePresets}
         activeThemeId={activeThemeId}
@@ -552,7 +770,7 @@ const AppContent: React.FC = () => {
         onOpenVersions={() => setIsVersionsOpen(true)}
         onOpenExport={() => setIsExportOpen(true)}
         onSelectDirectory={handleSelectDirectory}
-        onMockBlueprint={handleMockBlueprint}
+        onMockBlueprint={desktop ? undefined : handleMockBlueprint}
       />
 
       {/* 主工作区：左侧微坞 + 中间会话任务列 + 右侧三态工作区 */}
@@ -587,7 +805,7 @@ const AppContent: React.FC = () => {
                 title={t('chat.version')}
                 className="flex items-center gap-1 px-2 py-1 rounded-md text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
               >
-                <span>{t('chat.version')} 1</span>
+                <span>{t('chat.version')}{versions.length > 0 ? ` ${versions.length}` : ''}</span>
               </button>
             </div>
 
@@ -605,6 +823,12 @@ const AppContent: React.FC = () => {
 
           {/* 消息滚动流 */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {projectError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{projectError}</p>}
+            {desktop && !activeApp && (
+              <button type="button" onClick={() => setIsDrawerOpen(true)} className="text-sm font-medium text-purple-600">
+                Create or open a project
+              </button>
+            )}
             {messages.map((msg) => (
               <div
                 key={msg.id}
@@ -678,6 +902,7 @@ const AppContent: React.FC = () => {
               <BlueprintCard
                 blueprint={blueprint}
                 onApprove={handleApproveBlueprint}
+                loading={desktop && isGenerating}
               />
             )}
 
@@ -764,7 +989,7 @@ const AppContent: React.FC = () => {
                     type="button"
                     className="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-700/70 border border-slate-200 dark:border-zinc-600 rounded-md hover:bg-slate-50 transition-colors"
                   >
-                    <span>{t('chat.modelAuto')}</span>
+                    <span>{desktop ? settings['llm.model'] || 'No model configured' : t('chat.modelAuto')}</span>
                     <ChevronDown className="w-3 h-3 text-slate-400" />
                   </button>
                 </div>
@@ -820,14 +1045,26 @@ const AppContent: React.FC = () => {
           onViewChange={setWorkspaceView}
           isLoading={isStartingApp}
           previewUrl={previewUrl}
-          previewDoc={generateSandboxDoc(activeApp.name, activeThemeId, blueprint, locale, extraSandboxItems)}
+          previewDoc={desktop ? undefined : generateSandboxDoc(activeApp?.name ?? '', activeThemeId, blueprint, locale, extraSandboxItems)}
+          previewKey={previewKey}
+          sourcePaths={desktop ? sourcePaths : undefined}
+          sourceRevision={sourceRevision}
+          focusedFile={focusedFile}
+          onReadFile={desktop ? readProjectFile : undefined}
           isInspectMode={isInspectMode}
           onToggleInspect={() => setIsInspectMode((prev) => !prev)}
-          onSelectComponent={(_path, prompt) => {
+          onSelectComponent={(path, prompt) => {
+            if (desktop) {
+              if (!sourcePaths.includes(path)) {
+                reportError('Source location is unavailable for this element.');
+                return;
+              }
+              handleInspectFile(path);
+            }
             setInputPrompt(prompt);
             setIsInspectMode(false);
           }}
-          files={[
+          files={desktop ? undefined : [
             {
               path: 'src/components/PantryList.tsx',
               content: `import React from 'react';\n\nexport const PantryList: React.FC = () => {\n  return (\n    <div className="p-4 bg-white rounded-lg shadow">\n      <h2 className="text-lg font-bold">Pantry Inventory</h2>\n    </div>\n  );\n};`,
@@ -839,9 +1076,14 @@ const AppContent: React.FC = () => {
           ]}
           systemLogs={systemLogs}
           onReload={() => {
+            if (desktop) {
+              if (activeAppId && !isStartingApp && !isGenerating) void startPreview(activeAppId).catch(reportError);
+              return;
+            }
             setIsStartingApp(true);
             setTimeout(() => setIsStartingApp(false), 500);
           }}
+          onOpenExternal={previewUrl ? () => window.open(previewUrl, '_blank', 'noopener,noreferrer') : undefined}
           onPublish={() => setIsExportOpen(true)}
         />
       </div>
@@ -852,18 +1094,29 @@ const AppContent: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         initialSettings={settings}
         onSave={async (newCfg) => {
+          await (desktop ? desktopApp().SaveSettings(newCfg) : saveSettings(newCfg));
           setSettings(newCfg);
-          await saveSettings(newCfg);
         }}
         onTestConnection={testLLMConnection}
       />
 
       <VersionTimelineModal
+        key={activeAppId}
         isOpen={isVersionsOpen}
+        rollbackDisabled={desktop && (isGenerating || isStartingApp || isChangingProject)}
         onClose={() => setIsVersionsOpen(false)}
         versions={versions}
-        onSelectVersion={async (hash) => await fetchVersionDiff(activeAppId, hash)}
+        onSelectVersion={(hash) => desktop
+          ? desktopApp().GetVersionDiff(activeAppId, hash)
+          : fetchVersionDiff(activeAppId, hash)}
         onRollback={async (hash) => {
+          if (desktop) {
+            if (!activeAppId || isGenerating || isStartingApp) throw new Error('Wait for the active operation to complete.');
+            await desktopApp().RollbackVersion(activeAppId, hash);
+            await refreshProject(activeAppId);
+            if (previewUrl) setPreviewKey((key) => key + 1);
+            return;
+          }
           await rollbackVersion(activeAppId, hash);
           setMessages((prev) => [
             ...prev,
@@ -881,7 +1134,15 @@ const AppContent: React.FC = () => {
         onClose={() => setIsDrawerOpen(false)}
         apps={apps}
         activeAppId={activeAppId}
+        busy={desktop && (isChangingProject || isGenerating || isStartingApp)}
+        error={desktop ? projectError : undefined}
+        onCreateNamedApp={desktop ? createDesktopProject : undefined}
         onSelectApp={(id) => {
+          if (desktop) {
+            setIsDrawerOpen(false);
+            void updateProject(() => activateProject(id));
+            return;
+          }
           setActiveAppId(id);
           const target = apps.find((a) => a.id === id);
           if (target) {
@@ -904,6 +1165,13 @@ const AppContent: React.FC = () => {
           setIsDrawerOpen(false);
         }}
         onDeleteApp={(id) => {
+          if (desktop) {
+            void updateProject(async () => {
+              await desktopApp().DeleteApp(id);
+              setApps((await desktopApp().ListApps()) ?? []);
+            });
+            return;
+          }
           setApps((prev) => prev.filter((a) => a.id !== id));
         }}
         onOpenTemplates={() => {
@@ -915,9 +1183,9 @@ const AppContent: React.FC = () => {
       <ExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
-        appName={activeApp.name}
-        onExportZip={async () => await exportAppZip(activeAppId)}
-        onRevealInFileManager={openInFileManager}
+        appName={activeApp?.name ?? 'No project selected'}
+        onExportZip={() => desktop ? desktopApp().ExportAppZip(activeAppId, '') : exportAppZip(activeAppId)}
+        onRevealInFileManager={desktop ? (path) => desktopApp().OpenInFileManager(path) : openInFileManager}
       />
 
       <TemplateModal

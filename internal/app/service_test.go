@@ -136,7 +136,7 @@ func TestAppService_CreateApp_Validation(t *testing.T) {
 
 type mockRunnerLauncher struct{}
 
-func (m *mockRunnerLauncher) Launch(ctx context.Context, appPath string, onOutput func(string)) (int, error) {
+func (m *mockRunnerLauncher) Launch(ctx context.Context, appPath string, onOutput func(string), onExit func(error)) (int, error) {
 	go func() {
 		onOutput("  ➜  Local:   http://localhost:5173/\n")
 	}()

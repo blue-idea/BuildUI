@@ -50,9 +50,15 @@ type ActiveAppResponse struct {
 
 // AppService 负责应用管理与脚手架初始化
 type AppService struct {
-	appRepo *db.AppRepository
-	db      *db.DB
-	runner  *runner.AppRunner
+	appRepo       *db.AppRepository
+	db            *db.DB
+	runner        *runner.AppRunner
+	workspaceRoot string
+}
+
+// SetWorkspaceRoot 定位新建项目的默认目录。
+func (s *AppService) SetWorkspaceRoot(root string) {
+	s.workspaceRoot = root
 }
 
 // NewAppService 创建 AppService 实例
@@ -78,12 +84,19 @@ func (s *AppService) CreateApp(ctx context.Context, req CreateAppRequest) (*Crea
 
 	targetPath := req.CustomPath
 	if targetPath == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, errs.NewInternalError("failed to get current working directory", err)
+		root := s.workspaceRoot
+		if root == "" {
+			cwd, err := os.Getwd()
+			if err != nil {
+				return nil, errs.NewInternalError("failed to get current working directory", err)
+			}
+			root = filepath.Join(cwd, "workspace")
 		}
 		slug := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
-		targetPath = filepath.Join(cwd, "workspace", slug)
+		if slug == "." || !filepath.IsLocal(slug) || strings.ContainsAny(slug, "\\/:*?\"<>|") {
+			return nil, errs.NewValidationError("Choose a valid project name or directory.", nil)
+		}
+		targetPath = filepath.Join(root, slug)
 	}
 
 	// 检查目标路径是否已被非空占用
@@ -118,6 +131,11 @@ func (s *AppService) CreateApp(ctx context.Context, req CreateAppRequest) (*Crea
 
 	appID, err := s.appRepo.Create(ctx, appEntity)
 	if err != nil {
+		return nil, err
+	}
+	if _, err := db.NewVersionRepository(s.db).Create(ctx, &db.VersionEntity{
+		AppID: appID, CommitHash: commitHash, Message: "Initial commit from Blot scaffold", CreatedAt: now,
+	}); err != nil {
 		return nil, err
 	}
 
@@ -192,14 +210,17 @@ func (s *AppService) SwitchApp(ctx context.Context, targetAppID int64) (*ActiveA
 	}
 
 	// 停止之前正在运行的开发服务器
-	currentActiveID, _ := s.appRepo.GetActiveAppID(ctx)
-	if currentActiveID > 0 && currentActiveID != targetAppID && s.runner != nil {
-		_ = s.runner.StopApp(ctx, currentActiveID)
-	}
-
-	// 更新活跃 ID
-	if err := s.appRepo.SetActiveAppID(ctx, targetAppID); err != nil {
+	currentActiveID, err := s.appRepo.GetActiveAppID(ctx)
+	if err != nil {
 		return nil, err
+	}
+	if currentActiveID != targetAppID {
+		if err := s.appRepo.SetActiveAppID(ctx, targetAppID); err != nil {
+			return nil, err
+		}
+		if currentActiveID > 0 && s.runner != nil {
+			_ = s.runner.StopApp(ctx, currentActiveID)
+		}
 	}
 
 	// 读取当前工程最新 Commit Hash
@@ -216,7 +237,7 @@ func (s *AppService) SwitchApp(ctx context.Context, targetAppID int64) (*ActiveA
 		AppID:             appEntity.ID,
 		Name:              appEntity.Name,
 		Path:              appEntity.Path,
-		PreviewURL:        "http://localhost:5173",
+		PreviewURL:        s.runner.PreviewURL(targetAppID),
 		LatestCommitHash:  commitHash,
 		BlueprintApproved: !appEntity.NeedsAppBlueprint,
 	}, nil

@@ -104,6 +104,7 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 
 	// 逐行解析 Server-Sent Events 流
 	scanner := bufio.NewScanner(resp.Body)
+	completed := false
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
@@ -123,6 +124,7 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 
 		dataContent := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
 		if dataContent == "[DONE]" {
+			completed = true
 			break
 		}
 
@@ -133,11 +135,17 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 		}
 
 		if len(chunk.Choices) > 0 {
-			textDelta := chunk.Choices[0].Delta.Content
-			if textDelta != "" {
-				if err := onChunk(textDelta); err != nil {
+			choice := chunk.Choices[0]
+			if choice.Delta.Content != "" {
+				if err := onChunk(choice.Delta.Content); err != nil {
 					return err
 				}
+			}
+			if choice.FinishReason != nil && *choice.FinishReason != "" {
+				if *choice.FinishReason == "length" {
+					return errs.NewExternalError("The model reached its output limit before completing the response.", nil)
+				}
+				completed = true
 			}
 		}
 	}
@@ -149,6 +157,12 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 		return errs.NewExternalError("error occurred while reading SSE stream", err)
 	}
 
+	if !completed {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return errs.NewExternalError("The model stream ended before completion.", nil)
+	}
 	return nil
 }
 

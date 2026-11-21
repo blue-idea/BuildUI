@@ -90,4 +90,24 @@ describe('VersionTimelineModal', () => {
       expect(handleRollback).toHaveBeenCalledWith('b2c3d4e');
     });
   });
+
+  it('项目正在验证时禁用回滚', async () => {
+    const rollback = vi.fn();
+    render(
+      <VersionTimelineModal
+        isOpen
+        onClose={vi.fn()}
+        versions={mockVersions}
+        onSelectVersion={vi.fn().mockResolvedValue(mockDiff)}
+        onRollback={rollback}
+        rollbackDisabled
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select version b2c3d4e' }));
+    await screen.findByText('src/App.tsx');
+    const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Rollback to this version' });
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(rollback).not.toHaveBeenCalled();
+  });
 });

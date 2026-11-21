@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os/exec"
 	"strings"
@@ -24,6 +25,8 @@ type ChatService struct {
 	appRepo        *db.AppRepository
 	bpService      *blueprint.BlueprintService
 	versionRepo    *db.VersionRepository
+	settingsRepo   *db.SettingsRepository
+	messageRepo    *db.MessageRepository
 	emitter        EventEmitter
 	activeSessions sync.Map
 }
@@ -48,38 +51,84 @@ func (s *ChatService) SetVersionRepo(r *db.VersionRepository) {
 	s.versionRepo = r
 }
 
+// SetModelRepositories 连接用户配置和会话历史。
+func (s *ChatService) SetModelRepositories(settings *db.SettingsRepository, messages *db.MessageRepository) {
+	s.settingsRepo = settings
+	s.messageRepo = messages
+}
+
+func (s *ChatService) runSession(ctx context.Context, chatID int64, run func(context.Context) error) error {
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if _, busy := s.activeSessions.LoadOrStore(chatID, cancel); busy {
+		return errs.NewPreconditionError("A request is already running for this chat.", nil)
+	}
+	defer s.activeSessions.Delete(chatID)
+	err := run(streamCtx)
+	if errors.Is(err, context.Canceled) {
+		if s.emitter != nil {
+			s.emitter.Emit("chat:cancelled", map[string]any{"chatId": chatID})
+		}
+	}
+	return err
+}
+
 // ProcessStream 处理流式 Token 输入、状态机解析、门禁校验及文件落盘
 func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath string, r io.Reader) error {
-	streamCtx, cancel := context.WithCancel(ctx)
-	s.activeSessions.Store(chatID, cancel)
-	defer func() {
-		s.activeSessions.Delete(chatID)
-		cancel()
-	}()
+	return s.runSession(ctx, chatID, func(streamCtx context.Context) error {
+		if closer, ok := r.(io.Closer); ok {
+			stop := context.AfterFunc(streamCtx, func() { _ = closer.Close() })
+			defer stop()
+		}
+		return s.processChunks(streamCtx, chatID, appPath, func(feed func(string) error) error {
+			buf := make([]byte, 1024)
+			for {
+				if err := streamCtx.Err(); err != nil {
+					return err
+				}
+				n, err := r.Read(buf)
+				if n > 0 {
+					if feedErr := feed(string(buf[:n])); feedErr != nil {
+						return feedErr
+					}
+				}
+				if err == io.EOF {
+					return nil
+				}
+				if err != nil {
+					if streamCtx.Err() != nil {
+						return streamCtx.Err()
+					}
+					return errs.NewInternalError("Failed to read stream.", err)
+				}
+			}
+		}, nil)
+	})
+}
 
-	// 初始门禁预检：若有写盘意图，蓝图必须预先审批
+func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, appPath string, read func(func(string) error) error, onText func(string)) error {
 	fileWriter := NewFileWriter(appPath)
 	depManager := NewDependencyManager(appPath, nil)
 	filesWrittenCount := 0
 
-	// 若 Reader 实现了 io.Closer，在 context 取消时及时关闭，打断阻塞读取
-	if closer, ok := r.(io.Closer); ok {
-		go func() {
-			<-streamCtx.Done()
-			_ = closer.Close()
-		}()
+	var visible strings.Builder
+	flushVisible := func() {
+		if visible.Len() != 0 {
+			if s.emitter != nil {
+				s.emitter.Emit("chat:chunk", map[string]any{"chatId": chatID, "chunk": visible.String()})
+			}
+			if onText != nil {
+				onText(visible.String())
+			}
+		}
+		visible.Reset()
 	}
-
 	parser := NewXMLStreamParser(ParserCallbacks{
 		OnChunk: func(chunk string) {
-			if s.emitter != nil {
-				s.emitter.Emit("chat:chunk", map[string]interface{}{
-					"chatId": chatID,
-					"chunk":  chunk,
-				})
-			}
+			visible.WriteString(chunk)
 		},
 		OnToolStart: func(event ToolStartEvent) {
+			flushVisible()
 			if s.emitter != nil {
 				s.emitter.Emit("chat:tool-start", map[string]interface{}{
 					"chatId": chatID,
@@ -109,58 +158,53 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 				}
 				return err
 			}
+			if err := fileWriter.WriteFile(path, content); err != nil {
+				return err
+			}
 			filesWrittenCount++
-			return fileWriter.WriteFile(path, content)
+			return nil
 		},
 		OnAddDependency: func(packages []string) error {
-			return depManager.EnsureDependencies(streamCtx, packages)
+			if err := s.bpService.EnsureWriteAllowed(streamCtx, chatID); err != nil {
+				return err
+			}
+			if err := depManager.EnsureDependencies(streamCtx, packages); err != nil {
+				return err
+			}
+			filesWrittenCount++
+			return nil
 		},
 	})
 
-	buf := make([]byte, 1024)
-	for {
-		select {
-		case <-streamCtx.Done():
-			if s.emitter != nil {
-				s.emitter.Emit("chat:cancelled", map[string]interface{}{
-					"chatId": chatID,
-				})
-			}
-			return streamCtx.Err()
-		default:
-		}
-
-		n, err := r.Read(buf)
-		if n > 0 {
-			feedErr := parser.Feed(string(buf[:n]))
-			if feedErr != nil {
-				return feedErr
-			}
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			if streamCtx.Err() != nil {
-				return streamCtx.Err()
-			}
-			return errs.NewInternalError("failed to read stream", err)
-		}
+	if err := read(func(chunk string) error {
+		err := parser.Feed(chunk)
+		flushVisible()
+		return err
+	}); err != nil {
+		parser.abort(err)
+		return err
 	}
 
-	if streamCtx.Err() != nil {
-		return streamCtx.Err()
+	if err := streamCtx.Err(); err != nil {
+		parser.abort(err)
+		return err
 	}
 
 	if err := parser.Flush(); err != nil {
 		return err
 	}
+	flushVisible()
 
 	commitHash := ""
 	if filesWrittenCount > 0 {
-		commitHash = s.commitWorkspaceChanges(ctx, chatID, appPath)
+		commitHash = s.commitWorkspaceChanges(streamCtx, chatID, appPath)
 	}
 
+	s.emitEnd(chatID, commitHash)
+	return nil
+}
+
+func (s *ChatService) emitEnd(chatID int64, commitHash string) {
 	if s.emitter != nil {
 		s.emitter.Emit("chat:end", map[string]interface{}{
 			"chatId":     chatID,
@@ -168,7 +212,6 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 		})
 	}
 
-	return nil
 }
 
 // commitWorkspaceChanges 自动将轮次改动执行 Git 提交并持久化至 versions 表
@@ -229,12 +272,6 @@ func (s *ChatService) CancelChat(chatID int64) error {
 	if cancel, ok := val.(context.CancelFunc); ok {
 		cancel()
 	}
-	s.activeSessions.Delete(chatID)
-	if s.emitter != nil {
-		s.emitter.Emit("chat:cancelled", map[string]interface{}{
-			"chatId": chatID,
-		})
-	}
 	return nil
 }
 
@@ -243,30 +280,5 @@ type StreamChatRequest struct {
 	ChatID      int64    `json:"chatId"`
 	Prompt      string   `json:"prompt"`
 	Attachments []string `json:"attachments"`
-}
-
-// StreamChat 暴露给前端的流式调用方法
-func (s *ChatService) StreamChat(ctx context.Context, req StreamChatRequest) error {
-	if req.ChatID <= 0 {
-		return errs.NewValidationError("chat id must be positive", nil)
-	}
-
-	chat, err := s.chatRepo.GetByID(ctx, req.ChatID)
-	if err != nil {
-		return err
-	}
-
-	app, err := s.appRepo.GetByID(ctx, chat.AppID)
-	if err != nil {
-		return err
-	}
-
-	// 模拟流式大模型生成或透传
-	// 实际落地中对接 LLM API（如 Claude / Gemini），此处使用 PromptAssembler 与 ProcessStream 组合
-	assembler := NewPromptAssembler()
-	sysPrompt := assembler.AssembleSystemPrompt()
-	_ = sysPrompt
-
-	// 本地预览与测试时，直接通过 ProcessStream 驱动
-	return s.ProcessStream(ctx, req.ChatID, app.Path, strings.NewReader(req.Prompt))
+	Mode        string   `json:"mode"`
 }

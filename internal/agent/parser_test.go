@@ -38,12 +38,14 @@ func TestXMLStreamParser_StreamingWriteFile(t *testing.T) {
 		"<dyad-",
 		"write path=\"src/components/",
 		"Card.tsx\" description=\"Card component\">\n",
+		"```tsx\n",
 		"import React from 'react';\n",
 		"export function Card() {\n",
 		"  return <div>Card Content</div>;\n",
 		"}\n",
+		"```\n",
 		"</dyad-write>\n",
-		"All done!",
+		"已更新每日健身打卡。",
 	}
 
 	for _, token := range tokens {
@@ -61,7 +63,7 @@ func TestXMLStreamParser_StreamingWriteFile(t *testing.T) {
 	if !strings.Contains(fullText, "I will create a component for you.") {
 		t.Errorf("missing intro text in chunks, got: %s", fullText)
 	}
-	if !strings.Contains(fullText, "All done!") {
+	if !strings.Contains(fullText, "已更新每日健身打卡。") {
 		t.Errorf("missing outro text in chunks, got: %s", fullText)
 	}
 
@@ -89,6 +91,23 @@ func TestXMLStreamParser_StreamingWriteFile(t *testing.T) {
 	}
 	if !strings.Contains(writtenFiles[0].Content, "export function Card()") {
 		t.Errorf("expected content to contain export function Card(), got: %s", writtenFiles[0].Content)
+	}
+	if strings.Contains(writtenFiles[0].Content, "```") {
+		t.Fatalf("文件仍包含模型的 Markdown 围栏：%q", writtenFiles[0].Content)
+	}
+}
+
+func TestXMLStreamParser_RejectsTruncatedFile(t *testing.T) {
+	written := false
+	parser := NewXMLStreamParser(ParserCallbacks{OnWriteFile: func(_, _, _ string) error {
+		written = true
+		return nil
+	}})
+	if err := parser.Feed(`<dyad-write path="src/pages/Index.tsx">export default function Index() {`); err != nil {
+		t.Fatal(err)
+	}
+	if err := parser.Flush(); err == nil || written {
+		t.Fatalf("截断的模型工具调用必须报错且不能写入：%v, %t", err, written)
 	}
 }
 

@@ -111,6 +111,45 @@ func TestOpenAIClient_StreamChat_Errors(t *testing.T) {
 	})
 }
 
+func TestOpenAIClient_StreamChat_DetectsIncompleteResponse(t *testing.T) {
+	cases := []struct {
+		name string
+		tail string
+		want string
+	}{
+		{name: "提供商报告输出长度限制", tail: "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n", want: "output limit"},
+		{name: "连接提前结束", want: "ended before completion"},
+		{name: "提供商发送正常结束事件", tail: "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "text/event-stream")
+				fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Start\"}}]}\n\n"+tc.tail)
+			}))
+			defer server.Close()
+
+			client := llm.NewOpenAIClient(server.URL, "", "fixture-model")
+			var received strings.Builder
+			err := client.StreamChat(context.Background(), llm.ChatRequest{}, func(chunk string) error {
+				received.WriteString(chunk)
+				return nil
+			})
+			if received.String() != "Start" {
+				t.Fatalf("流式内容 = %q", received.String())
+			}
+			if tc.want == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("预期流式错误包含 %q，实际为 %v", tc.want, err)
+			}
+		})
+	}
+}
+
 func TestOpenAIClient_StreamChat_CancelContext(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")

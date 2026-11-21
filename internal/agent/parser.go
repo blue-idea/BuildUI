@@ -1,8 +1,11 @@
 package agent
 
 import (
+	"path"
 	"regexp"
 	"strings"
+
+	"buildui/internal/errs"
 )
 
 // ToolStartEvent 声明开始调用某项工具
@@ -47,6 +50,7 @@ var (
 	attrPathRegex        = regexp.MustCompile(`path="([^"]+)"`)
 	attrDescriptionRegex = regexp.MustCompile(`description="([^"]*)"`)
 	attrPackagesRegex    = regexp.MustCompile(`packages="([^"]+)"`)
+	codeFence            = regexp.MustCompile("^```[a-zA-Z0-9_+.-]*$")
 )
 
 // XMLStreamParser 增量流式 XML 状态机
@@ -79,9 +83,15 @@ func (p *XMLStreamParser) Feed(token string) error {
 				p.buffer.Reset()
 				p.buffer.WriteByte(char)
 			} else {
-				if p.callbacks.OnChunk != nil {
-					p.callbacks.OnChunk(string(char))
+				// 一次发送标签前的完整文本，避免把 UTF-8 字节当作单独的字符。
+				end := strings.IndexByte(token[i:], '<')
+				if end == -1 {
+					end = len(token) - i
 				}
+				if p.callbacks.OnChunk != nil {
+					p.callbacks.OnChunk(token[i : i+end])
+				}
+				i += end - 1
 			}
 
 		case stateTagOpen:
@@ -157,7 +167,7 @@ func (p *XMLStreamParser) Feed(token string) error {
 			if strings.HasSuffix(bufStr, closeTag) {
 				content := bufStr[:len(bufStr)-len(closeTag)]
 				// 清除开头可能的换行
-				content = strings.TrimPrefix(content, "\n")
+				content = unwrapSourceFence(p.currPath, strings.TrimPrefix(content, "\n"))
 
 				var err error
 				if p.callbacks.OnWriteFile != nil {
@@ -172,12 +182,11 @@ func (p *XMLStreamParser) Feed(token string) error {
 					})
 				}
 
+				p.buffer.Reset()
+				p.state = stateText
 				if err != nil {
 					return err
 				}
-
-				p.buffer.Reset()
-				p.state = stateText
 			}
 
 		case stateDepBody:
@@ -192,6 +201,20 @@ func (p *XMLStreamParser) Feed(token string) error {
 		}
 	}
 	return nil
+}
+
+func unwrapSourceFence(filename, content string) string {
+	switch strings.ToLower(path.Ext(filename)) {
+	case ".md", ".mdx", ".markdown", ".txt":
+		return content
+	}
+	// 仅去掉包住整份文件的围栏，保留文件正文及正文里的代码块。
+	first, body, hasFirst := strings.Cut(strings.TrimSpace(content), "\n")
+	end := strings.LastIndexByte(body, '\n')
+	if hasFirst && codeFence.MatchString(strings.TrimSpace(first)) && end >= 0 && body[end+1:] == "```" {
+		return body[:end+1]
+	}
+	return content
 }
 
 func (p *XMLStreamParser) completeAddDependency() {
@@ -210,13 +233,33 @@ func (p *XMLStreamParser) completeAddDependency() {
 
 // Flush 结束流式输入并排空剩余缓冲区
 func (p *XMLStreamParser) Flush() error {
-	if p.state == stateTagOpen || p.state == stateText {
+	switch p.state {
+	case stateWriteBody, stateDepBody:
+		err := errs.NewExternalError("The model response ended before a tool call was complete. Try again.", nil)
+		p.abort(err)
+		return err
+	case stateTagOpen, stateText:
 		if p.buffer.Len() > 0 && p.callbacks.OnChunk != nil {
 			p.callbacks.OnChunk(p.buffer.String())
 		}
 	}
 	p.buffer.Reset()
+	p.state = stateText
 	return nil
+}
+
+// abort 关闭已开始的工具调用，保留调用方收到的原始错误。
+func (p *XMLStreamParser) abort(err error) {
+	if p.callbacks.OnToolEnd != nil {
+		switch p.state {
+		case stateWriteBody:
+			p.callbacks.OnToolEnd(ToolEndEvent{Tool: "write_file", Success: false, Error: err.Error()})
+		case stateDepBody:
+			p.callbacks.OnToolEnd(ToolEndEvent{Tool: "add_dependency", Success: false, Error: err.Error()})
+		}
+	}
+	p.buffer.Reset()
+	p.state = stateText
 }
 
 func errToString(err error) string {

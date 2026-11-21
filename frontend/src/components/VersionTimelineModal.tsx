@@ -21,6 +21,7 @@ export interface VersionTimelineModalProps {
   versions: VersionItem[];
   onSelectVersion: (hash: string) => Promise<VersionDiffResult | null>;
   onRollback: (hash: string) => Promise<void>;
+  rollbackDisabled?: boolean;
 }
 
 export const VersionTimelineModal: React.FC<VersionTimelineModalProps> = ({
@@ -29,34 +30,42 @@ export const VersionTimelineModal: React.FC<VersionTimelineModalProps> = ({
   versions,
   onSelectVersion,
   onRollback,
+  rollbackDisabled = false,
 }) => {
   const { t } = useI18n();
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [activeDiff, setActiveDiff] = useState<VersionDiffResult | null>(null);
   const [loadingDiff, setLoadingDiff] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
+  const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
   const handleSelect = async (hash: string) => {
     setSelectedHash(hash);
+    setError('');
+    setActiveDiff(null);
     setLoadingDiff(true);
     try {
       const res = await onSelectVersion(hash);
       setActiveDiff(res);
-    } catch {
+    } catch (error) {
       setActiveDiff(null);
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setLoadingDiff(false);
     }
   };
 
   const handleRollbackClick = async () => {
-    if (!selectedHash) return;
+    if (!selectedHash || rollbackDisabled || loadingDiff) return;
+    setError('');
     setRollingBack(true);
     try {
       await onRollback(selectedHash);
       onClose();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setRollingBack(false);
     }
@@ -84,6 +93,7 @@ export const VersionTimelineModal: React.FC<VersionTimelineModalProps> = ({
           </button>
         </div>
 
+        {error && <p role="alert" className="px-5 py-2 text-xs text-red-300">{error}</p>}
         {/* 主体分栏 */}
         <div className="grid flex-1 grid-cols-1 md:grid-cols-3 overflow-hidden">
           {/* 左侧：版本快照时间线 */}
@@ -143,7 +153,7 @@ export const VersionTimelineModal: React.FC<VersionTimelineModalProps> = ({
               {selectedHash && (
                 <button
                   type="button"
-                  disabled={rollingBack}
+                  disabled={rollingBack || rollbackDisabled || loadingDiff}
                   onClick={handleRollbackClick}
                   className="rounded bg-rose-600 px-3 py-1 font-semibold text-white shadow-sm hover:bg-rose-500 transition-colors disabled:opacity-50"
                 >
