@@ -68,9 +68,9 @@ _测试类型:_ Unit / UI
 > 依赖：TASK-022  
 > 官方源码参考：[src/components/CommandPalette.tsx](https://github.com/dyad-sh/dyad/blob/main/src/components/CommandPalette.tsx)
 
-- [ ] 创建 `frontend/src/components/CommandPalette.tsx`：提供半透明磨砂居中搜索弹窗，支持全键盘高亮选择与回车触发
-- [ ] 在 `App.tsx` 中注册全局 `keydown` 监听器（`Ctrl+K` / `Cmd+K` / `Escape`），聚合系统全部常用操作项
-- [ ] 编写前端单元测试 `CommandPalette.test.tsx` 与 `App.test.tsx` 扩展用例
+- [x] 创建 `frontend/src/components/CommandPalette.tsx`：提供半透明磨砂居中搜索弹窗，支持全键盘高亮选择与回车触发
+- [x] 在 `App.tsx` 中注册全局 `keydown` 监听器（`Ctrl+K` / `Cmd+K` / `Escape`），聚合系统全部常用操作项
+- [x] 编写前端单元测试 `CommandPalette.test.tsx` 与 `App.test.tsx` 扩展用例
 
 **验证方式：**
 ```bash
