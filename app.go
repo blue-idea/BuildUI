@@ -11,6 +11,7 @@ import (
 	"buildui/internal/app"
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
+	"buildui/internal/verification/tsc"
 )
 
 // wailsEventEmitter 适配 Wails runtime.EventsEmit
@@ -34,6 +35,7 @@ type App struct {
 	appService       *app.AppService
 	blueprintService *blueprint.BlueprintService
 	chatService      *agent.ChatService
+	problemsService  *tsc.ProblemsService
 }
 
 // NewApp 创建 App 实例
@@ -66,6 +68,7 @@ func (a *App) startup(ctx context.Context) {
 		a.blueprintService = blueprint.NewBlueprintService(a.bpRepo, a.appRepo, database)
 		a.blueprintService.SetEmitter(emitter)
 		a.chatService = agent.NewChatService(a.chatRepo, a.appRepo, a.blueprintService, emitter)
+		a.problemsService = tsc.NewProblemsService(a.appRepo, nil)
 	}
 }
 
@@ -99,4 +102,9 @@ func (a *App) ApproveBlueprint(chatID int64) error {
 // StreamChat 暴露给前端的会话流式交互 RPC 方法
 func (a *App) StreamChat(req agent.StreamChatRequest) error {
 	return a.chatService.StreamChat(a.ctx, req)
+}
+
+// CheckTypeScript 暴露给前端的 TypeScript 编译问题诊断 RPC 方法
+func (a *App) CheckTypeScript(req tsc.CheckTypeScriptRequest) (*tsc.ProblemsResponse, error) {
+	return a.problemsService.CheckTypeScript(a.ctx, req)
 }

@@ -104,14 +104,14 @@
 
 ---
 
-- [ ] **TASK-005 · TypeScript 静态类型检查与自愈验证引擎（VerificationEngine）**
+- [x] **TASK-005 · TypeScript 静态类型检查与自愈验证引擎（VerificationEngine）**
 
   > 依赖：TASK-004  
   > 官方源码参考：[src/pro/main/ipc/handlers/local_agent/tools/run_type_checks.ts](https://github.com/dyad-sh/dyad/blob/main/src/pro/main/ipc/handlers/local_agent/tools/run_type_checks.ts) 与 [src/ipc/handlers/problems_handlers.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/handlers/problems_handlers.ts)
 
-  - [ ] 编写 `ProblemsService.CheckTypeScript`，调用目标应用的 `tsc --noEmit`
-  - [ ] 解析 TypeScript 编译诊断输出（文件、行号、列号、诊断消息）
-  - [ ] 构造类型错误修复 Prompt，自动送回大模型触发自愈重写循环
+  - [x] 编写 `ProblemsService.CheckTypeScript`，调用目标应用的 `tsc --noEmit`
+  - [x] 解析 TypeScript 编译诊断输出（文件、行号、列号、诊断消息）
+  - [x] 构造类型错误修复 Prompt，自动送回大模型触发自愈重写循环
 
   **验证方式：**
   ```bash
