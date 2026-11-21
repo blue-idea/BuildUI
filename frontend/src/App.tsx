@@ -5,6 +5,7 @@ import { PreviewPanel } from './components/PreviewPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { VersionTimelineModal, VersionItem } from './components/VersionTimelineModal';
 import { AppDrawer, AppItem } from './components/AppDrawer';
+import { ExportModal } from './components/ExportModal';
 
 interface ChatMessage {
   id: string;
@@ -31,6 +32,7 @@ export const App: React.FC = () => {
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isInspectMode, setIsInspectMode] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [activeAppId, setActiveAppId] = useState<number>(1);
   const [apps, setApps] = useState<AppItem[]>([
     {
@@ -230,6 +232,14 @@ export const App: React.FC = () => {
             className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
           >
             Settings
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsExportOpen(true)}
+            aria-label="Open export modal"
+            className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            Export
           </button>
           <button
             type="button"
@@ -447,6 +457,34 @@ export const App: React.FC = () => {
         }}
         onDeleteApp={(id) => {
           setApps((prev) => prev.filter((a) => a.id !== id));
+        }}
+      />
+
+      {/* 工程导出模态框 */}
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        appName={apps.find((a) => a.id === activeAppId)?.name || 'Default Application'}
+        onExportZip={async () => {
+          const wailsApp = (
+            window as unknown as {
+              go?: { main?: { App?: { ExportAppZip?: (appId: number, dest: string) => Promise<string> } } };
+            }
+          )?.go?.main?.App;
+          if (wailsApp?.ExportAppZip) {
+            return await wailsApp.ExportAppZip(activeAppId, '');
+          }
+          return `/downloads/${(apps.find((a) => a.id === activeAppId)?.name || 'app').toLowerCase().replace(/\s+/g, '-')}-export.zip`;
+        }}
+        onRevealInFileManager={async (path) => {
+          const wailsApp = (
+            window as unknown as {
+              go?: { main?: { App?: { OpenInFileManager?: (p: string) => Promise<void> } } };
+            }
+          )?.go?.main?.App;
+          if (wailsApp?.OpenInFileManager) {
+            await wailsApp.OpenInFileManager(path);
+          }
         }}
       />
     </div>

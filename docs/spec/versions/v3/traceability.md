@@ -20,7 +20,7 @@
 | :--- | :--- | :--- | :---: | :--- | :---: | :--- |
 | **TASK-013** | 多应用工作区管理服务、活跃应用切换与 SQLite 级联安全删除 | `v3.REQ-001` / `AC-001..003` | `done` | Multi-App Drawer & AppService (`internal/app`, `internal/db`, `AppDrawer.tsx`) | Unit / Integ | [src/ipc/handlers/apps_handlers.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/handlers/apps_handlers.ts) |
 | **TASK-014** | 可视化组件定位审查器（Component Inspector）与定向 Prompt 联动 | `v3.REQ-002` / `AC-001..003` | `done` | Component Inspector & PostMessage Resolver (`internal/inspector`, `ComponentInspector.tsx`) | Unit / Integ | [scaffold/src/App.tsx](https://github.com/dyad-sh/dyad/blob/main/scaffold/src/App.tsx) |
-| **TASK-015** | 一键工程 Zip 归档导出服务与操作系统原生资源管理器定位 | `v3.REQ-003` / `AC-001..003` | 待开始 | Zip Archive Exporter & Native Reveal (`internal/export`, `ExportModal.tsx`) | Unit / Desktop | [src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts) |
+| **TASK-015** | 一键工程 Zip 归档导出服务与操作系统原生资源管理器定位 | `v3.REQ-003` / `AC-001..003` | `done` | Zip Archive Exporter & Native Reveal (`internal/export`, `ExportModal.tsx`) | Unit / Desktop | [src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts) |
 | **TASK-016** | Blot-UI v3 全流程整合与 Playwright E2E 自动化验收 | `v3.REQ-001..003` 全量 AC | 待开始 | Desktop Shell & Playwright E2E Suite (`frontend/e2e/v3-workflow.spec.ts`) | E2E / Visual | [src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts) |
 
 ---

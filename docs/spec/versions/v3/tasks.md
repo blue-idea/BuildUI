@@ -71,10 +71,10 @@ _测试类型:_ Unit / Integration
 > 依赖：TASK-013  
 > 官方源码参考：[src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts)
 
-- [ ] 在 `internal/export/exporter.go` 中实现 `ExportAppZip`：安全校验工作区路径防御 Zip Slip，自动过滤 `.git`, `node_modules`, `dist` 归档为 `.zip`
-- [ ] 在 `internal/export/reveal.go` 中实现跨平台 `OpenInFileManager`：参数化调用原生资源管理器定位目录，防命令注入
-- [ ] 在 `app.go` 中暴露 `ExportAppZip` 与 `OpenInFileManager` RPC 绑定
-- [ ] 在前端构建 `ExportModal.tsx`：提供一键导出 Zip 与在资源管理器中打开当前工程的交互操作
+- [x] 在 `internal/export/exporter.go` 中实现 `ExportAppZip`：安全校验工作区路径防御 Zip Slip，自动过滤 `.git`, `node_modules`, `dist` 归档为 `.zip`
+- [x] 在 `internal/export/reveal.go` 中实现跨平台 `OpenInFileManager`：参数化调用原生资源管理器定位目录，防命令注入
+- [x] 在 `app.go` 中暴露 `ExportAppZip` 与 `OpenInFileManager` RPC 绑定
+- [x] 在前端构建 `ExportModal.tsx`：提供一键导出 Zip 与在资源管理器中打开当前工程的交互操作
 
 **验证方式：**
 ```bash
