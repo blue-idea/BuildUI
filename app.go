@@ -15,6 +15,7 @@ import (
 	"buildui/internal/export"
 	"buildui/internal/inspector"
 	"buildui/internal/settings"
+	"buildui/internal/template"
 	"buildui/internal/theme"
 	"buildui/internal/verification/tsc"
 	"buildui/internal/version"
@@ -45,6 +46,7 @@ type App struct {
 	settingsService  *settings.SettingsService
 	versionService   *version.VersionService
 	themeService     *theme.ThemeService
+	templateService  *template.TemplateService
 }
 
 // NewApp 创建 App 实例
@@ -85,6 +87,7 @@ func (a *App) startup(ctx context.Context) {
 		a.settingsService = settings.NewSettingsService(settingsRepo)
 		a.versionService = version.NewVersionService(versionRepo, a.appRepo, emitter)
 		a.themeService = theme.NewThemeService(a.appRepo)
+		a.templateService = template.NewTemplateService()
 	}
 }
 
@@ -290,4 +293,35 @@ func (a *App) SetAppTheme(appID int64, themeID string) error {
 		return nil
 	}
 	return a.themeService.SetAppTheme(a.ctx, appID, themeID)
+}
+
+// GetAppTemplates 暴露给前端的获取内置模版清单 RPC 方法
+func (a *App) GetAppTemplates() []template.AppTemplate {
+	if a.templateService == nil {
+		return template.GetDefaultTemplates()
+	}
+	return a.templateService.GetTemplates()
+}
+
+// CreateAppFromTemplate 暴露给前端的基于模版一键初始化应用 RPC 方法
+func (a *App) CreateAppFromTemplate(req template.CreateFromTemplateRequest) (*app.CreateAppResponse, error) {
+	if a.templateService == nil {
+		a.templateService = template.NewTemplateService()
+	}
+	inst, err := a.templateService.InstantiateTemplate(a.ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if a.appService == nil {
+		return &app.CreateAppResponse{
+			AppID: 1,
+			Name:  inst.AppName,
+			Path:  inst.DestPath,
+		}, nil
+	}
+	return a.appService.CreateApp(a.ctx, app.CreateAppRequest{
+		Name:       inst.AppName,
+		TemplateID: inst.TemplateID,
+		CustomPath: inst.DestPath,
+	})
 }

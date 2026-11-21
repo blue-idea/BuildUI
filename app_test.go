@@ -23,3 +23,11 @@ func TestApp_InstallDependencies(t *testing.T) {
 		t.Fatalf("expected nil when appRepo is nil, got: %v", err)
 	}
 }
+
+func TestApp_GetAppTemplatesAndCreate(t *testing.T) {
+	app := NewApp()
+	templates := app.GetAppTemplates()
+	if len(templates) < 4 {
+		t.Fatalf("expected at least 4 templates, got %d", len(templates))
+	}
+}
