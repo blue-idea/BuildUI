@@ -64,6 +64,13 @@ CREATE TABLE IF NOT EXISTS versions (
     created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
 );
 
+-- 6. 系统配置项表
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+
 -- 辅助索引
 CREATE INDEX IF NOT EXISTS idx_chats_app_id ON chats(app_id);
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);

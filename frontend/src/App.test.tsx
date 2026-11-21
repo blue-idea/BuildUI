@@ -46,4 +46,18 @@ describe('App Main Split Layout & Workflow', () => {
     // 验证审批通过
     expect(screen.getByText('Approved')).toBeDefined();
   });
+
+  it('opens and closes settings modal from top navigation', () => {
+    render(<App />);
+
+    const settingsBtn = screen.getByRole('button', { name: /open settings/i });
+    fireEvent.click(settingsBtn);
+
+    expect(screen.getByText('LLM Provider Settings')).toBeDefined();
+
+    const closeBtn = screen.getByRole('button', { name: /close settings/i });
+    fireEvent.click(closeBtn);
+
+    expect(screen.queryByText('LLM Provider Settings')).toBeNull();
+  });
 });

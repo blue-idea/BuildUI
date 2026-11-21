@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 
 // process.cwd() 在运行测试时为 frontend 目录
-const screenshotsDir = path.resolve(process.cwd(), '../docs/spec/versions/v1/reports/screenshots');
+const screenshotsDir = path.resolve(process.cwd(), '../docs/spec/versions/v1-finished/reports/screenshots');
 
 test.describe('Blot-UI E2E Core Workflow', () => {
   test('Complete workflow: Main layout -> Submit prompt -> Blueprint Approval -> Code Gen & Live Preview', async ({ page }) => {

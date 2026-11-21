@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BlueprintCard, BlueprintDTO } from './components/BlueprintCard';
 import { QuestionnaireCard, QuestionItem } from './components/QuestionnaireCard';
 import { PreviewPanel } from './components/PreviewPanel';
+import { SettingsModal } from './components/SettingsModal';
 
 interface ChatMessage {
   id: string;
@@ -23,6 +24,8 @@ export const App: React.FC = () => {
   const [previewUrl] = useState('http://localhost:5173');
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'starting' | 'running' | 'error'>('running');
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<Record<string, string>>({});
 
   const handleSendPrompt = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -115,6 +118,14 @@ export const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsSettingsOpen(true)}
+            aria-label="Open settings"
+            className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            Settings
+          </button>
           <button
             type="button"
             onClick={handleMockBlueprint}
@@ -232,6 +243,19 @@ export const App: React.FC = () => {
           />
         </div>
       </main>
+
+      {/* 设置面板模态框 */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        initialSettings={settings}
+        onSave={(newCfg) => {
+          setSettings(newCfg);
+        }}
+        onTestConnection={async () => {
+          return 'Connection established successfully';
+        }}
+      />
     </div>
   );
 };

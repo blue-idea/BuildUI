@@ -61,3 +61,10 @@ type VersionEntity struct {
 	Message    string    `json:"message"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
+
+// SettingEntity 系统配置实体
+type SettingEntity struct {
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}

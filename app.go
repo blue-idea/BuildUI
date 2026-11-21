@@ -12,6 +12,7 @@ import (
 	"buildui/internal/app/runner"
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
+	"buildui/internal/settings"
 	"buildui/internal/verification/tsc"
 )
 
@@ -37,6 +38,7 @@ type App struct {
 	blueprintService *blueprint.BlueprintService
 	chatService      *agent.ChatService
 	problemsService  *tsc.ProblemsService
+	settingsService  *settings.SettingsService
 }
 
 // NewApp 创建 App 实例
@@ -73,6 +75,8 @@ func (a *App) startup(ctx context.Context) {
 		a.chatService = agent.NewChatService(a.chatRepo, a.appRepo, a.blueprintService, emitter)
 		a.chatService.SetVersionRepo(versionRepo)
 		a.problemsService = tsc.NewProblemsService(a.appRepo, nil)
+		settingsRepo := db.NewSettingsRepository(database)
+		a.settingsService = settings.NewSettingsService(settingsRepo)
 	}
 }
 
@@ -121,4 +125,28 @@ func (a *App) RunApp(req runner.RunAppRequest) (*runner.RunAppResponse, error) {
 // StopApp 暴露给前端的停止应用开发服务器 RPC 方法
 func (a *App) StopApp(req runner.StopAppRequest) error {
 	return a.appService.StopApp(a.ctx, req)
+}
+
+// GetSettings 暴露给前端的获取系统配置 RPC 方法
+func (a *App) GetSettings() (map[string]string, error) {
+	if a.settingsService == nil {
+		return map[string]string{}, nil
+	}
+	return a.settingsService.GetSettings(a.ctx)
+}
+
+// SaveSettings 暴露给前端的保存系统配置 RPC 方法
+func (a *App) SaveSettings(cfg map[string]string) error {
+	if a.settingsService == nil {
+		return nil
+	}
+	return a.settingsService.SaveSettings(a.ctx, cfg)
+}
+
+// TestLLMConnection 暴露给前端的测试 LLM 连通性 RPC 方法
+func (a *App) TestLLMConnection(baseURL, apiKey, model string) error {
+	if a.settingsService == nil {
+		return nil
+	}
+	return a.settingsService.TestConnection(a.ctx, baseURL, apiKey, model)
 }

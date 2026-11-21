@@ -552,3 +552,98 @@ func (r *VersionRepository) ListByAppID(ctx context.Context, appID int64) ([]*Ve
 	}
 	return versions, nil
 }
+
+// SettingsRepository 系统全局配置数据访问接口实现
+type SettingsRepository struct {
+	db *DB
+}
+
+func NewSettingsRepository(db *DB) *SettingsRepository {
+	return &SettingsRepository{db: db}
+}
+
+// Get 根据 Key 查询配置值
+func (r *SettingsRepository) Get(ctx context.Context, key string) (string, error) {
+	query := `SELECT value FROM settings WHERE key = ?;`
+	var val string
+	err := r.db.SQLDB().QueryRowContext(ctx, query, key).Scan(&val)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", errs.NewInternalError(fmt.Sprintf("failed to get setting for key: %s", key), err)
+	}
+	return val, nil
+}
+
+// GetAll 获取全部系统配置
+func (r *SettingsRepository) GetAll(ctx context.Context) (map[string]string, error) {
+	query := `SELECT key, value FROM settings;`
+	rows, err := r.db.SQLDB().QueryContext(ctx, query)
+	if err != nil {
+		return nil, errs.NewInternalError("failed to query all settings", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var k, v string
+		if err := rows.Scan(&k, &v); err != nil {
+			return nil, errs.NewInternalError("failed to scan setting row", err)
+		}
+		result[k] = v
+	}
+	return result, nil
+}
+
+// Set 插入或更新单个配置项
+func (r *SettingsRepository) Set(ctx context.Context, key, value string) error {
+	now := time.Now().Unix()
+	query := `
+		INSERT INTO settings (key, value, updated_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(key) DO UPDATE SET
+			value = excluded.value,
+			updated_at = excluded.updated_at;
+	`
+	_, err := r.db.SQLDB().ExecContext(ctx, query, key, value, now)
+	if err != nil {
+		return errs.NewInternalError(fmt.Sprintf("failed to upsert setting: %s", key), err)
+	}
+	return nil
+}
+
+// SetMany 批量更新或插入配置项（事务保障）
+func (r *SettingsRepository) SetMany(ctx context.Context, settings map[string]string) error {
+	tx, err := r.db.SQLDB().BeginTx(ctx, nil)
+	if err != nil {
+		return errs.NewInternalError("failed to begin transaction for SetMany", err)
+	}
+	defer tx.Rollback()
+
+	now := time.Now().Unix()
+	query := `
+		INSERT INTO settings (key, value, updated_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(key) DO UPDATE SET
+			value = excluded.value,
+			updated_at = excluded.updated_at;
+	`
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return errs.NewInternalError("failed to prepare statement for SetMany", err)
+	}
+	defer stmt.Close()
+
+	for k, v := range settings {
+		if _, err := stmt.ExecContext(ctx, k, v, now); err != nil {
+			return errs.NewInternalError(fmt.Sprintf("failed to exec upsert for key: %s", k), err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errs.NewInternalError("failed to commit SetMany transaction", err)
+	}
+	return nil
+}
+

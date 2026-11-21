@@ -25,10 +25,10 @@
 > 依赖：无  
 > 官方源码参考：[src/ipc/handlers/settings_handlers.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/handlers/settings_handlers.ts) 与 [src/pro/main/ipc/handlers/local_agent/tools/chat.ts](https://github.com/dyad-sh/dyad/blob/main/src/pro/main/ipc/handlers/local_agent/tools/chat.ts)
 
-- [ ] 在 `internal/db` 中创建 `settings` 表与 `SettingsRepository`，支持键值对存储与更新
-- [ ] 在 `internal/llm` 中定义 `Provider` 抽象接口，实现统一的 OpenAI-compatible SSE 流式 HTTP 客户端
-- [ ] 实现连通性测试接口（`TestConnection`），对网络异常、认证失败（401/403）和限流（429）输出结构化 `BlotError`
-- [ ] 在前端实现 `SettingsModal.tsx`，支持配置 Base URL、API Key、Model Name 并提供连通性测试与保存反馈
+- [x] 在 `internal/db` 中创建 `settings` 表与 `SettingsRepository`，支持键值对存储与更新
+- [x] 在 `internal/llm` 中定义 `Provider` 抽象接口，实现统一的 OpenAI-compatible SSE 流式 HTTP 客户端
+- [x] 实现连通性测试接口（`TestConnection`），对网络异常、认证失败（401/403）和限流（429）输出结构化 `BlotError`
+- [x] 在前端实现 `SettingsModal.tsx`，支持配置 Base URL、API Key、Model Name 并提供连通性测试与保存反馈
 
 **验证方式：**
 ```bash
@@ -36,7 +36,7 @@ go test -v -race ./internal/llm/... ./internal/settings/...
 cd frontend && pnpm test -- SettingsModal
 ```
 
-**验收证据：** 单元测试通过，在前端配置并保存后持久化至 SQLite，能够成功通过连通性测试。  
+**验收证据：** 单元测试通过，在前端配置并保存后持久化至 SQLite，能够成功通过连通性测试（详见 `docs/spec/versions/v2/ac/TASK-009-AC.md`）。  
 _需求:_ `requirements.md` 中 `v2.REQ-001`  
 _验收标准:_ `v2.REQ-001-AC-001`, `v2.REQ-001-AC-002`  
 _测试类型:_ Unit / Integration
