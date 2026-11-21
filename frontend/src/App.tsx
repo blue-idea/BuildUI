@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BlueprintCard, BlueprintDTO } from './components/BlueprintCard';
 import { QuestionnaireCard, QuestionItem } from './components/QuestionnaireCard';
 import { SettingsModal } from './components/SettingsModal';
+import { ModelSelector } from './components/ModelSelector';
 import { VersionTimelineModal, VersionItem } from './components/VersionTimelineModal';
 import { AppDrawer, AppItem } from './components/AppDrawer';
 import { ExportModal } from './components/ExportModal';
@@ -102,6 +103,7 @@ const AppContent: React.FC = () => {
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [buildMode, setBuildMode] = useState<'build' | 'plan'>('build');
+  const [selectedModel, setSelectedModel] = useState<string>('auto');
   const [extraSandboxItems, setExtraSandboxItems] = useState<string[]>([]);
   const [blueprint, setBlueprint] = useState<BlueprintDTO | null>(null);
   const [questionnaire, setQuestionnaire] = useState<QuestionItem[] | null>(null);
@@ -1008,13 +1010,12 @@ const AppContent: React.FC = () => {
                     <ChevronDown className="w-3 h-3 text-slate-400" />
                   </button>
 
-                  <button
-                    type="button"
-                    className="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-700/70 border border-slate-200 dark:border-zinc-600 rounded-md hover:bg-slate-50 transition-colors"
-                  >
-                    <span>{desktop ? settings['llm.model'] || 'No model configured' : t('chat.modelAuto')}</span>
-                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                  </button>
+                  <ModelSelector
+                    value={selectedModel}
+                    onChange={setSelectedModel}
+                    configuredProvider={settings['llm.provider']}
+                    configuredModel={settings['llm.model']}
+                  />
                 </div>
 
                 {/* 右侧附件与发送按钮 */}

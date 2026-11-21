@@ -329,4 +329,26 @@ describe('App Main Split Layout & Workflow', () => {
       expect(screen.getByText('Create or open a project')).toBeDefined();
     });
   });
+
+  it('renders model selector defaulting to Auto and allows choosing configured provider', async () => {
+    render(<App />);
+
+    // 默认展示为 Auto 按钮
+    const modelSelectorBtn = screen.getByRole('button', { name: /model selector/i });
+    expect(modelSelectorBtn).toBeDefined();
+    expect(modelSelectorBtn.textContent).toMatch(/Auto|自动/i);
+
+    // 点击展开下拉框
+    fireEvent.click(modelSelectorBtn);
+    expect(modelSelectorBtn.getAttribute('aria-expanded')).toBe('true');
+
+    // 选项中展示 Auto 选项
+    const autoOption = screen.getByRole('option', { name: /auto/i });
+    expect(autoOption).toBeDefined();
+
+    // 点击选择 auto 后收起
+    fireEvent.click(autoOption);
+    expect(modelSelectorBtn.getAttribute('aria-expanded')).toBe('false');
+    expect(modelSelectorBtn.textContent).toMatch(/Auto|自动/i);
+  });
 });

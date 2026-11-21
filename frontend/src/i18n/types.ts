@@ -37,6 +37,9 @@ export interface I18nDictionary {
     modeBuild: string;
     modePlan: string;
     modelAuto: string;
+    selectModelProvider: string;
+    modelAutoDesc: string;
+    noProviderConfigured: string;
     writing: string;
     completed: string;
     inspectFile: string;
