@@ -143,4 +143,21 @@ describe('App Main Split Layout & Workflow', () => {
     const chatInput = screen.getByPlaceholderText(/describe what to build/i) as HTMLInputElement;
     expect(chatInput.value).toBe('@src/components/Navbar.tsx: ');
   });
+
+  it('opens export modal and triggers export as zip', () => {
+    render(<App />);
+
+    const exportBtn = screen.getByRole('button', { name: /open export modal/i });
+    fireEvent.click(exportBtn);
+
+    expect(screen.getByText('Export Project')).toBeDefined();
+
+    const doExportBtn = screen.getByRole('button', { name: /export as zip/i });
+    fireEvent.click(doExportBtn);
+
+    const closeBtn = screen.getByRole('button', { name: /close export modal/i });
+    fireEvent.click(closeBtn);
+
+    expect(screen.queryByText('Export Project')).toBeNull();
+  });
 });

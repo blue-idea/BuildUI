@@ -12,6 +12,7 @@ import (
 	"buildui/internal/app/runner"
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
+	"buildui/internal/export"
 	"buildui/internal/inspector"
 	"buildui/internal/settings"
 	"buildui/internal/verification/tsc"
@@ -225,4 +226,23 @@ func (a *App) GetActiveApp() (*app.ActiveAppResponse, error) {
 func (a *App) ResolveComponent(req inspector.ResolveComponentRequest) (*inspector.ResolvedComponentResponse, error) {
 	svc := inspector.NewInspectorService()
 	return svc.ResolveComponent(a.ctx, req)
+}
+
+// ExportAppZip 暴露给前端的导出工程 Zip 压缩包 RPC 方法
+func (a *App) ExportAppZip(appID int64, destPath string) (string, error) {
+	if a.appService == nil {
+		return "", nil
+	}
+	appInfo, err := a.appService.SwitchApp(a.ctx, appID)
+	if err != nil {
+		return "", err
+	}
+	svc := export.NewExportService()
+	return svc.ExportAppZip(a.ctx, appInfo.Path, destPath)
+}
+
+// OpenInFileManager 暴露给前端的唤起系统原生文件管理器 RPC 方法
+func (a *App) OpenInFileManager(targetPath string) error {
+	svc := export.NewExportService()
+	return svc.OpenInFileManager(targetPath)
 }
