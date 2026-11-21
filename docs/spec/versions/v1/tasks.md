@@ -168,21 +168,21 @@
 
 ---
 
-- [ ] **TASK-008 · Turn-Level 自动 Git 提交与端到端核心流程贯通及验收**
+- [x] **TASK-008 · Turn-Level 自动 Git 提交与端到端核心流程贯通及验收**
 
   > 依赖：TASK-001 ~ TASK-007  
   > 官方源码参考：[src/ipc/services/git_service.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/services/git_service.ts)
 
-  - [ ] 实现会话轮次结束时自动执行 `git add -A` 与 `git commit`，将提交哈希存入 SQLite `versions` 表
-  - [ ] 贯通 Wails 前后端交互：主界面左右分栏、对话流渲染、蓝图卡片操作与 Iframe 实时预览
-  - [ ] 编写 Playwright 端到端测试脚本，模拟完整应用创建与代码生成全链路，**截图留存验收报告**
+  - [x] 实现会话轮次结束时自动执行 `git add -A` 与 `git commit`，将提交哈希存入 SQLite `versions` 表
+  - [x] 贯通 Wails 前后端交互：主界面左右分栏、对话流渲染、蓝图卡片操作与 Iframe 实时预览
+  - [x] 编写 Playwright 端到端测试脚本，模拟完整应用创建与代码生成全链路，**截图留存验收报告**
 
   **验证方式：**
   ```bash
   pnpm exec playwright test
   ```
 
-  **验收证据：** Playwright 测试全流程 PASS，生成包含关键步骤截图的测试报告。  
+  **验收证据：** Playwright 测试全流程 PASS，生成包含关键步骤截图的测试报告（见 `docs/spec/versions/v1/reports/screenshots/` 与 `docs/spec/versions/v1/ac/TASK-008-AC.md`）。  
   _需求:_ `requirements.md` 中 `v1.REQ-007`  
   _验收标准:_ `v1.REQ-007-AC-001`  
   _测试类型:_ E2E

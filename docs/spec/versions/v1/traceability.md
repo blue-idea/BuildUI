@@ -25,7 +25,7 @@
 | **TASK-005** | TypeScript 静态类型检查与自愈验证引擎 | `v1.REQ-004` / `AC-001..002` | `done` | Verification Engine (`internal/verification/tsc`) | Integration | [src/ipc/handlers/problems_handlers.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/handlers/problems_handlers.ts) |
 | **TASK-006** | Git Worktree 隔离快照生产打包验证沙箱 | `v1.REQ-005` / `AC-001` | `done` | Worktree Build Sandbox (`internal/verification/worktree`) | Integration | [src/pro/main/ipc/handlers/local_agent/tools/run_build.ts](https://github.com/dyad-sh/dyad/blob/main/src/pro/main/ipc/handlers/local_agent/tools/run_build.ts) |
 | **TASK-007** | 本地 Vite 开发服务器监管与实时预览代理 | `v1.REQ-006` / `AC-001..002` | `done` | App Run Supervisor & Iframe Proxy (`internal/app/runner`, `PreviewPanel.tsx`) | Integ/E2E | [src/preview_iframe/controller.ts](https://github.com/dyad-sh/dyad/blob/main/src/preview_iframe/controller.ts) |
-| **TASK-008** | Turn-Level 自动 Git 提交与端到端核心流程贯通及验收 | `v1.REQ-007` / `AC-001` | 待开始 | Git Turn Commits & Playwright E2E | E2E | [src/ipc/services/git_service.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/services/git_service.ts) |
+| **TASK-008** | Turn-Level 自动 Git 提交与端到端核心流程贯通及验收 | `v1.REQ-007` / `AC-001` | `done` | Git Turn Commits & Playwright E2E | E2E | [src/ipc/services/git_service.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/services/git_service.ts) |
 
 ---
 

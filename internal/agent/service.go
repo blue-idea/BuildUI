@@ -3,7 +3,9 @@ package agent
 import (
 	"context"
 	"io"
+	"os/exec"
 	"strings"
+	"time"
 
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
@@ -17,10 +19,11 @@ type EventEmitter interface {
 
 // ChatService 负责智能会话流与代码增量生成的协调服务
 type ChatService struct {
-	chatRepo  *db.ChatRepository
-	appRepo   *db.AppRepository
-	bpService *blueprint.BlueprintService
-	emitter   EventEmitter
+	chatRepo    *db.ChatRepository
+	appRepo     *db.AppRepository
+	bpService   *blueprint.BlueprintService
+	versionRepo *db.VersionRepository
+	emitter     EventEmitter
 }
 
 // NewChatService 创建会话服务
@@ -38,11 +41,17 @@ func (s *ChatService) SetEmitter(emitter EventEmitter) {
 	s.emitter = emitter
 }
 
+// SetVersionRepo 设置版本审计数据访问仓库
+func (s *ChatService) SetVersionRepo(r *db.VersionRepository) {
+	s.versionRepo = r
+}
+
 // ProcessStream 处理流式 Token 输入、状态机解析、门禁校验及文件落盘
 func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath string, r io.Reader) error {
 	// 初始门禁预检：若有写盘意图，蓝图必须预先审批
 	fileWriter := NewFileWriter(appPath)
 	depManager := NewDependencyManager(appPath, nil)
+	filesWrittenCount := 0
 
 	parser := NewXMLStreamParser(ParserCallbacks{
 		OnChunk: func(chunk string) {
@@ -83,6 +92,7 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 				}
 				return err
 			}
+			filesWrittenCount++
 			return fileWriter.WriteFile(path, content)
 		},
 		OnAddDependency: func(packages []string) error {
@@ -117,14 +127,68 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 		return err
 	}
 
+	commitHash := ""
+	if filesWrittenCount > 0 {
+		commitHash = s.commitWorkspaceChanges(ctx, chatID, appPath)
+	}
+
 	if s.emitter != nil {
 		s.emitter.Emit("chat:end", map[string]interface{}{
 			"chatId":     chatID,
-			"commitHash": "",
+			"commitHash": commitHash,
 		})
 	}
 
 	return nil
+}
+
+// commitWorkspaceChanges 自动将轮次改动执行 Git 提交并持久化至 versions 表
+func (s *ChatService) commitWorkspaceChanges(ctx context.Context, chatID int64, appPath string) string {
+	statusCmd := exec.CommandContext(ctx, "git", "status", "--porcelain")
+	statusCmd.Dir = appPath
+	statusOut, err := statusCmd.Output()
+	if err != nil || len(strings.TrimSpace(string(statusOut))) == 0 {
+		revCmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+		revCmd.Dir = appPath
+		if out, err := revCmd.Output(); err == nil {
+			return strings.TrimSpace(string(out))
+		}
+		return ""
+	}
+
+	addCmd := exec.CommandContext(ctx, "git", "add", "-A")
+	addCmd.Dir = appPath
+	_ = addCmd.Run()
+
+	commitCmd := exec.CommandContext(ctx, "git", "commit", "-m", "Turn update from Agent: automated commit")
+	commitCmd.Dir = appPath
+	_ = commitCmd.Run()
+
+	revCmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+	revCmd.Dir = appPath
+	hashBytes, err := revCmd.Output()
+	if err != nil {
+		return ""
+	}
+	commitHash := strings.TrimSpace(string(hashBytes))
+
+	if s.versionRepo != nil && commitHash != "" {
+		var appID int64
+		if s.chatRepo != nil {
+			if chat, err := s.chatRepo.GetByID(ctx, chatID); err == nil && chat != nil {
+				appID = chat.AppID
+			}
+		}
+		_, _ = s.versionRepo.Create(ctx, &db.VersionEntity{
+			AppID:      appID,
+			ChatID:     &chatID,
+			CommitHash: commitHash,
+			Message:    "Turn update from Agent: automated commit",
+			CreatedAt:  time.Now(),
+		})
+	}
+
+	return commitHash
 }
 
 // StreamChatRequest 请求体

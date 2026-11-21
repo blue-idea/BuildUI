@@ -63,6 +63,7 @@ func (a *App) startup(ctx context.Context) {
 		a.appRepo = db.NewAppRepository(database)
 		a.chatRepo = db.NewChatRepository(database)
 		a.bpRepo = db.NewBlueprintRepository(database)
+		versionRepo := db.NewVersionRepository(database)
 
 		emitter := &wailsEventEmitter{ctx: ctx}
 		a.appService = app.NewAppService(a.appRepo, database)
@@ -70,6 +71,7 @@ func (a *App) startup(ctx context.Context) {
 		a.blueprintService = blueprint.NewBlueprintService(a.bpRepo, a.appRepo, database)
 		a.blueprintService.SetEmitter(emitter)
 		a.chatService = agent.NewChatService(a.chatRepo, a.appRepo, a.blueprintService, emitter)
+		a.chatService.SetVersionRepo(versionRepo)
 		a.problemsService = tsc.NewProblemsService(a.appRepo, nil)
 	}
 }
