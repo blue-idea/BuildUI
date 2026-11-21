@@ -31,7 +31,8 @@ interface DesktopMethods {
   GetProjectChat: (id: number) => Promise<ProjectChat>;
   CreateProjectChat: (id: number) => Promise<ProjectChat>;
   ApproveBlueprint: (chatId: number) => Promise<void>;
-  StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[] }) => Promise<void>;
+  StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[]; provider?: string; model?: string }) => Promise<void>;
+  ListProviderModels?: (provider: string, baseURL: string, apiKey: string) => Promise<string[]>;
   CancelChat: (chatId: number) => Promise<void>;
   RunApp: (req: { appId: number }) => Promise<{ previewUrl: string }>;
   StopApp?: (req: { appId: number }) => Promise<void>;
