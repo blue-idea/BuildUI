@@ -47,9 +47,9 @@ _测试类型:_ Unit / Integration
 > 依赖：TASK-021  
 > 官方源码参考：[src/components/TemplatePicker.tsx](https://github.com/dyad-sh/dyad/blob/main/src/components/TemplatePicker.tsx)
 
-- [ ] 创建 `frontend/src/components/TemplateModal.tsx`：提供模版卡片浏览、分类过滤与一键实例化项目表单
-- [ ] 在 `AppDrawer.tsx` 的 "+ New Application" 中联动呼出 `TemplateModal`
-- [ ] 编写前端单元测试 `TemplateModal.test.tsx`
+- [x] 创建 `frontend/src/components/TemplateModal.tsx`：提供模版卡片浏览、分类过滤与一键实例化项目表单
+- [x] 在 `AppDrawer.tsx` 的 "+ New Application" 中联动呼出 `TemplateModal`
+- [x] 编写前端单元测试 `TemplateModal.test.tsx`
 
 **验证方式：**
 ```bash

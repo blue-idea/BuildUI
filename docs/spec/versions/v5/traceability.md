@@ -19,7 +19,7 @@
 | TASK ID | 任务名称 | REQ / AC | 状态 | 设计对应模块 | 测试类型 | 官方上游参考源码链接 |
 | :--- | :--- | :--- | :---: | :--- | :---: | :--- |
 | **TASK-021** | 应用模版元数据管理与脚手架初始化服务 | `v5.REQ-001` / `AC-001..002` | `done` | TemplateService & Scaffolder (`internal/template`, `app.go`) | Unit / Integ | [src/services/template_service.ts](https://github.com/dyad-sh/dyad/blob/main/src/services/template_service.ts) |
-| **TASK-022** | 前端模版选择器组件 `TemplateModal.tsx` 与新建项目联动 | `v5.REQ-001` / `AC-003` | 待开始 | TemplatePicker Modal (`frontend/src/components/TemplateModal.tsx`) | Unit / UI | [src/components/TemplatePicker.tsx](https://github.com/dyad-sh/dyad/blob/main/src/components/TemplatePicker.tsx) |
+| **TASK-022** | 前端模版选择器组件 `TemplateModal.tsx` 与新建项目联动 | `v5.REQ-001` / `AC-003` | `done` | TemplatePicker Modal (`frontend/src/components/TemplateModal.tsx`) | Unit / UI | [src/components/TemplatePicker.tsx](https://github.com/dyad-sh/dyad/blob/main/src/components/TemplatePicker.tsx) |
 | **TASK-023** | 全局命令面板 `CommandPalette.tsx` 与全键盘快捷键系统集成 | `v5.REQ-002` / `AC-001..003` | 待开始 | CommandPalette & Global Keyboard Shortcuts (`CommandPalette.tsx`, `App.tsx`) | UI / Unit | [src/components/CommandPalette.tsx](https://github.com/dyad-sh/dyad/blob/main/src/components/CommandPalette.tsx) |
 | **TASK-024** | Blot-UI v5 全流程整合与 Playwright E2E 自动化验收 | `v5.REQ-001..002` 全量 AC | 待开始 | Desktop Shell & Playwright E2E Suite (`frontend/e2e/v5-workflow.spec.ts`) | E2E / Visual | [src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts) |
 
