@@ -82,15 +82,15 @@
 
 ---
 
-- [ ] **TASK-004 · Agent 提示词工程与增量 XML 流式落盘引擎（AgentEngine）**
+- [x] **TASK-004 · Agent 提示词工程与增量 XML 流式落盘引擎（AgentEngine）**
 
   > 依赖：TASK-003  
   > 官方源码参考：[src/prompts/local_agent_prompt.ts](https://github.com/dyad-sh/dyad/blob/main/src/prompts/local_agent_prompt.ts) 与 [src/prompts/system_prompt.ts](https://github.com/dyad-sh/dyad/blob/main/src/prompts/system_prompt.ts)
 
-  - [ ] 构建 Go 提示词装配模块，集成严苛的“零占位符、功能闭环”系统提示词
-  - [ ] 编写 Go 增量流式 XML 状态机，逐 Token 识别 `<dyad-write path="...">` 并在流传输中落盘
-  - [ ] 实现 `add_dependency` 依赖自动检测与安装（调用 `pnpm add <pkg>`）
-  - [ ] 配合 Wails `runtime.EventsEmit` 实现 `chat:chunk`、`chat:tool-start`、`chat:tool-end`、`chat:end` 事件流
+  - [x] 构建 Go 提示词装配模块，集成严苛的“零占位符、功能闭环”系统提示词
+  - [x] 编写 Go 增量流式 XML 状态机，逐 Token 识别 `<dyad-write path="...">` 并在流传输中落盘
+  - [x] 实现 `add_dependency` 依赖自动检测与安装（调用 `pnpm add <pkg>`）
+  - [x] 配合 Wails `runtime.EventsEmit` 实现 `chat:chunk`、`chat:tool-start`、`chat:tool-end`、`chat:end` 事件流
 
   **验证方式：**
   ```bash

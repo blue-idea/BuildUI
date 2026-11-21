@@ -7,6 +7,7 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"buildui/internal/agent"
 	"buildui/internal/app"
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
@@ -32,6 +33,7 @@ type App struct {
 	bpRepo           *db.BlueprintRepository
 	appService       *app.AppService
 	blueprintService *blueprint.BlueprintService
+	chatService      *agent.ChatService
 }
 
 // NewApp 创建 App 实例
@@ -59,9 +61,11 @@ func (a *App) startup(ctx context.Context) {
 		a.chatRepo = db.NewChatRepository(database)
 		a.bpRepo = db.NewBlueprintRepository(database)
 
+		emitter := &wailsEventEmitter{ctx: ctx}
 		a.appService = app.NewAppService(a.appRepo, database)
 		a.blueprintService = blueprint.NewBlueprintService(a.bpRepo, a.appRepo, database)
-		a.blueprintService.SetEmitter(&wailsEventEmitter{ctx: ctx})
+		a.blueprintService.SetEmitter(emitter)
+		a.chatService = agent.NewChatService(a.chatRepo, a.appRepo, a.blueprintService, emitter)
 	}
 }
 
@@ -90,4 +94,9 @@ func (a *App) GetBlueprint(chatID int64) (*blueprint.BlueprintDTO, error) {
 // ApproveBlueprint 暴露给前端的审批蓝图 RPC 方法
 func (a *App) ApproveBlueprint(chatID int64) error {
 	return a.blueprintService.ApproveBlueprint(a.ctx, chatID)
+}
+
+// StreamChat 暴露给前端的会话流式交互 RPC 方法
+func (a *App) StreamChat(req agent.StreamChatRequest) error {
+	return a.chatService.StreamChat(a.ctx, req)
 }

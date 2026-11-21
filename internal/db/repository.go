@@ -255,6 +255,27 @@ func (r *ChatRepository) ListByAppID(ctx context.Context, appID int64) ([]*ChatE
 	return chats, nil
 }
 
+// GetByID 根据 ID 查询单个会话
+func (r *ChatRepository) GetByID(ctx context.Context, id int64) (*ChatEntity, error) {
+	query := `
+		SELECT id, app_id, title, chat_mode, created_at, updated_at
+		FROM chats
+		WHERE id = ?;
+	`
+	row := r.db.SQLDB().QueryRowContext(ctx, query, id)
+	var chat ChatEntity
+	var createdAtSec, updatedAtSec int64
+	if err := row.Scan(&chat.ID, &chat.AppID, &chat.Title, &chat.ChatMode, &createdAtSec, &updatedAtSec); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errs.NewNotFoundError(fmt.Sprintf("chat with id %d not found", id), err)
+		}
+		return nil, errs.NewInternalError(fmt.Sprintf("failed to query chat %d", id), err)
+	}
+	chat.CreatedAt = time.Unix(createdAtSec, 0)
+	chat.UpdatedAt = time.Unix(updatedAtSec, 0)
+	return &chat, nil
+}
+
 // MessageRepository 消息数据访问接口
 type MessageRepository struct {
 	db *DB

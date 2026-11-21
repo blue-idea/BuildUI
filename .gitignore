@@ -47,6 +47,7 @@ frontend/dist/*
 *.md5
 
 # Go build & runtime artifacts
+buildui
 vendor/
 bin/
 *.exe
