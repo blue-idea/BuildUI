@@ -90,11 +90,11 @@ _测试类型:_ UI / Unit
 > 依赖：TASK-017 ~ TASK-019  
 > 官方源码参考：[src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts)
 
-- [ ] 在 `frontend/e2e/v4-workflow.spec.ts` 中编写端到端自动化测试用例，覆盖：
+- [x] 在 `frontend/e2e/v4-workflow.spec.ts` 中编写端到端自动化测试用例，覆盖：
   1. 顶部导航栏切换主题（如切换至 Cyberpunk Neon 与 Forest Emerald），验证宿主与预览主题类名与 CSS 变量；
   2. 触发依赖安装事件，验证安装进度卡片呈现与安装成功反馈；
   3. 捕获并留存 4 组关键高保真验收截图。
-- [ ] 编写 `docs/spec/versions/v4/ac/TASK-020-AC.md` 与 `v4-final-report.md`，执行全量回归。
+- [x] 编写 `docs/spec/versions/v4/ac/TASK-020-AC.md` 与 `v4-final-report.md`，执行全量回归。
 
 **验证方式：**
 ```bash
