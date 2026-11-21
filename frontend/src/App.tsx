@@ -1,34 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BlueprintCard, BlueprintDTO } from './components/BlueprintCard';
 import { QuestionnaireCard, QuestionItem } from './components/QuestionnaireCard';
-import { PreviewPanel } from './components/PreviewPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { VersionTimelineModal, VersionItem } from './components/VersionTimelineModal';
 import { AppDrawer, AppItem } from './components/AppDrawer';
 import { ExportModal } from './components/ExportModal';
-import { ThemeSelector, ThemePreset } from './components/ThemeSelector';
 import { TemplateModal, AppTemplate } from './components/TemplateModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
+import { MacOSWindowHeader } from './components/MacOSWindowHeader';
+import { LeftDock, DockTab } from './components/LeftDock';
+import { FileChangeCard } from './components/FileChangeCard';
+import { WorkspacePanel, WorkspaceView } from './components/WorkspacePanel';
+import { FileActionItem } from './types/fileAction';
+import { ThemePreset } from './components/ThemeSelector';
+import { ThemeProvider } from './context/ThemeContext';
+import { I18nProvider, useI18n } from './i18n/I18nContext';
+import { Plus, Send, Square, Hammer, ChevronDown } from 'lucide-react';
 
 interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
   content: string;
+  fileChanges?: FileActionItem[];
 }
 
-export const App: React.FC = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
+const AppContent: React.FC = () => {
+  const { t } = useI18n();
+
+  const [activeDockTab, setActiveDockTab] = useState<DockTab>('home');
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('preview');
+  const [activeAppId, setActiveAppId] = useState<number>(1);
+  const [apps, setApps] = useState<AppItem[]>([
     {
-      id: 'welcome',
-      sender: 'assistant',
-      content: 'Welcome to Blot-UI. What web application would you like to build today?',
+      id: 1,
+      name: 'Pantry Planner',
+      path: '/workspace/pantry-planner',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 2,
+      name: 'Default Application',
+      path: '/workspace/default-app',
+      createdAt: new Date().toISOString(),
     },
   ]);
+
+  const activeApp = apps.find((a) => a.id === activeAppId) || apps[0];
+
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'msg-user-1',
+      sender: 'user',
+      content: 'Build a pantry recipe planner that suggests dinners from what I have',
+    },
+    {
+      id: 'msg-assistant-1',
+      sender: 'assistant',
+      content: "I'll set up your pantry planner with an ingredient list and dinner ideas ranked by what you can already make.",
+      fileChanges: [
+        {
+          id: 'fc-1',
+          filename: 'PantryList.tsx',
+          path: 'src/components/PantryList.tsx',
+          status: 'completed',
+        },
+        {
+          id: 'fc-2',
+          filename: 'RecipeCard.tsx',
+          path: 'src/components/RecipeCard.tsx',
+          status: 'writing',
+        },
+      ],
+    },
+  ]);
+
   const [inputPrompt, setInputPrompt] = useState('');
+  const [buildMode, setBuildMode] = useState<'build' | 'plan'>('build');
   const [blueprint, setBlueprint] = useState<BlueprintDTO | null>(null);
   const [questionnaire, setQuestionnaire] = useState<QuestionItem[] | null>(null);
   const [previewUrl] = useState('http://localhost:5173');
-  const [previewStatus, setPreviewStatus] = useState<'idle' | 'starting' | 'running' | 'error'>('running');
+  const [isStartingApp, setIsStartingApp] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -36,17 +87,16 @@ export const App: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isInspectMode, setIsInspectMode] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [activeAppId, setActiveAppId] = useState<number>(1);
-  const [apps, setApps] = useState<AppItem[]>([
-    {
-      id: 1,
-      name: 'Default Application',
-      path: '/workspace/default-app',
-      createdAt: new Date().toISOString(),
-    },
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [systemLogs, setSystemLogs] = useState<string[]>([
+    'Vite dev server listening on http://localhost:5173',
+    'Compiled src/components/PantryList.tsx in 14ms',
+    'Updating AST module for src/components/RecipeCard.tsx',
   ]);
+
   const [settings, setSettings] = useState<Record<string, string>>({});
-  const [workspaceDir, setWorkspaceDir] = useState<string>('default-workspace');
+  const [workspaceDir, setWorkspaceDir] = useState<string>('/workspace/default-app');
   const [versions] = useState<VersionItem[]>([
     {
       id: 1,
@@ -55,6 +105,7 @@ export const App: React.FC = () => {
       createdAt: new Date().toISOString(),
     },
   ]);
+
   const [themePresets] = useState<ThemePreset[]>([
     {
       id: 'dark-slate',
@@ -88,10 +139,10 @@ export const App: React.FC = () => {
     },
   ]);
   const [activeThemeId, setActiveThemeId] = useState<string>('dark-slate');
-  const [installedDependencies, setInstalledDependencies] = useState<string[]>([]);
+
+  const [installedDependencies, setInstalledDependencies] = useState<string[]>(['lucide-react']);
   const [installingDeps, setInstallingDeps] = useState<string | null>(null);
-  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
   const [templates] = useState<AppTemplate[]>([
     {
       id: 'saas-dashboard',
@@ -130,9 +181,10 @@ export const App: React.FC = () => {
       themeId: 'sunset-glow',
     },
   ]);
-  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  React.useEffect(() => {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -146,7 +198,6 @@ export const App: React.FC = () => {
   const handleSelectTheme = (themeId: string) => {
     setActiveThemeId(themeId);
     const target = themePresets.find((p) => p.id === themeId);
-    // 跨沙箱向 preview iframe postMessage 注入 CSS 变量
     const iframe = document.querySelector('iframe') as HTMLIFrameElement | null;
     if (iframe && iframe.contentWindow && target) {
       iframe.contentWindow.postMessage(
@@ -160,15 +211,6 @@ export const App: React.FC = () => {
         },
         '*'
       );
-    }
-    // 持久化到后端
-    const wailsApp = (
-      window as unknown as {
-        go?: { main?: { App?: { SetAppTheme?: (id: number, t: string) => Promise<void> } } };
-      }
-    )?.go?.main?.App;
-    if (wailsApp?.SetAppTheme) {
-      wailsApp.SetAppTheme(activeAppId, themeId).catch(() => {});
     }
   };
 
@@ -185,9 +227,8 @@ export const App: React.FC = () => {
         }
       }
     } catch {
-      // 捕获潜在异常并使用默认回退
+      // 捕获异常
     }
-    // Web / E2E 模式下的回退模拟路径
     setWorkspaceDir('/workspace/my-blot-app');
   };
 
@@ -196,7 +237,6 @@ export const App: React.FC = () => {
     const prompt = inputPrompt.trim();
     if (!prompt) return;
 
-    // 添加用户消息
     const userMsg: ChatMessage = {
       id: String(Date.now()),
       sender: 'user',
@@ -205,7 +245,6 @@ export const App: React.FC = () => {
     setMessages((prev) => [...prev, userMsg]);
     setInputPrompt('');
 
-    // 智能依赖检测与沙箱安装调度
     if (prompt.toLowerCase().includes('recharts') || prompt.toLowerCase().includes('lucide-react')) {
       setInstallingDeps('lucide-react, recharts');
       setTimeout(() => {
@@ -214,7 +253,6 @@ export const App: React.FC = () => {
       }, 300);
     }
 
-    // 默认进入澄清或蓝图展示模拟流程
     if (!blueprint) {
       setTimeout(() => {
         setBlueprint({
@@ -235,7 +273,6 @@ export const App: React.FC = () => {
         });
       }, 100);
     } else {
-      // 多轮对话增量修改流程
       setIsGenerating(true);
       setActiveTool('write_file: src/App.tsx');
       timerRef.current = setTimeout(() => {
@@ -247,8 +284,17 @@ export const App: React.FC = () => {
             id: String(Date.now()),
             sender: 'assistant',
             content: `Updated components based on your request: "${prompt}". Live preview refreshed.`,
+            fileChanges: [
+              {
+                id: String(Date.now() + 1),
+                filename: 'PantryList.tsx',
+                path: 'src/components/PantryList.tsx',
+                status: 'completed',
+              },
+            ],
           },
         ]);
+        setSystemLogs((prev) => [...prev, `Updated components for "${prompt}"`]);
       }, 500);
     }
   };
@@ -287,6 +333,14 @@ export const App: React.FC = () => {
           id: String(Date.now()),
           sender: 'assistant',
           content: 'Application code generated and verified in local sandbox. You can see the live preview on the right.',
+          fileChanges: [
+            {
+              id: 'fc-approve-1',
+              filename: 'App.tsx',
+              path: 'src/App.tsx',
+              status: 'completed',
+            },
+          ],
         },
       ]);
     }, 500);
@@ -325,15 +379,27 @@ export const App: React.FC = () => {
     setApps((prev) => [...prev, newApp]);
     setActiveAppId(newId);
     setWorkspaceDir(newApp.path);
-    if (tmpl.themeId) {
-      handleSelectTheme(tmpl.themeId);
-    }
     setIsTemplateModalOpen(false);
     setMessages([
       {
         id: String(Date.now()),
         sender: 'assistant',
         content: `Instantiated new application from template "${tmpl.name}". Initial codebase scaffolded and loaded into workspace.`,
+      },
+    ]);
+  };
+
+  const handleInspectFile = (path: string) => {
+    setWorkspaceView('code');
+    setSystemLogs((prev) => [...prev, `Inspecting source: ${path}`]);
+  };
+
+  const handleNewChat = () => {
+    setMessages([
+      {
+        id: String(Date.now()),
+        sender: 'assistant',
+        content: `Started a new conversation for ${activeApp.name}. What would you like to build next?`,
       },
     ]);
   };
@@ -360,30 +426,11 @@ export const App: React.FC = () => {
       run: () => handleSelectTheme('cyberpunk-neon'),
     },
     {
-      id: 'cmd-theme-forest',
-      title: 'Switch Theme: Forest Emerald',
-      category: 'Theme',
-      run: () => handleSelectTheme('forest-emerald'),
-    },
-    {
-      id: 'cmd-theme-slate',
-      title: 'Switch Theme: Midnight Slate',
-      category: 'Theme',
-      run: () => handleSelectTheme('dark-slate'),
-    },
-    {
       id: 'cmd-export-zip',
       title: 'Export Project as ZIP',
       category: 'Action',
       shortcut: 'E',
       run: () => setIsExportOpen(true),
-    },
-    {
-      id: 'cmd-toggle-inspector',
-      title: 'Toggle Component Inspector',
-      category: 'Action',
-      shortcut: 'I',
-      run: () => setIsInspectMode((prev) => !prev),
     },
     {
       id: 'cmd-open-settings',
@@ -402,104 +449,72 @@ export const App: React.FC = () => {
   ];
 
   return (
-    <div className="flex h-screen w-screen flex-col bg-slate-950 text-slate-100 font-sans">
-      {/* 顶部全局导航栏 */}
-      <header className="flex h-12 items-center justify-between border-b border-slate-800 px-4 bg-slate-900/50">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
-            <span className="font-bold text-slate-100 tracking-tight">Blot-UI</span>
-          </div>
-          <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
-            Wails v2 + React 19
-          </span>
-        </div>
+    <div className="flex h-screen w-screen flex-col bg-slate-100 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 font-sans overflow-hidden transition-colors">
+      {/* 顶部 macOS 窗口标题栏 */}
+      <MacOSWindowHeader
+        appName={activeApp.name}
+        workspaceDir={workspaceDir}
+        themePresets={themePresets}
+        activeThemeId={activeThemeId}
+        onSelectTheme={handleSelectTheme}
+        onManageApp={() => setIsDrawerOpen(true)}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenVersions={() => setIsVersionsOpen(true)}
+        onOpenExport={() => setIsExportOpen(true)}
+        onSelectDirectory={handleSelectDirectory}
+        onMockBlueprint={handleMockBlueprint}
+      />
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsCommandPaletteOpen(true)}
-            aria-label="Open command palette"
-            className="flex items-center gap-1.5 rounded border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <span>🔍</span>
-            <span className="text-slate-400">Commands</span>
-            <kbd className="rounded bg-slate-800 px-1 py-0.5 text-[9px] font-mono text-slate-400 border border-slate-700">
-              Ctrl+K
-            </kbd>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsDrawerOpen(true)}
-            aria-label="Open applications drawer"
-            className="flex items-center gap-1.5 rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-            <span>Apps</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleSelectDirectory}
-            aria-label="Select workspace directory"
-            className="flex items-center gap-1.5 rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-          >
-            <span className="text-slate-400">Workspace:</span>
-            <span className="max-w-[120px] truncate">{workspaceDir}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsVersionsOpen(true)}
-            aria-label="Open version time machine"
-            className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-          >
-            Versions
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsSettingsOpen(true)}
-            aria-label="Open settings"
-            className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-          >
-            Settings
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsExportOpen(true)}
-            aria-label="Open export modal"
-            className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-          >
-            Export
-          </button>
-          <ThemeSelector
-            presets={themePresets}
-            activeThemeId={activeThemeId}
-            onSelectTheme={handleSelectTheme}
-          />
-          <button
-            type="button"
-            onClick={handleMockBlueprint}
-            aria-label="Mock blueprint"
-            className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700 transition-colors"
-          >
-            Mock Blueprint
-          </button>
-        </div>
-      </header>
+      {/* 主工作区：左侧微坞 + 中间会话任务列 + 右侧三态工作区 */}
+      <div className="flex flex-1 w-full h-[calc(100vh-44px)] overflow-hidden">
+        {/* 最左侧微坞 (LeftDock) */}
+        <LeftDock
+          activeTab={activeDockTab}
+          onSelectTab={setActiveDockTab}
+          onOpenTemplates={() => setIsTemplateModalOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenComponents={() => setIsInspectMode((prev) => !prev)}
+        />
 
-      {/* 主界面：左右分栏布局 */}
-      <main className="grid flex-1 grid-cols-1 lg:grid-cols-2 overflow-hidden">
-        {/* 左侧：会话流与蓝图控制栏 */}
-        <div className="flex h-full flex-col border-r border-slate-800 bg-slate-950">
-          <div className="flex h-10 items-center justify-between border-b border-slate-800/80 px-4 text-xs font-medium text-slate-400">
-            <span>Chat & Blueprint</span>
-            {blueprint?.approved && (
-              <span className="rounded-full bg-emerald-950/80 px-2 py-0.5 text-[11px] text-emerald-400 border border-emerald-800/50">
-                Blueprint Approved
+        {/* 中间：会话与任务列 (ChatColumn) */}
+        <section className="w-[440px] shrink-0 h-full flex flex-col bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 transition-colors">
+          {/* Chat 顶栏小工具条 */}
+          <div className="h-10 px-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-600 dark:text-zinc-400 select-none">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleNewChat}
+                aria-label="New chat"
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 font-medium transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5 text-slate-500" />
+                <span>{t('chat.newChat')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsVersionsOpen(true)}
+                title={t('chat.version')}
+                className="flex items-center gap-1 px-2 py-1 rounded-md text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <span>{t('chat.version')} 1</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">
+                Chat & Blueprint
               </span>
-            )}
+              {blueprint?.approved && (
+                <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.2 text-[10px] text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                  Blueprint Approved
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* 消息滚动区 */}
+          {/* 消息滚动流 */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((msg) => (
               <div
@@ -508,15 +523,29 @@ export const App: React.FC = () => {
                   msg.sender === 'user' ? 'items-end' : 'items-start'
                 }`}
               >
+                {/* 消息气泡：用户为淡紫色气泡，助手为纯白/微深色卡片 */}
                 <div
-                  className={`max-w-[85%] rounded-lg px-3.5 py-2.5 text-sm leading-relaxed ${
+                  className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.sender === 'user'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-900 border border-slate-800 text-slate-200'
+                      ? 'bg-[#e8e5ff] text-[#2c246b] dark:bg-indigo-950/70 dark:text-indigo-200 font-medium shadow-2xs'
+                      : 'bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 text-slate-800 dark:text-zinc-200 shadow-2xs'
                   }`}
                 >
                   {msg.content}
                 </div>
+
+                {/* 文件修改进度卡片群 */}
+                {msg.fileChanges && msg.fileChanges.length > 0 && (
+                  <div className="w-full mt-2 pl-2">
+                    {msg.fileChanges.map((fc) => (
+                      <FileChangeCard
+                        key={fc.id}
+                        item={fc}
+                        onInspect={handleInspectFile}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
 
@@ -546,117 +575,164 @@ export const App: React.FC = () => {
               />
             )}
 
-            {/* 依赖安装状态指示 */}
+            {/* 依赖安装指示 */}
             {installingDeps && (
-              <div className="flex items-center gap-2 rounded border border-amber-900/50 bg-amber-950/40 p-2 text-xs text-amber-300">
-                <span className="h-2 w-2 animate-spin rounded-full border border-amber-400 border-t-transparent" />
+              <div className="flex items-center gap-2 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
+                <span className="h-2 w-2 animate-spin rounded-full border border-amber-500 border-t-transparent" />
                 <span>Installing sandbox dependencies: {installingDeps}...</span>
               </div>
             )}
             {installedDependencies.length > 0 && (
-              <div className="flex items-center gap-2 rounded border border-emerald-900/50 bg-emerald-950/40 p-2 text-xs text-emerald-300">
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/40 p-2 text-xs text-emerald-700 dark:text-emerald-300">
                 <span>✓</span>
-                <span>Installed dependencies: {installedDependencies.join(', ')}</span>
+                <span>Installed: {installedDependencies.join(', ')}</span>
               </div>
             )}
 
-            {/* 工具执行进度指示 */}
+            {/* 工具执行指示 */}
             {activeTool && (
-              <div className="flex items-center gap-2 rounded border border-blue-900/50 bg-blue-950/40 p-2 text-xs text-blue-300">
-                <span className="h-2 w-2 animate-ping rounded-full bg-blue-400" />
+              <div className="flex items-center gap-2 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/40 p-2.5 text-xs text-blue-700 dark:text-blue-300">
+                <span className="h-2 w-2 animate-ping rounded-full bg-blue-500" />
                 <span>Executing tool: {activeTool}...</span>
               </div>
             )}
           </div>
 
-          {/* 底部输入框 */}
-          <form
-            onSubmit={handleSendPrompt}
-            className="border-t border-slate-800 p-3 bg-slate-900/30"
-          >
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
+          {/* 底部多模态富输入框 */}
+          <div className="p-3 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800">
+            <form
+              onSubmit={handleSendPrompt}
+              className="rounded-2xl border border-slate-200 dark:border-zinc-700/80 bg-slate-50/50 dark:bg-zinc-800/40 p-2.5 shadow-2xs focus-within:border-purple-400 dark:focus-within:border-purple-500 focus-within:bg-white dark:focus-within:bg-zinc-800 transition-all"
+            >
+              <textarea
                 value={inputPrompt}
                 onChange={(e) => setInputPrompt(e.target.value)}
-                placeholder="Describe what to build..."
-                className="flex-1 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendPrompt();
+                  }
+                }}
+                placeholder="Describe what to build or send a message to Pantry Planner..."
+                rows={2}
+                className="w-full resize-none bg-transparent text-xs text-slate-800 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none leading-relaxed"
               />
-              {isGenerating ? (
-                <button
-                  type="button"
-                  onClick={handleCancelGeneration}
-                  aria-label="Stop generation"
-                  className="rounded-md bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 transition-colors shadow-sm"
-                >
-                  Stop
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  aria-label="Send prompt"
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors shadow-sm"
-                >
-                  Send
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
 
-        {/* 右侧：实时预览面板 */}
-        <div className="h-full overflow-hidden">
-          <PreviewPanel
-            previewUrl={previewUrl}
-            status={previewStatus}
-            isInspectMode={isInspectMode}
-            onToggleInspect={() => setIsInspectMode((prev) => !prev)}
-            onSelectComponent={(_path, prompt) => {
-              setInputPrompt(prompt);
-              setIsInspectMode(false);
-            }}
-            onReload={() => {
-              setPreviewStatus('starting');
-              setTimeout(() => setPreviewStatus('running'), 600);
-            }}
-            onStop={() => setPreviewStatus('idle')}
-          />
-        </div>
-      </main>
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-zinc-700/60">
+                {/* 模式与模型选择 */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBuildMode(buildMode === 'build' ? 'plan' : 'build')}
+                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-700/70 border border-slate-200 dark:border-zinc-600 rounded-md hover:bg-slate-50 transition-colors"
+                  >
+                    <Hammer className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                    <span>{buildMode === 'build' ? t('chat.modeBuild') : t('chat.modePlan')}</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  </button>
 
-      {/* 设置面板模态框 */}
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 px-2 py-1 text-[11px] text-slate-500 dark:text-zinc-400 bg-white dark:bg-zinc-700/70 border border-slate-200 dark:border-zinc-600 rounded-md hover:bg-slate-50 transition-colors"
+                  >
+                    <span>{t('chat.modelAuto')}</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400" />
+                  </button>
+                </div>
+
+                {/* 右侧附件与发送按钮 */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    title="Add attachment"
+                    className="p-1.5 text-slate-400 hover:text-slate-600 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+
+                  {isGenerating ? (
+                    <button
+                      type="button"
+                      onClick={handleCancelGeneration}
+                      aria-label="Stop generation"
+                      title={t('chat.stopGeneration')}
+                      className="p-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white shadow-2xs transition-colors"
+                    >
+                      <Square className="w-3.5 h-3.5 fill-white" />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      aria-label="Send prompt"
+                      title={t('chat.send')}
+                      className="p-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white shadow-2xs transition-colors"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        {/* 右侧：三态工作区 (WorkspacePanel: Preview | Code | Publish) */}
+        <WorkspacePanel
+          activeView={workspaceView}
+          onViewChange={setWorkspaceView}
+          isLoading={isStartingApp}
+          previewUrl={previewUrl}
+          isInspectMode={isInspectMode}
+          onToggleInspect={() => setIsInspectMode((prev) => !prev)}
+          onSelectComponent={(_path, prompt) => {
+            setInputPrompt(prompt);
+            setIsInspectMode(false);
+          }}
+          files={[
+            {
+              path: 'src/components/PantryList.tsx',
+              content: `import React from 'react';\n\nexport const PantryList: React.FC = () => {\n  return (\n    <div className="p-4 bg-white rounded-lg shadow">\n      <h2 className="text-lg font-bold">Pantry Inventory</h2>\n    </div>\n  );\n};`,
+            },
+            {
+              path: 'src/components/RecipeCard.tsx',
+              content: `import React from 'react';\n\nexport const RecipeCard: React.FC = () => {\n  return (\n    <div className="border p-4 rounded-xl">\n      <h3>Dinner Suggestion</h3>\n    </div>\n  );\n};`,
+            },
+          ]}
+          systemLogs={systemLogs}
+          onReload={() => {
+            setIsStartingApp(true);
+            setTimeout(() => setIsStartingApp(false), 500);
+          }}
+          onPublish={() => setIsExportOpen(true)}
+        />
+      </div>
+
+      {/* 模态框组 */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         initialSettings={settings}
-        onSave={(newCfg) => {
-          setSettings(newCfg);
-        }}
-        onTestConnection={async () => {
-          return 'Connection established successfully';
-        }}
+        onSave={(newCfg) => setSettings(newCfg)}
+        onTestConnection={async () => 'Connection established successfully'}
       />
 
-      {/* 版本时光机模态框 */}
       <VersionTimelineModal
         isOpen={isVersionsOpen}
         onClose={() => setIsVersionsOpen(false)}
         versions={versions}
-        onSelectVersion={async (hash) => {
-          return {
-            commitHash: hash,
-            message: 'Checkpoint Diff',
-            files: [
-              {
-                path: 'src/App.tsx',
-                status: 'modified',
-                additions: 15,
-                deletions: 3,
-                hunks: ['@@ -10,3 +10,15 @@\n+ // Updated component'],
-              },
-            ],
-          };
-        }}
+        onSelectVersion={async (hash) => ({
+          commitHash: hash,
+          message: 'Checkpoint Diff',
+          files: [
+            {
+              path: 'src/App.tsx',
+              status: 'modified',
+              additions: 15,
+              deletions: 3,
+              hunks: ['@@ -10,3 +10,15 @@\n+ // Updated component'],
+            },
+          ],
+        })}
         onRollback={async (hash) => {
           setMessages((prev) => [
             ...prev,
@@ -669,7 +745,6 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* 侧边多应用抽屉 */}
       <AppDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
@@ -680,13 +755,6 @@ export const App: React.FC = () => {
           const target = apps.find((a) => a.id === id);
           if (target) {
             setWorkspaceDir(target.path);
-            setMessages([
-              {
-                id: String(Date.now()),
-                sender: 'assistant',
-                content: `Switched to application "${target.name}". Workspace loaded.`,
-              },
-            ]);
           }
           setIsDrawerOpen(false);
         }}
@@ -712,35 +780,14 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* 工程导出模态框 */}
       <ExportModal
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
-        appName={apps.find((a) => a.id === activeAppId)?.name || 'Default Application'}
-        onExportZip={async () => {
-          const wailsApp = (
-            window as unknown as {
-              go?: { main?: { App?: { ExportAppZip?: (appId: number, dest: string) => Promise<string> } } };
-            }
-          )?.go?.main?.App;
-          if (wailsApp?.ExportAppZip) {
-            return await wailsApp.ExportAppZip(activeAppId, '');
-          }
-          return `/downloads/${(apps.find((a) => a.id === activeAppId)?.name || 'app').toLowerCase().replace(/\s+/g, '-')}-export.zip`;
-        }}
-        onRevealInFileManager={async (path) => {
-          const wailsApp = (
-            window as unknown as {
-              go?: { main?: { App?: { OpenInFileManager?: (p: string) => Promise<void> } } };
-            }
-          )?.go?.main?.App;
-          if (wailsApp?.OpenInFileManager) {
-            await wailsApp.OpenInFileManager(path);
-          }
-        }}
+        appName={activeApp.name}
+        onExportZip={async () => `/downloads/${activeApp.name.toLowerCase().replace(/\s+/g, '-')}-export.zip`}
+        onRevealInFileManager={async () => {}}
       />
 
-      {/* 模版中心模态框 */}
       <TemplateModal
         isOpen={isTemplateModalOpen}
         onClose={() => setIsTemplateModalOpen(false)}
@@ -748,13 +795,22 @@ export const App: React.FC = () => {
         onSelectTemplate={handleSelectTemplate}
       />
 
-      {/* 全局命令面板 */}
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         actions={commandActions}
       />
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <ThemeProvider>
+      <I18nProvider>
+        <AppContent />
+      </I18nProvider>
+    </ThemeProvider>
   );
 };
 
