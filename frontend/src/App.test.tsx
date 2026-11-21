@@ -60,4 +60,32 @@ describe('App Main Split Layout & Workflow', () => {
 
     expect(screen.queryByText('LLM Provider Settings')).toBeNull();
   });
+
+  it('supports multi-turn incremental request and stop generation', () => {
+    render(<App />);
+
+    // 1. 初始化蓝图并审批，触发首轮生成
+    const mockBlueprintBtn = screen.getByRole('button', { name: /mock blueprint/i });
+    fireEvent.click(mockBlueprintBtn);
+    const approveBtn = screen.getByRole('button', { name: /approve blueprint/i });
+    fireEvent.click(approveBtn);
+
+    // 2. 验证生成状态中出现 Stop 按钮，并可主动中断
+    const stopBtn = screen.getByRole('button', { name: /stop generation/i });
+    expect(stopBtn).toBeDefined();
+    fireEvent.click(stopBtn);
+    expect(screen.getByText('Generation stopped by user.')).toBeDefined();
+
+    // 3. 中断后恢复 Send 按钮，发起第二轮增量需求
+    const input = screen.getByPlaceholderText(/describe what to build/i);
+    fireEvent.change(input, { target: { value: 'Add a revenue line chart' } });
+    const sendBtn = screen.getByRole('button', { name: /send prompt/i });
+    fireEvent.click(sendBtn);
+
+    // 验证展示第二轮消息，并再次进入可中断状态
+    expect(screen.getByText('Add a revenue line chart')).toBeDefined();
+    const secondStopBtn = screen.getByRole('button', { name: /stop generation/i });
+    expect(secondStopBtn).toBeDefined();
+    fireEvent.click(secondStopBtn);
+  });
 });

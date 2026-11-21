@@ -112,6 +112,14 @@ func (a *App) StreamChat(req agent.StreamChatRequest) error {
 	return a.chatService.StreamChat(a.ctx, req)
 }
 
+// CancelChat 暴露给前端的中止流式生成 RPC 方法
+func (a *App) CancelChat(chatID int64) error {
+	if a.chatService == nil {
+		return nil
+	}
+	return a.chatService.CancelChat(chatID)
+}
+
 // CheckTypeScript 暴露给前端的 TypeScript 编译问题诊断 RPC 方法
 func (a *App) CheckTypeScript(req tsc.CheckTypeScriptRequest) (*tsc.ProblemsResponse, error) {
 	return a.problemsService.CheckTypeScript(a.ctx, req)

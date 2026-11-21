@@ -48,10 +48,10 @@ _测试类型:_ Unit / Integration
 > 依赖：TASK-009  
 > 官方源码参考：[src/prompts/local_agent_prompt.ts](https://github.com/dyad-sh/dyad/blob/main/src/prompts/local_agent_prompt.ts)
 
-- [ ] 扩展 `PromptAssembler`：读取完整的历史聊天记录，自动扫描应用目录结构并组装应用紧凑文件树
-- [ ] 升级 `ChatService.SendMessage`：接入真实/模拟 `LLMProvider` 流式输出，绑定可取消的 `context.Context`
-- [ ] 增加 `ChatService.CancelChat`：在流式生成中随时触发 Context Cancel 信号，终止网络读取并保持工作区整洁
-- [ ] 前端对话框增加多轮消息连续渲染，并在生成过程中展示动态“Stop Generation”按钮
+- [x] 扩展 `PromptAssembler`：读取完整的历史聊天记录，自动扫描应用目录结构并组装应用紧凑文件树
+- [x] 升级 `ChatService.SendMessage`：接入真实/模拟 `LLMProvider` 流式输出，绑定可取消的 `context.Context`
+- [x] 增加 `ChatService.CancelChat`：在流式生成中随时触发 Context Cancel 信号，终止网络读取并保持工作区整洁
+- [x] 前端对话框增加多轮消息连续渲染，并在生成过程中展示动态“Stop Generation”按钮
 
 **验证方式：**
 ```bash
@@ -59,7 +59,7 @@ go test -v -race ./internal/agent/...
 cd frontend && pnpm test -- Chat
 ```
 
-**验收证据：** 能够执行多轮对话且 Agent 感知已有文件树；点击 Stop 能够迅速取消生成并恢复就绪状态。  
+**验收证据：** 能够执行多轮对话且 Agent 感知已有文件树；点击 Stop 能够迅速取消生成并恢复就绪状态（详见 `docs/spec/versions/v2/ac/TASK-010-AC.md`）。  
 _需求:_ `requirements.md` 中 `v2.REQ-002`  
 _验收标准:_ `v2.REQ-002-AC-001`, `v2.REQ-002-AC-002`  
 _测试类型:_ Integration / Unit

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"buildui/internal/blueprint"
@@ -19,11 +20,12 @@ type EventEmitter interface {
 
 // ChatService 负责智能会话流与代码增量生成的协调服务
 type ChatService struct {
-	chatRepo    *db.ChatRepository
-	appRepo     *db.AppRepository
-	bpService   *blueprint.BlueprintService
-	versionRepo *db.VersionRepository
-	emitter     EventEmitter
+	chatRepo       *db.ChatRepository
+	appRepo        *db.AppRepository
+	bpService      *blueprint.BlueprintService
+	versionRepo    *db.VersionRepository
+	emitter        EventEmitter
+	activeSessions sync.Map
 }
 
 // NewChatService 创建会话服务
@@ -48,10 +50,25 @@ func (s *ChatService) SetVersionRepo(r *db.VersionRepository) {
 
 // ProcessStream 处理流式 Token 输入、状态机解析、门禁校验及文件落盘
 func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath string, r io.Reader) error {
+	streamCtx, cancel := context.WithCancel(ctx)
+	s.activeSessions.Store(chatID, cancel)
+	defer func() {
+		s.activeSessions.Delete(chatID)
+		cancel()
+	}()
+
 	// 初始门禁预检：若有写盘意图，蓝图必须预先审批
 	fileWriter := NewFileWriter(appPath)
 	depManager := NewDependencyManager(appPath, nil)
 	filesWrittenCount := 0
+
+	// 若 Reader 实现了 io.Closer，在 context 取消时及时关闭，打断阻塞读取
+	if closer, ok := r.(io.Closer); ok {
+		go func() {
+			<-streamCtx.Done()
+			_ = closer.Close()
+		}()
+	}
 
 	parser := NewXMLStreamParser(ParserCallbacks{
 		OnChunk: func(chunk string) {
@@ -82,7 +99,7 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 		},
 		OnWriteFile: func(path, description, content string) error {
 			// 写盘门禁拦截：检查蓝图是否已审批
-			if err := s.bpService.EnsureWriteAllowed(ctx, chatID); err != nil {
+			if err := s.bpService.EnsureWriteAllowed(streamCtx, chatID); err != nil {
 				if s.emitter != nil {
 					s.emitter.Emit("chat:error", map[string]interface{}{
 						"chatId":  chatID,
@@ -96,15 +113,20 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 			return fileWriter.WriteFile(path, content)
 		},
 		OnAddDependency: func(packages []string) error {
-			return depManager.EnsureDependencies(ctx, packages)
+			return depManager.EnsureDependencies(streamCtx, packages)
 		},
 	})
 
 	buf := make([]byte, 1024)
 	for {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-streamCtx.Done():
+			if s.emitter != nil {
+				s.emitter.Emit("chat:cancelled", map[string]interface{}{
+					"chatId": chatID,
+				})
+			}
+			return streamCtx.Err()
 		default:
 		}
 
@@ -119,8 +141,15 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 			break
 		}
 		if err != nil {
+			if streamCtx.Err() != nil {
+				return streamCtx.Err()
+			}
 			return errs.NewInternalError("failed to read stream", err)
 		}
+	}
+
+	if streamCtx.Err() != nil {
+		return streamCtx.Err()
 	}
 
 	if err := parser.Flush(); err != nil {
@@ -189,6 +218,24 @@ func (s *ChatService) commitWorkspaceChanges(ctx context.Context, chatID int64, 
 	}
 
 	return commitHash
+}
+
+// CancelChat 中止正在进行的流式生成
+func (s *ChatService) CancelChat(chatID int64) error {
+	val, ok := s.activeSessions.Load(chatID)
+	if !ok {
+		return nil
+	}
+	if cancel, ok := val.(context.CancelFunc); ok {
+		cancel()
+	}
+	s.activeSessions.Delete(chatID)
+	if s.emitter != nil {
+		s.emitter.Emit("chat:cancelled", map[string]interface{}{
+			"chatId": chatID,
+		})
+	}
+	return nil
 }
 
 // StreamChatRequest 请求体

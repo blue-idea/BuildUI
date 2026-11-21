@@ -24,8 +24,10 @@ export const App: React.FC = () => {
   const [previewUrl] = useState('http://localhost:5173');
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'starting' | 'running' | 'error'>('running');
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSendPrompt = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -61,7 +63,40 @@ export const App: React.FC = () => {
           approved: false,
         });
       }, 100);
+    } else {
+      // 多轮对话增量修改流程
+      setIsGenerating(true);
+      setActiveTool('write_file: src/App.tsx');
+      timerRef.current = setTimeout(() => {
+        setIsGenerating(false);
+        setActiveTool(null);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: String(Date.now()),
+            sender: 'assistant',
+            content: `Updated components based on your request: "${prompt}". Live preview refreshed.`,
+          },
+        ]);
+      }, 500);
     }
+  };
+
+  const handleCancelGeneration = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsGenerating(false);
+    setActiveTool(null);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        sender: 'assistant',
+        content: 'Generation stopped by user.',
+      },
+    ]);
   };
 
   const handleApproveBlueprint = (_chatId: number) => {
@@ -70,8 +105,10 @@ export const App: React.FC = () => {
       ...blueprint,
       approved: true,
     });
+    setIsGenerating(true);
     setActiveTool('write_file: src/App.tsx');
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
+      setIsGenerating(false);
       setActiveTool(null);
       setMessages((prev) => [
         ...prev,
@@ -219,13 +256,24 @@ export const App: React.FC = () => {
                 placeholder="Describe what to build..."
                 className="flex-1 rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
               />
-              <button
-                type="submit"
-                aria-label="Send prompt"
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors shadow-sm"
-              >
-                Send
-              </button>
+              {isGenerating ? (
+                <button
+                  type="button"
+                  onClick={handleCancelGeneration}
+                  aria-label="Stop generation"
+                  className="rounded-md bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 transition-colors shadow-sm"
+                >
+                  Stop
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  aria-label="Send prompt"
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors shadow-sm"
+                >
+                  Send
+                </button>
+              )}
             </div>
           </form>
         </div>

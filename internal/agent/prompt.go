@@ -2,8 +2,17 @@ package agent
 
 import (
 	"fmt"
+	"io/fs"
+	"path/filepath"
+	"sort"
 	"strings"
 )
+
+// HistoryMessage 历史消息元数据
+type HistoryMessage struct {
+	Role    string `json:"role"`    // user | assistant
+	Content string `json:"content"` // 消息内容
+}
 
 // PromptContext 包含注入给大模型的上下文元数据
 type PromptContext struct {
@@ -11,6 +20,52 @@ type PromptContext struct {
 	DesignDirection string
 	PrimaryColor    string
 	Visuals         []string
+	WorkspaceTree   string
+	HistoryMessages []HistoryMessage
+}
+
+// ScanWorkspaceTree 扫描工作区目录结构，排除 node_modules, .git 等非必要文件
+func ScanWorkspaceTree(workspacePath string) (string, error) {
+	var files []string
+	ignoredDirs := map[string]bool{
+		".git":         true,
+		"node_modules": true,
+		"dist":         true,
+		".next":        true,
+		"build":        true,
+		"vendor":       true,
+		".gemini":      true,
+	}
+
+	err := filepath.WalkDir(workspacePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if ignoredDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// 忽略隐藏文件与 SQLite 临时数据库
+		if strings.HasPrefix(d.Name(), ".") || strings.HasSuffix(d.Name(), ".db") || strings.HasSuffix(d.Name(), ".db-journal") {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(workspacePath, path)
+		if err == nil && relPath != "." {
+			files = append(files, filepath.ToSlash(relPath))
+		}
+		return nil
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	sort.Strings(files)
+	return strings.Join(files, "\n"), nil
 }
 
 // PromptAssembler 负责组装提示词
@@ -61,5 +116,22 @@ func (p *PromptAssembler) AssembleContextPrompt(ctx PromptContext) string {
 		}
 	}
 	sb.WriteString("</app_context>\n")
+
+	// 注入工作区当前目录树
+	if strings.TrimSpace(ctx.WorkspaceTree) != "" {
+		sb.WriteString("<workspace_tree>\n")
+		sb.WriteString(strings.TrimSpace(ctx.WorkspaceTree))
+		sb.WriteString("\n</workspace_tree>\n")
+	}
+
+	// 注入多轮会话历史
+	if len(ctx.HistoryMessages) > 0 {
+		sb.WriteString("<conversation_history>\n")
+		for _, msg := range ctx.HistoryMessages {
+			sb.WriteString(fmt.Sprintf("<message role=\"%s\">%s</message>\n", msg.Role, msg.Content))
+		}
+		sb.WriteString("</conversation_history>\n")
+	}
+
 	return sb.String()
 }
