@@ -212,3 +212,54 @@ func TestDatabase_CascadeAndRelations(t *testing.T) {
 		t.Fatalf("expected 0 chats after cascade delete, got %d", len(chats))
 	}
 }
+
+// 验证多 goroutine 并发读写数据库时的稳定性与无死锁/锁定错误
+func TestDatabase_ConcurrentAccess(t *testing.T) {
+	ctx := context.Background()
+	database, err := db.OpenMemory(ctx)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer database.Close()
+
+	appRepo := db.NewAppRepository(database)
+	chatRepo := db.NewChatRepository(database)
+
+	now := time.Now()
+	appID, err := appRepo.Create(ctx, &db.AppEntity{
+		Name:      "Concurrent App",
+		Path:      "/workspace/concurrent",
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	const goroutines = 10
+	errCh := make(chan error, goroutines*2)
+
+	for i := 0; i < goroutines; i++ {
+		// 并发写
+		go func(idx int) {
+			_, err := chatRepo.Create(ctx, &db.ChatEntity{
+				AppID:    appID,
+				Title:    "Concurrent Chat",
+				ChatMode: "agent",
+			})
+			errCh <- err
+		}(i)
+
+		// 并发读
+		go func() {
+			_, err := chatRepo.ListByAppID(ctx, appID)
+			errCh <- err
+		}()
+	}
+
+	for i := 0; i < goroutines*2; i++ {
+		if err := <-errCh; err != nil {
+			t.Fatalf("concurrent database access returned error: %v", err)
+		}
+	}
+}

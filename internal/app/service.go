@@ -139,6 +139,15 @@ func (s *AppService) CreateApp(ctx context.Context, req CreateAppRequest) (*Crea
 		return nil, err
 	}
 
+	// 同步初始化应用的首个 Chat 会话，避免后续并发加载时出现写锁争用
+	if _, err := db.NewChatRepository(s.db).Create(ctx, &db.ChatEntity{
+		AppID:    appID,
+		Title:    name,
+		ChatMode: "agent",
+	}); err != nil {
+		return nil, err
+	}
+
 	return &CreateAppResponse{
 		AppID:             appID,
 		Name:              name,

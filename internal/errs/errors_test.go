@@ -70,3 +70,12 @@ func TestBlotError_Unwrap(t *testing.T) {
 		t.Fatalf("expected Unwrap to return original cause")
 	}
 }
+
+func TestBlotError_FormattingWithCause(t *testing.T) {
+	cause := errors.New("underlying disk failure")
+	blotErr := errs.NewInternalError("failed to write file", cause)
+	expected := "[Internal] failed to write file: underlying disk failure"
+	if blotErr.Error() != expected {
+		t.Fatalf("expected error string %q, got %q", expected, blotErr.Error())
+	}
+}

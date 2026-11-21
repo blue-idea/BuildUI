@@ -194,11 +194,6 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
 
         {/* 主题明暗双模切换 */}
         <ThemeModeToggle />
-
-        {/* Pro 徽章 */}
-        <div className="px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-full">
-          {t('common.proBadge')}
-        </div>
       </div>
     </header>
   );

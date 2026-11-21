@@ -14,6 +14,7 @@ import {
   Scan,
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
+import { FileTree } from './FileTree';
 
 export type WorkspaceView = 'preview' | 'code' | 'publish';
 
@@ -273,33 +274,48 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
         )}
 
         {activeView === 'code' && (
-          <div className="w-full h-full flex flex-col">
-            {codePaths.length > 0 && (
-              <div className="flex items-center gap-1 px-3 py-2 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 overflow-x-auto text-xs font-mono">
-                {codePaths.map((path) => (
-                  <button
-                    key={path}
-                    type="button"
-                    onClick={() => setSelectedFilePath(path)}
-                    title={path}
-                    className={`px-2.5 py-1 rounded transition-colors ${
-                      activePath === path
-                        ? 'bg-white dark:bg-zinc-800 font-semibold text-purple-600 dark:text-purple-300 shadow-2xs'
-                        : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
-                    }`}
-                  >
-                    {path.split('/').pop()}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex-1 p-4 overflow-auto font-mono text-xs bg-slate-900 text-slate-100">
-              {sourcePaths && activePath && <p className="mb-3 text-slate-400">{activePath}</p>}
-              {source?.error && source.path === activePath ? <p role="alert">{source.text}</p> : (
-                <pre>{sourcePaths && activePath
-                  ? (source?.path === activePath ? source.text : 'Loading source…')
-                  : activeFile?.content ?? t('workspace.noFileLoaded')}</pre>
+          <div
+            data-testid="code-review-layout"
+            className="w-full h-full flex overflow-hidden"
+          >
+            {/* 左侧：目录文件树 */}
+            <div
+              data-testid="code-file-tree"
+              className="w-64 shrink-0 h-full border-r border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-900/50 flex flex-col overflow-hidden select-none"
+            >
+              <FileTree
+                paths={codePaths}
+                selectedPath={activePath}
+                onSelectPath={(path) => setSelectedFilePath(path)}
+              />
+            </div>
+
+            {/* 右侧：文件内容展示区 */}
+            <div
+              data-testid="code-file-content"
+              className="flex-1 h-full flex flex-col overflow-hidden bg-slate-900 text-slate-100"
+            >
+              {/* 右侧顶部：当前文件路径信息条 */}
+              {activePath && (
+                <div className="h-9 px-4 border-b border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400 bg-slate-950/60 shrink-0 select-none">
+                  <span className="truncate text-slate-300 font-medium">
+                    {activePath}
+                  </span>
+                </div>
               )}
+
+              {/* 代码展示主体 */}
+              <div className="flex-1 p-4 overflow-auto font-mono text-xs">
+                {source?.error && source.path === activePath ? (
+                  <p role="alert" className="text-rose-400">{source.text}</p>
+                ) : (
+                  <pre className="whitespace-pre font-mono leading-relaxed">
+                    {sourcePaths && activePath
+                      ? (source?.path === activePath ? source.text : 'Loading source…')
+                      : activeFile?.content ?? t('workspace.noFileLoaded')}
+                  </pre>
+                )}
+              </div>
             </div>
           </div>
         )}

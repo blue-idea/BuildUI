@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"buildui/internal/app"
 )
 
 func TestApp_SelectDirectory(t *testing.T) {
@@ -30,4 +32,27 @@ func TestApp_GetAppTemplatesAndCreate(t *testing.T) {
 	if len(templates) < 4 {
 		t.Fatalf("expected at least 4 templates, got %d", len(templates))
 	}
+}
+
+func TestApp_CreateAppWorkflow(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("BLOT_DEV_USER_DATA_DIR", tmpDir)
+
+	a := NewApp()
+	a.startup(t.Context())
+	defer a.shutdown(t.Context())
+
+	res, err := a.CreateApp(app.CreateAppRequest{
+		Name: "test",
+	})
+	if err != nil {
+		t.Fatalf("CreateApp failed: %v", err)
+	}
+	t.Logf("Created app id: %d, path: %s", res.AppID, res.Path)
+
+	chat, err := a.GetProjectChat(res.AppID)
+	if err != nil {
+		t.Fatalf("GetProjectChat failed: %v", err)
+	}
+	t.Logf("Chat created with ID: %d", chat.ChatID)
 }

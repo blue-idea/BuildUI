@@ -23,6 +23,9 @@ type BlotError struct {
 }
 
 func (e *BlotError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("[%s] %s: %v", e.Kind, e.Message, e.Cause)
+	}
 	return fmt.Sprintf("[%s] %s", e.Kind, e.Message)
 }
 

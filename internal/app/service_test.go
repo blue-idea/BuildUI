@@ -61,6 +61,19 @@ func TestAppService_CreateApp(t *testing.T) {
 		t.Fatalf("expected non-empty initial commit hash")
 	}
 
+	// 验证应用创建时已同步生成初始会话 ChatEntity
+	chatRepo := db.NewChatRepository(database)
+	chats, err := chatRepo.ListByAppID(ctx, resp.AppID)
+	if err != nil {
+		t.Fatalf("failed to list chats for created app: %v", err)
+	}
+	if len(chats) != 1 {
+		t.Fatalf("expected 1 initial chat, got %d", len(chats))
+	}
+	if chats[0].Title != "Sample AI App" {
+		t.Fatalf("expected chat title %q, got %q", "Sample AI App", chats[0].Title)
+	}
+
 	// 4. 验证关键文件已展开
 	requiredFiles := []string{
 		"package.json",

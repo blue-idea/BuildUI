@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { App } from './App';
 
@@ -283,5 +283,32 @@ describe('App Main Split Layout & Workflow', () => {
     await waitFor(() => {
       expect(screen.getByText('design-mockup.png')).toBeDefined();
     });
+  });
+
+  it('切换至代码检视时以左侧目录树与右侧文件内容呈现，并支持交互切换', () => {
+    render(<App />);
+
+    // 点击切换至代码检视
+    const codeTab = screen.getByTestId('tab-code');
+    fireEvent.click(codeTab);
+
+    // 验证左右分栏布局与容器
+    expect(screen.getByTestId('code-review-layout')).toBeDefined();
+    const fileTree = screen.getByTestId('code-file-tree');
+    const fileContent = screen.getByTestId('code-file-content');
+    expect(fileTree).toBeDefined();
+    expect(fileContent).toBeDefined();
+
+    // 验证左侧目录树中存在文件，右侧展示初始文件内容
+    expect(within(fileTree).getByText('PantryList.tsx')).toBeDefined();
+    expect(within(fileContent).getByText(/Pantry Inventory/)).toBeDefined();
+
+    // 在左侧目录树点击切换至 RecipeCard.tsx
+    const recipeFileNode = within(fileTree).getByText('RecipeCard.tsx');
+    fireEvent.click(recipeFileNode);
+
+    // 验证右侧内容区成功切换为 RecipeCard.tsx 的代码
+    expect(within(fileContent).getByText(/Dinner Suggestion/)).toBeDefined();
+    expect(within(fileContent).queryByText(/Pantry Inventory/)).toBeNull();
   });
 });

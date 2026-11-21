@@ -78,6 +78,8 @@ export const zh: I18nDictionary = {
     exportZipBtn: '导出独立 ZIP 压缩包',
     publishDesc: '一键导出用于生产环境部署的静态包，或直接发布至云托管平台（如 Vercel、Netlify）。',
     noFileLoaded: '// 暂未加载文件。',
+    files: '文件列表',
+    noFiles: '暂无文件',
   },
   theme: {
     light: '浅色主题',

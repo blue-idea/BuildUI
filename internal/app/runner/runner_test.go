@@ -14,6 +14,9 @@ func TestAppRunnerReportsFailedStartup(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"preview-fixture","scripts":{"dev":"node -e \"process.exit(3)\""}}`), 0644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Mkdir(filepath.Join(dir, "node_modules"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	runner := NewAppRunner(nil)

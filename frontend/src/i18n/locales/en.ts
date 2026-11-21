@@ -78,6 +78,8 @@ export const en: I18nDictionary = {
     exportZipBtn: 'Export Standalone Zip',
     publishDesc: 'Export production-ready bundle or deploy directly to cloud hosting platforms (Vercel, Netlify).',
     noFileLoaded: '// No file loaded.',
+    files: 'Files',
+    noFiles: 'No files',
   },
   theme: {
     light: 'Light Theme',

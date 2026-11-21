@@ -78,6 +78,8 @@ export interface I18nDictionary {
     exportZipBtn: string;
     publishDesc: string;
     noFileLoaded: string;
+    files: string;
+    noFiles: string;
   };
   theme: {
     light: string;

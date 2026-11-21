@@ -18,7 +18,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
 
 describe('TASK-027: macOS Chrome and Workbench Components', () => {
   describe('MacOSWindowHeader', () => {
-    it('renders traffic lights, manage app, active project tab, and pro badge', () => {
+    it('renders traffic lights, manage app, active project tab, and does not render pro badge', () => {
       const onManageApp = vi.fn();
       renderWithProviders(
         <MacOSWindowHeader
@@ -41,8 +41,8 @@ describe('TASK-027: macOS Chrome and Workbench Components', () => {
       // Project Tab
       expect(screen.getByText('Pantry Planner')).toBeDefined();
 
-      // Pro badge
-      expect(screen.getByText(/pro/i)).toBeDefined();
+      // Pro badge should be removed
+      expect(screen.queryByText(/pro/i)).toBeNull();
     });
   });
 

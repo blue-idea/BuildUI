@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "modernc.org/sqlite"
 
@@ -22,15 +23,28 @@ func Open(ctx context.Context, dsn string) (*DB, error) {
 		return nil, errs.NewInternalError(fmt.Sprintf("failed to open sqlite database at %s", dsn), err)
 	}
 
+	// 限制单个写连接，防止 SQLite 在多 goroutine 并发写时产生 database is locked
+	conn.SetMaxOpenConns(1)
+
 	if err := conn.PingContext(ctx); err != nil {
 		conn.Close()
 		return nil, errs.NewInternalError("failed to ping sqlite database", err)
 	}
 
-	// 开启外键支持
-	if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON;"); err != nil {
-		conn.Close()
-		return nil, errs.NewInternalError("failed to enable foreign keys", err)
+	pragmas := []string{
+		"PRAGMA foreign_keys = ON;",
+		"PRAGMA busy_timeout = 5000;",
+	}
+	// 仅对非内存库启用 WAL 模式（内存库不支持 WAL 模式）
+	if !strings.Contains(dsn, ":memory:") {
+		pragmas = append(pragmas, "PRAGMA journal_mode = WAL;", "PRAGMA synchronous = NORMAL;")
+	}
+
+	for _, pragma := range pragmas {
+		if _, err := conn.ExecContext(ctx, pragma); err != nil {
+			conn.Close()
+			return nil, errs.NewInternalError(fmt.Sprintf("failed to execute pragma: %s", pragma), err)
+		}
 	}
 
 	database := &DB{db: conn}
