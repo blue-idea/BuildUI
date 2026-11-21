@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"buildui/internal/app"
+	"buildui/internal/app/runner"
 	"buildui/internal/db"
 )
 
@@ -130,5 +131,70 @@ func TestAppService_CreateApp_Validation(t *testing.T) {
 	_, err = svc.CreateApp(ctx, app.CreateAppRequest{Name: ""})
 	if err == nil {
 		t.Fatal("expected validation error for empty name, got nil")
+	}
+}
+
+type mockRunnerLauncher struct{}
+
+func (m *mockRunnerLauncher) Launch(ctx context.Context, appPath string, onOutput func(string)) (int, error) {
+	go func() {
+		onOutput("  ➜  Local:   http://localhost:5173/\n")
+	}()
+	return 9999, nil
+}
+
+func (m *mockRunnerLauncher) Kill(pid int) error {
+	return nil
+}
+
+// v1.REQ-006-AC-001: 校验 AppService 驱动 RunApp 与 StopApp
+func TestAppService_RunAppAndStopApp(t *testing.T) {
+	ctx := context.Background()
+	database, err := db.OpenMemory(ctx)
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	defer database.Close()
+
+	appRepo := db.NewAppRepository(database)
+	svc := app.NewAppService(appRepo, database)
+
+	tempDir, err := os.MkdirTemp("", "blot-test-runapp-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	appID, err := appRepo.Create(ctx, &db.AppEntity{
+		Name: "Test Run App",
+		Path: tempDir,
+	})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
+
+	mockLauncher := &mockRunnerLauncher{}
+	appRunner := runner.NewAppRunnerWithLauncher(mockLauncher, nil)
+	svc.SetRunner(appRunner)
+
+	// 测试 RunApp
+	runResp, err := svc.RunApp(ctx, runner.RunAppRequest{AppID: appID})
+	if err != nil {
+		t.Fatalf("RunApp failed: %v", err)
+	}
+	if runResp.Status != "running" || runResp.PreviewURL != "http://localhost:5173" {
+		t.Fatalf("unexpected RunApp response: %+v", runResp)
+	}
+
+	// 测试 StopApp
+	err = svc.StopApp(ctx, runner.StopAppRequest{AppID: appID})
+	if err != nil {
+		t.Fatalf("StopApp failed: %v", err)
+	}
+
+	// 测试非法 AppID
+	_, err = svc.RunApp(ctx, runner.RunAppRequest{AppID: -1})
+	if err == nil {
+		t.Fatal("expected validation error for invalid app ID, got nil")
 	}
 }

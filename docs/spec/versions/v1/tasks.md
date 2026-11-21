@@ -146,15 +146,15 @@
 
 ---
 
-- [ ] **TASK-007 · 本地 Vite 开发服务器监管与实时预览代理**
+- [x] **TASK-007 · 本地 Vite 开发服务器监管与实时预览代理**
 
   > 依赖：TASK-002  
   > 官方源码参考：[src/app_run/definition.ts](https://github.com/dyad-sh/dyad/blob/main/src/app_run/definition.ts) 与 [src/preview_iframe/controller.ts](https://github.com/dyad-sh/dyad/blob/main/src/preview_iframe/controller.ts)
 
-  - [ ] 编写 `AppService.RunApp`，通过 Go `os/exec.CommandContext` 启动目标子应用 `pnpm run dev`
-  - [ ] 动态解析输出日志捕获监听端口，返回 `previewUrl`
-  - [ ] 实现优雅关停（`StopApp`）与进程树清理，杜绝孤儿进程
-  - [ ] 前端 Preview 模块内嵌 Iframe，支持实时 HMR 预览与控制台日志转发
+  - [x] 编写 `AppService.RunApp`，通过 Go `os/exec.CommandContext` 启动目标子应用 `pnpm run dev`
+  - [x] 动态解析输出日志捕获监听端口，返回 `previewUrl`
+  - [x] 实现优雅关停（`StopApp`）与进程树清理，杜绝孤儿进程
+  - [x] 前端 Preview 模块内嵌 Iframe，支持实时 HMR 预览与控制台日志转发
 
   **验证方式：**
   ```bash

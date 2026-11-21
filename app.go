@@ -9,6 +9,7 @@ import (
 
 	"buildui/internal/agent"
 	"buildui/internal/app"
+	"buildui/internal/app/runner"
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
 	"buildui/internal/verification/tsc"
@@ -65,6 +66,7 @@ func (a *App) startup(ctx context.Context) {
 
 		emitter := &wailsEventEmitter{ctx: ctx}
 		a.appService = app.NewAppService(a.appRepo, database)
+		a.appService.SetRunner(runner.NewAppRunner(emitter))
 		a.blueprintService = blueprint.NewBlueprintService(a.bpRepo, a.appRepo, database)
 		a.blueprintService.SetEmitter(emitter)
 		a.chatService = agent.NewChatService(a.chatRepo, a.appRepo, a.blueprintService, emitter)
@@ -107,4 +109,14 @@ func (a *App) StreamChat(req agent.StreamChatRequest) error {
 // CheckTypeScript 暴露给前端的 TypeScript 编译问题诊断 RPC 方法
 func (a *App) CheckTypeScript(req tsc.CheckTypeScriptRequest) (*tsc.ProblemsResponse, error) {
 	return a.problemsService.CheckTypeScript(a.ctx, req)
+}
+
+// RunApp 暴露给前端的启动应用开发服务器 RPC 方法
+func (a *App) RunApp(req runner.RunAppRequest) (*runner.RunAppResponse, error) {
+	return a.appService.RunApp(a.ctx, req)
+}
+
+// StopApp 暴露给前端的停止应用开发服务器 RPC 方法
+func (a *App) StopApp(req runner.StopAppRequest) error {
+	return a.appService.StopApp(a.ctx, req)
 }

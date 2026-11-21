@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"buildui/internal/app/runner"
 	"buildui/internal/db"
 	"buildui/internal/errs"
 	"buildui/internal/scaffold"
@@ -41,6 +42,7 @@ type AppDTO struct {
 type AppService struct {
 	appRepo *db.AppRepository
 	db      *db.DB
+	runner  *runner.AppRunner
 }
 
 // NewAppService 创建 AppService 实例
@@ -48,7 +50,13 @@ func NewAppService(appRepo *db.AppRepository, database *db.DB) *AppService {
 	return &AppService{
 		appRepo: appRepo,
 		db:      database,
+		runner:  runner.NewAppRunner(nil),
 	}
+}
+
+// SetRunner 设置自定义 AppRunner 实例
+func (s *AppService) SetRunner(r *runner.AppRunner) {
+	s.runner = r
 }
 
 // CreateApp 展开内置脚手架并初始化 Git 仓库与 SQLite 记录
@@ -129,6 +137,37 @@ func (s *AppService) ListApps(ctx context.Context) ([]AppDTO, error) {
 	}
 
 	return dtos, nil
+}
+
+// RunApp 启动应用的开发服务器并返回预览地址
+func (s *AppService) RunApp(ctx context.Context, req runner.RunAppRequest) (*runner.RunAppResponse, error) {
+	if req.AppID <= 0 {
+		return nil, errs.NewValidationError("app id must be positive", nil)
+	}
+
+	app, err := s.appRepo.GetByID(ctx, req.AppID)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.runner == nil {
+		s.runner = runner.NewAppRunner(nil)
+	}
+
+	return s.runner.StartApp(ctx, req.AppID, app.Path)
+}
+
+// StopApp 停止应用的开发服务器
+func (s *AppService) StopApp(ctx context.Context, req runner.StopAppRequest) error {
+	if req.AppID <= 0 {
+		return errs.NewValidationError("app id must be positive", nil)
+	}
+
+	if s.runner == nil {
+		return nil
+	}
+
+	return s.runner.StopApp(ctx, req.AppID)
 }
 
 // initGitRepository 初始化 Git 仓库、安全配置临时身份并提交初始状态
