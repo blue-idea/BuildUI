@@ -130,4 +130,45 @@ describe('ModelSelector Component', () => {
     const autoOption = screen.getByRole('option', { name: /auto/i });
     expect(autoOption).toBeDefined();
   });
+
+  it('displays multiple configured providers and triggers onOpenSettings from action button', () => {
+    const handleChange = vi.fn();
+    const handleOpenSettings = vi.fn();
+    const mockSettings = {
+      'llm.active_provider': 'deepseek',
+      'llm.providers.deepseek.api_key': 'sk-deepseek-key',
+      'llm.providers.deepseek.model': 'deepseek-chat',
+      'llm.providers.openai.api_key': 'sk-openai-key',
+      'llm.providers.openai.model': 'gpt-4o',
+    };
+
+    renderWithI18n(
+      <ModelSelector
+        value="auto"
+        onChange={handleChange}
+        settings={mockSettings}
+        onOpenSettings={handleOpenSettings}
+      />
+    );
+
+    const triggerBtn = screen.getByRole('button', { name: /model selector/i });
+    fireEvent.click(triggerBtn);
+
+    // 应该展示 DeepSeek 与 OpenAI 选项
+    const deepseekOption = screen.getByRole('option', { name: /deepseek-chat/i });
+    const openaiOption = screen.getByRole('option', { name: /gpt-4o/i });
+    expect(deepseekOption).toBeDefined();
+    expect(openaiOption).toBeDefined();
+
+    // 选择 DeepSeek
+    fireEvent.click(deepseekOption);
+    expect(handleChange).toHaveBeenCalledWith('provider:deepseek');
+
+    // 重新打开并点击管理提供商按钮
+    fireEvent.click(triggerBtn);
+    const manageBtn = screen.getByRole('button', { name: /manage providers/i });
+    expect(manageBtn).toBeDefined();
+    fireEvent.click(manageBtn);
+    expect(handleOpenSettings).toHaveBeenCalled();
+  });
 });

@@ -9,7 +9,7 @@
 ## 当前活跃 Version
 
 ```yaml
-current_version: v6-finished      # → Agent 替换 {{VERSION}} 时取此值
+current_version: v7-finished      # → Agent 替换 {{VERSION}} 时取此值
 ```
 
 ---
@@ -24,7 +24,8 @@ current_version: v6-finished      # → Agent 替换 {{VERSION}} 时取此值
 | v4 | finished | `docs/spec/versions/v4-finished/` | 第四版本已圆满收官（智能第三方依赖提取与沙箱自动安装、UI 视觉主题预设引擎与跨沙箱动态 CSS 注入） |
 | v5 | finished | `docs/spec/versions/v5-finished/` | 第五版本已圆满收官（应用模版预设库与脚手架初始化、全局快捷键与命令面板 Ctrl+K 全键盘交互） |
 | v6 | finished | `docs/spec/versions/v6-finished/` | 第六版本已圆满收官：macOS 极致美学三栏式容器工作台、双模（浅色/深色）主题引擎、轻量强类型中英双语国际化（i18n） |
-| v7 | planned | `docs/spec/versions/v7/` | 规划中：生产环境静态站点一键构建与托管配置生成（Vercel / Netlify）、静态包预览与云端分享 |
+| v7 | finished | `docs/spec/versions/v7-finished/` | 第七版本已圆满收官：多模型服务商增强（Multi-Provider LLM Suite），包括多服务商凭证独立持久化、模型选择框联动与动态拉取调度 |
+| v8 | planned | `docs/spec/versions/v8/` | 规划中：生产环境静态站点一键构建与托管配置生成（Vercel / Netlify）、静态包预览与云端分享 |
 
 ---
 
@@ -50,7 +51,9 @@ docs/
         ├── v3-finished/            # 已归档完成的 v3 版本全量规格与验收证据
         ├── v4-finished/            # 已归档完成的 v4 版本全量规格与验收证据
         ├── v5-finished/            # 已归档完成的 v5 版本全量规格与验收证据
-        └── v6/                     # 当前活跃的 v6 规格与规划任务
+        ├── v6-finished/            # 已归档完成的 v6 版本全量规格与验收证据
+        ├── v7-finished/            # 已归档完成的 v7 版本全量规格与验收证据
+        └── v8/                     # 规划中的 v8 规格与任务
 ```
 
 ---

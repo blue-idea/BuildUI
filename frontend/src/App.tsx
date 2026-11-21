@@ -352,7 +352,25 @@ const AppContent: React.FC = () => {
         setBlueprint((bp) => bp && { ...bp, approved: true });
       }
       setMessages((previous) => [...previous, { id: current.id, sender: 'assistant', content: '' }]);
-      await desktopApp().StreamChat({ chatId: id, prompt, mode, attachments: images });
+      let reqProvider: string | undefined = undefined;
+      let reqModel: string | undefined = undefined;
+      if (selectedModel && selectedModel !== 'auto') {
+        if (selectedModel.startsWith('provider:')) {
+          reqProvider = selectedModel.replace('provider:', '');
+          reqModel = settings[`llm.providers.${reqProvider}.model`];
+        } else if (selectedModel === 'configured') {
+          reqProvider = settings['llm.provider'];
+          reqModel = settings['llm.model'];
+        }
+      }
+      await desktopApp().StreamChat({
+        chatId: id,
+        prompt,
+        mode,
+        attachments: images,
+        provider: reqProvider,
+        model: reqModel,
+      });
       const history = await refreshProject(activeAppId);
       if (current.commit || (mode === 'build' && (approve || blueprint?.approved) && history.length > 1)) {
         await startPreview(activeAppId, true);
@@ -1013,8 +1031,10 @@ const AppContent: React.FC = () => {
                   <ModelSelector
                     value={selectedModel}
                     onChange={setSelectedModel}
+                    settings={settings}
                     configuredProvider={settings['llm.provider']}
                     configuredModel={settings['llm.model']}
+                    onOpenSettings={() => setIsSettingsOpen(true)}
                   />
                 </div>
 

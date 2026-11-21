@@ -255,6 +255,21 @@ func (a *App) TestLLMConnection(baseURL, apiKey, model string) error {
 	return a.settingsService.TestConnection(a.ctx, baseURL, apiKey, model)
 }
 
+// ListProviderModels 暴露给前端的动态拉取提供商模型 RPC 方法
+func (a *App) ListProviderModels(provider, baseURL, apiKey string) ([]string, error) {
+	if a.settingsService == nil {
+		if list, ok := settings.ProviderPresets[provider]; ok {
+			return list, nil
+		}
+		return []string{"gpt-4o", "deepseek-chat"}, nil
+	}
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return a.settingsService.ListProviderModels(ctx, provider, baseURL, apiKey)
+}
+
 // GetVersions 暴露给前端的获取版本时间线 RPC 方法
 func (a *App) GetVersions(appID int64) ([]version.VersionDTO, error) {
 	if a.versionService == nil {

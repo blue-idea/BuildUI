@@ -40,6 +40,7 @@ export const zh: I18nDictionary = {
     selectModelProvider: '选择模型服务商',
     modelAutoDesc: '自动路由至设置中配置的模型',
     noProviderConfigured: '未在偏好设置中配置服务商',
+    manageProviders: '管理模型服务商...',
     writing: '正在写入...',
     completed: '已完成',
     inspectFile: '查看文件代码',

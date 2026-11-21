@@ -40,6 +40,7 @@ export interface I18nDictionary {
     selectModelProvider: string;
     modelAutoDesc: string;
     noProviderConfigured: string;
+    manageProviders: string;
     writing: string;
     completed: string;
     inspectFile: string;

@@ -115,7 +115,7 @@ test.describe('Blot-UI v6 macOS Aesthetic Workbench & Bilingual Theme System', (
     // 5. 验证右侧工作区三态切换交互
     // 切换到 Code 视图
     await page.getByTestId('tab-code').click();
-    await expect(page.getByRole('button', { name: 'PantryList.tsx' })).toBeVisible();
+    await expect(page.getByRole('treeitem', { name: 'PantryList.tsx' })).toBeVisible();
     await expect(page.locator('pre')).toContainText('Pantry Inventory');
 
     // 切换到 Publish 视图

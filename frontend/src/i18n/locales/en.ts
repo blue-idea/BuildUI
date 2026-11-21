@@ -40,6 +40,7 @@ export const en: I18nDictionary = {
     selectModelProvider: 'Select Model / Provider',
     modelAutoDesc: 'Automatically routes to configured model',
     noProviderConfigured: 'No provider configured in Settings',
+    manageProviders: 'Manage Providers...',
     writing: 'Writing...',
     completed: 'Completed',
     inspectFile: 'Inspect component code',

@@ -47,5 +47,30 @@ test.describe('Model Selector E2E and Visual Regression', () => {
     await autoOption.click();
     await expect(modelSelectorBtn).toHaveAttribute('aria-expanded', 'false');
     await expect(modelSelectorBtn).toHaveText(/Auto|自动/i);
+
+    // 4. 重新展开下拉框并点击 Manage Providers 动作项
+    await modelSelectorBtn.click();
+    const manageBtn = page.getByRole('button', { name: /manage providers/i });
+    await expect(manageBtn).toBeVisible();
+    await manageBtn.click();
+
+    // 5. 验证 SettingsModal 弹出，且包含 Provider Tabs
+    const settingsTitle = page.getByText(/LLM Provider Settings|偏好设置/i);
+    await expect(settingsTitle).toBeVisible();
+
+    const deepseekTab = page.getByRole('tab', { name: /DeepSeek/i });
+    await expect(deepseekTab).toBeVisible();
+    await deepseekTab.click();
+
+    // 截图 3: 多 Provider 标签页设置弹窗展示
+    await page.screenshot({
+      path: path.join(screenshotsDir, 'model-selector-settings-modal-tabs.png'),
+      fullPage: false,
+    });
+
+    // 关闭弹窗
+    const closeBtn = page.getByRole('button', { name: /close settings/i });
+    await closeBtn.click();
+    await expect(settingsTitle).not.toBeVisible();
   });
 });

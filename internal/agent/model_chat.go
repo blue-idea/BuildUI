@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -47,8 +48,38 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	if err != nil {
 		return err
 	}
-	model := strings.TrimSpace(settings["llm.model"])
-	endpoint := strings.TrimSpace(settings["llm.base_url"])
+
+	targetProvider := strings.TrimSpace(req.Provider)
+	if targetProvider == "" || targetProvider == "auto" {
+		targetProvider = strings.TrimSpace(settings["llm.active_provider"])
+		if targetProvider == "" {
+			targetProvider = strings.TrimSpace(settings["llm.provider"])
+		}
+		if targetProvider == "" {
+			targetProvider = "openai"
+		}
+	}
+
+	prefix := fmt.Sprintf("llm.providers.%s.", targetProvider)
+	endpoint := strings.TrimSpace(settings[prefix+"base_url"])
+	apiKey := strings.TrimSpace(settings[prefix+"api_key"])
+	model := strings.TrimSpace(settings[prefix+"model"])
+
+	// 向后兼容：若独立 Provider 无配置，则回退读取旧全局配置
+	if endpoint == "" && model == "" {
+		legacyProvider := strings.TrimSpace(settings["llm.provider"])
+		if legacyProvider == targetProvider || targetProvider == "openai" || legacyProvider == "" {
+			endpoint = strings.TrimSpace(settings["llm.base_url"])
+			apiKey = strings.TrimSpace(settings["llm.api_key"])
+			model = strings.TrimSpace(settings["llm.model"])
+		}
+	}
+
+	// 若请求显式指定了具体 Model，优先使用
+	if explicitModel := strings.TrimSpace(req.Model); explicitModel != "" {
+		model = explicitModel
+	}
+
 	if model == "" || endpoint == "" {
 		return errs.NewPreconditionError("Configure the model and API URL in Settings.", nil)
 	}
@@ -93,7 +124,7 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 		messages = append(messages, llm.ChatMessage{Role: msg.Role, Content: msg.Content})
 	}
 	messages = append(messages, llm.ChatMessage{Role: "user", Content: req.Prompt, Images: req.Attachments})
-	client := llm.NewOpenAIClient(endpoint, settings["llm.api_key"], model)
+	client := llm.NewOpenAIClient(endpoint, apiKey, model)
 	maxTokens := config.ModelBlueprintMaxTokens
 	if bp != nil && bp.Approved && req.Mode != "plan" {
 		maxTokens = config.ModelBuildMaxTokens

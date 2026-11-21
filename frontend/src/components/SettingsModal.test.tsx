@@ -75,4 +75,49 @@ describe('SettingsModal', () => {
       );
     });
   });
+
+  it('supports tab switching between providers without losing entered credentials', async () => {
+    const handleSave = vi.fn();
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSave={handleSave}
+      />
+    );
+
+    // 切换到 DeepSeek Tab
+    const deepseekTab = screen.getByRole('tab', { name: /DeepSeek/i });
+    fireEvent.click(deepseekTab);
+
+    // 填写 DeepSeek API Key
+    const apiKeyInput = screen.getByPlaceholderText('sk-...') as HTMLInputElement;
+    fireEvent.change(apiKeyInput, { target: { value: 'sk-deepseek-tab-key' } });
+    expect(apiKeyInput.value).toBe('sk-deepseek-tab-key');
+
+    // 切换到 OpenAI Tab
+    const openaiTab = screen.getByRole('tab', { name: /OpenAI/i });
+    fireEvent.click(openaiTab);
+
+    // 填写 OpenAI API Key
+    fireEvent.change(apiKeyInput, { target: { value: 'sk-openai-tab-key' } });
+    expect(apiKeyInput.value).toBe('sk-openai-tab-key');
+
+    // 切换回 DeepSeek Tab，原填写的凭据应保留
+    fireEvent.click(deepseekTab);
+    expect(apiKeyInput.value).toBe('sk-deepseek-tab-key');
+
+    // 保存设置，应同时持久化两个 provider 的配置
+    const saveBtn = screen.getByRole('button', { name: 'Save Settings' });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'llm.providers.deepseek.api_key': 'sk-deepseek-tab-key',
+          'llm.providers.openai.api_key': 'sk-openai-tab-key',
+        })
+      );
+    });
+  });
 });

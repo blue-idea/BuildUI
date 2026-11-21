@@ -281,4 +281,6 @@ type StreamChatRequest struct {
 	Prompt      string   `json:"prompt"`
 	Attachments []string `json:"attachments"`
 	Mode        string   `json:"mode"`
+	Provider    string   `json:"provider,omitempty"`
+	Model       string   `json:"model,omitempty"`
 }

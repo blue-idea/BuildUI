@@ -56,3 +56,28 @@ func TestApp_CreateAppWorkflow(t *testing.T) {
 	}
 	t.Logf("Chat created with ID: %d", chat.ChatID)
 }
+
+func TestApp_ListProviderModels(t *testing.T) {
+	a := NewApp()
+	// 未初始化 startup 时安全回退
+	models, err := a.ListProviderModels("ollama", "", "")
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if len(models) == 0 {
+		t.Fatalf("expected non-empty fallback models")
+	}
+
+	tmpDir := t.TempDir()
+	t.Setenv("BLOT_DEV_USER_DATA_DIR", tmpDir)
+	a.startup(t.Context())
+	defer a.shutdown(t.Context())
+
+	models, err = a.ListProviderModels("openai", "", "")
+	if err != nil {
+		t.Fatalf("expected no error with service initialized, got: %v", err)
+	}
+	if len(models) == 0 {
+		t.Fatalf("expected non-empty fallback models for openai")
+	}
+}

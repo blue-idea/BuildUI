@@ -240,3 +240,90 @@ export default function App() { return <div>Approved!</div>; }
 		t.Errorf("target file content mismatch: %s", string(data))
 	}
 }
+
+func TestStreamChat_ExplicitProviderAndModel(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	database, err := db.Open(ctx, filepath.Join(root, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	apps := db.NewAppRepository(database)
+	chats := db.NewChatRepository(database)
+	bps := blueprint.NewBlueprintService(db.NewBlueprintRepository(database), apps, database)
+	appID, _ := apps.Create(ctx, &db.AppEntity{Name: "Multi Provider App", Path: root, NeedsAppBlueprint: false})
+	chatID, _ := chats.Create(ctx, &db.ChatEntity{AppID: appID})
+
+	validBlueprint, _ := json.Marshal(map[string]any{
+		"appName":         "Multi Provider App",
+		"designDirection": "Modern Clean",
+		"primaryColor":    "#123456",
+		"visuals":         []string{},
+	})
+
+	deepseekRequests := make(chan llm.ChatRequest, 1)
+	deepseekServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req llm.ChatRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		deepseekRequests <- req
+		w.Header().Set("Content-Type", "text/event-stream")
+		delta, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"delta": map[string]string{"content": string(validBlueprint)}}}})
+		fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", delta)
+	}))
+	defer deepseekServer.Close()
+
+	openaiRequests := make(chan llm.ChatRequest, 1)
+	openaiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req llm.ChatRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		openaiRequests <- req
+		w.Header().Set("Content-Type", "text/event-stream")
+		delta, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"delta": map[string]string{"content": string(validBlueprint)}}}})
+		fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", delta)
+	}))
+	defer openaiServer.Close()
+
+	service := NewChatService(chats, apps, bps, nil)
+	settings := db.NewSettingsRepository(database)
+	_ = settings.SetMany(ctx, map[string]string{
+		"llm.active_provider":            "openai",
+		"llm.providers.openai.base_url":  openaiServer.URL,
+		"llm.providers.openai.api_key":   "sk-openai",
+		"llm.providers.openai.model":     "gpt-4o",
+		"llm.providers.deepseek.base_url": deepseekServer.URL,
+		"llm.providers.deepseek.api_key":  "sk-deepseek",
+		"llm.providers.deepseek.model":    "deepseek-chat",
+	})
+	service.SetModelRepositories(settings, db.NewMessageRepository(database))
+
+	// 1. 显式指定 deepseek 与 deepseek-reasoner
+	req1 := StreamChatRequest{
+		ChatID:   chatID,
+		Prompt:   "Hello from deepseek",
+		Provider: "deepseek",
+		Model:    "deepseek-reasoner",
+	}
+	if err := service.StreamChat(ctx, req1); err != nil {
+		t.Fatalf("StreamChat deepseek failed: %v", err)
+	}
+	got1 := <-deepseekRequests
+	if got1.Model != "deepseek-reasoner" {
+		t.Errorf("expected model 'deepseek-reasoner', got %q", got1.Model)
+	}
+
+	// 2. 指定 auto，应自动降级至当前 active_provider (openai) 及其默认模型 gpt-4o
+	req2 := StreamChatRequest{
+		ChatID:   chatID,
+		Prompt:   "Hello from auto",
+		Provider: "auto",
+	}
+	if err := service.StreamChat(ctx, req2); err != nil {
+		t.Fatalf("StreamChat auto failed: %v", err)
+	}
+	got2 := <-openaiRequests
+	if got2.Model != "gpt-4o" {
+		t.Errorf("expected model 'gpt-4o', got %q", got2.Model)
+	}
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useI18n } from '../i18n/I18nContext';
 
 export interface SettingsModalProps {
@@ -28,6 +28,44 @@ const PRESETS: Record<string, { baseURL: string; model: string }> = {
   },
 };
 
+const PROVIDERS = [
+  { id: 'openai', name: 'OpenAI (Official)' },
+  { id: 'deepseek', name: 'DeepSeek' },
+  { id: 'ollama', name: 'Ollama (Local)' },
+  { id: 'custom', name: 'Custom (OpenAI-compatible)' },
+];
+
+interface ProviderCredentials {
+  baseURL: string;
+  apiKey: string;
+  model: string;
+}
+
+const buildInitialConfigs = (settings: Record<string, string>): Record<string, ProviderCredentials> => {
+  const configs: Record<string, ProviderCredentials> = {};
+  PROVIDERS.forEach(({ id }) => {
+    const prefix = `llm.providers.${id}.`;
+    const isLegacy = settings['llm.provider'] === id;
+    configs[id] = {
+      baseURL:
+        settings[prefix + 'base_url'] ||
+        (isLegacy ? settings['llm.base_url'] : '') ||
+        PRESETS[id]?.baseURL ||
+        '',
+      apiKey:
+        settings[prefix + 'api_key'] ||
+        (isLegacy ? settings['llm.api_key'] : '') ||
+        '',
+      model:
+        settings[prefix + 'model'] ||
+        (isLegacy ? settings['llm.model'] : '') ||
+        PRESETS[id]?.model ||
+        '',
+    };
+  });
+  return configs;
+};
+
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
@@ -36,13 +74,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onTestConnection,
 }) => {
   const { t } = useI18n();
-  const [provider, setProvider] = useState<string>(initialSettings['llm.provider'] || 'openai');
-  const [baseURL, setBaseURL] = useState<string>(
-    initialSettings['llm.base_url'] || PRESETS['openai'].baseURL
-  );
-  const [apiKey, setApiKey] = useState<string>(initialSettings['llm.api_key'] || '');
-  const [model, setModel] = useState<string>(
-    initialSettings['llm.model'] || PRESETS['openai'].model
+
+  const serializedSettings = useMemo(() => JSON.stringify(initialSettings || {}), [initialSettings]);
+
+  // 当前全局默认活跃的提供商
+  const [activeProvider, setActiveProvider] = useState<string>('openai');
+  // 当前正在查看/编辑的选项卡提供商
+  const [currentTab, setCurrentTab] = useState<string>('openai');
+
+  // 各服务商的隔离表单数据
+  const [providerConfigs, setProviderConfigs] = useState<Record<string, ProviderCredentials>>(() =>
+    buildInitialConfigs(initialSettings || {})
   );
 
   const [testing, setTesting] = useState(false);
@@ -50,23 +92,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (initialSettings['llm.provider']) {
-      setProvider(initialSettings['llm.provider']);
-      setBaseURL(initialSettings['llm.base_url'] || '');
-      setApiKey(initialSettings['llm.api_key'] || '');
-      setModel(initialSettings['llm.model'] || '');
-    }
-  }, [initialSettings]);
+    const parsed: Record<string, string> = initialSettings || {};
+    const defaultActive = parsed['llm.active_provider'] || parsed['llm.provider'] || 'openai';
+    setActiveProvider(defaultActive);
+    setCurrentTab(defaultActive);
+    setProviderConfigs(buildInitialConfigs(parsed));
+  }, [serializedSettings]);
 
   if (!isOpen) return null;
 
-  const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const nextProvider = e.target.value;
-    setProvider(nextProvider);
-    if (PRESETS[nextProvider]) {
-      setBaseURL(PRESETS[nextProvider].baseURL);
-      setModel(PRESETS[nextProvider].model);
-    }
+  const currentConfig = providerConfigs[currentTab] || {
+    baseURL: '',
+    apiKey: '',
+    model: '',
+  };
+
+  const handleFieldChange = (field: keyof ProviderCredentials, val: string) => {
+    setProviderConfigs((prev) => ({
+      ...prev,
+      [currentTab]: {
+        ...prev[currentTab],
+        [field]: val,
+      },
+    }));
+    setTestResult(null);
+  };
+
+  const handleTabSwitch = (providerId: string) => {
+    setCurrentTab(providerId);
     setTestResult(null);
   };
 
@@ -75,7 +128,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await onTestConnection(baseURL, apiKey, model);
+      const res = await onTestConnection(currentConfig.baseURL, currentConfig.apiKey, currentConfig.model);
       if (typeof res === 'string') {
         setTestResult({ success: true, message: res });
       } else {
@@ -94,12 +147,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setSaving(true);
     try {
       if (onSave) {
-        await onSave({
-          'llm.provider': provider,
-          'llm.base_url': baseURL,
-          'llm.api_key': apiKey,
-          'llm.model': model,
+        // 构建全量隔离持久化映射
+        const payload: Record<string, string> = {
+          'llm.active_provider': activeProvider,
+          'llm.provider': activeProvider,
+          'llm.base_url': providerConfigs[activeProvider]?.baseURL || '',
+          'llm.api_key': providerConfigs[activeProvider]?.apiKey || '',
+          'llm.model': providerConfigs[activeProvider]?.model || '',
+        };
+
+        // 按 Provider 独立前缀写入
+        PROVIDERS.forEach(({ id }) => {
+          const cfg = providerConfigs[id];
+          if (cfg) {
+            payload[`llm.providers.${id}.base_url`] = cfg.baseURL;
+            payload[`llm.providers.${id}.api_key`] = cfg.apiKey;
+            payload[`llm.providers.${id}.model`] = cfg.model;
+          }
         });
+
+        await onSave(payload);
       }
       onClose();
     } finally {
@@ -109,7 +176,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl text-slate-100">
+      <div className="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl text-slate-100">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h2 className="text-base font-semibold text-white">{t('modals.settingsTitle')}</h2>
           <button
@@ -122,24 +189,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
+        {/* 顶部服务商选项卡 (Tabs) */}
+        <div role="tablist" aria-label="Provider Tabs" className="mt-4 flex space-x-1 border-b border-slate-800 pb-2">
+          {PROVIDERS.map((p) => {
+            const isSelected = currentTab === p.id;
+            const isDefault = activeProvider === p.id;
+            return (
+              <button
+                key={p.id}
+                role="tab"
+                type="button"
+                aria-selected={isSelected}
+                onClick={() => handleTabSwitch(p.id)}
+                className={`relative px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                  isSelected
+                    ? 'bg-slate-800 text-white shadow-sm border border-slate-700'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
+                }`}
+              >
+                <span>{p.name.split(' ')[0]}</span>
+                {isDefault && (
+                  <span className="ml-1.5 px-1 py-0.2 text-[9px] font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded">
+                    Default
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         <form onSubmit={handleSave} className="mt-4 space-y-4 text-sm">
-          {/* 提供方选择 */}
-          <div>
+          {/* 隐藏兼容下拉框供辅助或测试快捷选择 */}
+          <div className="hidden">
             <label htmlFor="llm-provider-select" className="block text-xs font-medium text-slate-300">
               {t('modals.providerLabel')}
             </label>
             <select
               id="llm-provider-select"
-              value={provider}
-              onChange={handleProviderChange}
+              value={currentTab}
+              onChange={(e) => handleTabSwitch(e.target.value)}
               aria-label={t('modals.providerLabel')}
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
             >
-              <option value="openai">OpenAI (Official)</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="ollama">Ollama (Local)</option>
-              <option value="custom">Custom (OpenAI-compatible)</option>
+              {PROVIDERS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
             </select>
+          </div>
+
+          {/* 设为全局默认活跃 Provider 单选勾选 */}
+          <div className="flex items-center justify-between rounded-lg bg-slate-800/50 p-2.5 border border-slate-800">
+            <div className="text-xs text-slate-300">
+              <span className="font-medium text-white">{PROVIDERS.find((p) => p.id === currentTab)?.name}</span>
+              <p className="text-[11px] text-slate-400 mt-0.5">Use as primary LLM for Auto mode in chat</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveProvider(currentTab)}
+              className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
+                activeProvider === currentTab
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              {activeProvider === currentTab ? '✓ Active Default' : 'Set as Default'}
+            </button>
           </div>
 
           {/* Base URL */}
@@ -147,9 +262,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <label className="block text-xs font-medium text-slate-300">{t('modals.baseUrlLabel')}</label>
             <input
               type="text"
-              value={baseURL}
-              onChange={(e) => setBaseURL(e.target.value)}
-              placeholder={PRESETS[provider]?.baseURL || 'https://api.openai.com/v1'}
+              value={currentConfig.baseURL}
+              onChange={(e) => handleFieldChange('baseURL', e.target.value)}
+              placeholder={PRESETS[currentTab]?.baseURL || 'https://api.openai.com/v1'}
               className="mt-1 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -159,8 +274,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <label className="block text-xs font-medium text-slate-300">{t('modals.apiKeyLabel')}</label>
             <input
               type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              value={currentConfig.apiKey}
+              onChange={(e) => handleFieldChange('apiKey', e.target.value)}
               placeholder="sk-..."
               className="mt-1 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none font-mono text-xs"
             />
@@ -171,9 +286,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <label className="block text-xs font-medium text-slate-300">{t('modals.modelLabel')}</label>
             <input
               type="text"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder="gpt-4o"
+              value={currentConfig.model}
+              onChange={(e) => handleFieldChange('model', e.target.value)}
+              placeholder={PRESETS[currentTab]?.model || 'gpt-4o'}
               className="mt-1 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none font-mono text-xs"
             />
           </div>
