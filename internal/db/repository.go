@@ -72,6 +72,17 @@ func (r *AppRepository) Create(ctx context.Context, app *AppEntity) (int64, erro
 	return id, nil
 }
 
+// UpdateTheme 更新应用的 theme_id
+func (r *AppRepository) UpdateTheme(ctx context.Context, appID int64, themeID string) error {
+	now := time.Now().Unix()
+	query := `UPDATE apps SET theme_id = ?, updated_at = ? WHERE id = ?;`
+	_, err := r.db.SQLDB().ExecContext(ctx, query, themeID, now, appID)
+	if err != nil {
+		return errs.NewInternalError(fmt.Sprintf("failed to update theme for app %d", appID), err)
+	}
+	return nil
+}
+
 // GetByID 根据 ID 查询应用
 func (r *AppRepository) GetByID(ctx context.Context, id int64) (*AppEntity, error) {
 	query := `
