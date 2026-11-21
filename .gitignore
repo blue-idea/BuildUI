@@ -61,6 +61,7 @@ go.work.sum
 # Wails v2 build outputs
 build/bin/
 .wails/
+frontend/wailsjs/go/
 
 # Local databases & application data
 userData/
