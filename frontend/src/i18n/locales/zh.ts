@@ -10,6 +10,7 @@ export const zh: I18nDictionary = {
     cancel: '取消',
     save: '保存',
     close: '关闭',
+    closeProject: '关闭项目',
   },
   header: {
     workspace: '工作区:',

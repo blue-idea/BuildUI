@@ -10,6 +10,7 @@ export interface I18nDictionary {
     cancel: string;
     save: string;
     close: string;
+    closeProject: string;
   };
   header: {
     workspace: string;

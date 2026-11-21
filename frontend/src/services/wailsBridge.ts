@@ -34,6 +34,7 @@ interface DesktopMethods {
   StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[] }) => Promise<void>;
   CancelChat: (chatId: number) => Promise<void>;
   RunApp: (req: { appId: number }) => Promise<{ previewUrl: string }>;
+  StopApp?: (req: { appId: number }) => Promise<void>;
   ListProjectFiles: (appId: number) => Promise<string[]>;
   ReadProjectFile: (appId: number, path: string) => Promise<string>;
   SetAppTheme: (appId: number, themeId: string) => Promise<void>;

@@ -10,6 +10,7 @@ export const en: I18nDictionary = {
     cancel: 'Cancel',
     save: 'Save',
     close: 'Close',
+    closeProject: 'Close project',
   },
   header: {
     workspace: 'Workspace:',

@@ -44,6 +44,46 @@ describe('TASK-027: macOS Chrome and Workbench Components', () => {
       // Pro badge should be removed
       expect(screen.queryByText(/pro/i)).toBeNull();
     });
+
+    it('renders close button on project tab and triggers onCloseTab when clicked', () => {
+      const onCloseTab = vi.fn();
+      renderWithProviders(
+        <MacOSWindowHeader
+          appName="demo"
+          onCloseTab={onCloseTab}
+        />
+      );
+
+      const closeBtn = screen.getByTestId('close-project-tab');
+      expect(closeBtn).toBeDefined();
+      fireEvent.click(closeBtn);
+      expect(onCloseTab).toHaveBeenCalledTimes(1);
+    });
+
+    it('triggers onCloseTab when clicking the project tab itself', () => {
+      const onCloseTab = vi.fn();
+      renderWithProviders(
+        <MacOSWindowHeader
+          appName="demo"
+          onCloseTab={onCloseTab}
+        />
+      );
+
+      const projectTab = screen.getByTestId('project-tab');
+      expect(projectTab).toBeDefined();
+      fireEvent.click(projectTab);
+      expect(onCloseTab).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not render project tab when appName is empty or undefined', () => {
+      renderWithProviders(
+        <MacOSWindowHeader
+          appName=""
+        />
+      );
+
+      expect(screen.queryByTestId('project-tab')).toBeNull();
+    });
   });
 
   describe('LeftDock', () => {

@@ -264,6 +264,28 @@ const AppContent: React.FC = () => {
     })));
   };
 
+  const handleCloseProject = () => {
+    if (desktop && activeAppId) {
+      void desktopApp().StopApp?.({ appId: activeAppId }).catch(() => {});
+    }
+    setActiveAppId(0);
+    projectID.current = 0;
+    chatID.current = 0;
+    setWorkspaceDir('');
+    setMessages([]);
+    setBlueprint(null);
+    setFocusedFile('');
+    setInputPrompt('');
+    setAttachments([]);
+    setSourcePaths([]);
+    setVersions([]);
+    setSystemLogs([]);
+    setPreviewUrl('');
+    setIsInspectMode(false);
+    setIsVersionsOpen(false);
+    setProjectError('');
+  };
+
   const activateProject = async (id: number) => {
     const active = await desktopApp().SwitchApp(id);
     projectID.current = id;
@@ -759,7 +781,7 @@ const AppContent: React.FC = () => {
     <div className="flex h-screen w-screen flex-col bg-slate-100 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 font-sans overflow-hidden transition-colors">
       {/* 顶部 macOS 窗口标题栏 */}
       <MacOSWindowHeader
-        appName={activeApp?.name ?? 'No project selected'}
+        appName={activeApp?.name}
         workspaceDir={workspaceDir}
         themePresets={themePresets}
         activeThemeId={activeThemeId}
@@ -771,6 +793,7 @@ const AppContent: React.FC = () => {
         onOpenExport={() => setIsExportOpen(true)}
         onSelectDirectory={handleSelectDirectory}
         onMockBlueprint={desktop ? undefined : handleMockBlueprint}
+        onCloseTab={activeApp ? handleCloseProject : undefined}
       />
 
       {/* 主工作区：左侧微坞 + 中间会话任务列 + 右侧三态工作区 */}
@@ -824,7 +847,7 @@ const AppContent: React.FC = () => {
           {/* 消息滚动流 */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {projectError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{projectError}</p>}
-            {desktop && !activeApp && (
+            {!activeApp && (
               <button type="button" onClick={() => setIsDrawerOpen(true)} className="text-sm font-medium text-purple-600">
                 Create or open a project
               </button>

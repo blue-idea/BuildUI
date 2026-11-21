@@ -311,4 +311,22 @@ describe('App Main Split Layout & Workflow', () => {
     expect(within(fileContent).getByText(/Dinner Suggestion/)).toBeDefined();
     expect(within(fileContent).queryByText(/Pantry Inventory/)).toBeNull();
   });
+
+  it('closes active project when clicking the project tab close button in header', async () => {
+    render(<App />);
+
+    // Initially "Pantry Planner" project is open
+    expect(screen.getByTestId('project-tab')).toBeDefined();
+    expect(screen.getByText('Pantry Planner')).toBeDefined();
+
+    // Click close button on the project tab
+    const closeBtn = screen.getByTestId('close-project-tab');
+    fireEvent.click(closeBtn);
+
+    // Project should be closed
+    await waitFor(() => {
+      expect(screen.queryByTestId('project-tab')).toBeNull();
+      expect(screen.getByText('Create or open a project')).toBeDefined();
+    });
+  });
 });

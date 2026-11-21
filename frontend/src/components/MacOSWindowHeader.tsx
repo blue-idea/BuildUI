@@ -22,7 +22,7 @@ export interface MacOSWindowHeaderProps {
 }
 
 export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
-  appName = 'Pantry Planner',
+  appName,
   onManageApp,
   onOpenCommandPalette,
   onOpenSettings,
@@ -86,18 +86,33 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
         </button>
 
         {/* 项目标签页 Tab */}
-        <div className="flex items-center gap-2 px-3 py-1 bg-white dark:bg-zinc-800 text-xs font-medium text-slate-800 dark:text-zinc-200 rounded-t-lg border-t border-l border-r border-slate-200 dark:border-zinc-700 shadow-2xs">
-          <span>{appName}</span>
-          {onCloseTab && (
-            <button
-              type="button"
-              onClick={onCloseTab}
-              className="text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300 rounded p-0.5"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          )}
-        </div>
+        {appName ? (
+          <div
+            data-testid="project-tab"
+            onClick={onCloseTab}
+            title={onCloseTab ? t('common.closeProject') : undefined}
+            className={`flex items-center gap-2 px-3 py-1 bg-white dark:bg-zinc-800 text-xs font-medium text-slate-800 dark:text-zinc-200 rounded-t-lg border-t border-l border-r border-slate-200 dark:border-zinc-700 shadow-2xs group transition-all ${
+              onCloseTab ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-750' : 'cursor-default'
+            }`}
+          >
+            <span className="truncate max-w-[160px]">{appName}</span>
+            {onCloseTab && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCloseTab();
+                }}
+                data-testid="close-project-tab"
+                aria-label={t('common.closeProject')}
+                title={t('common.closeProject')}
+                className="text-slate-400 hover:text-rose-500 dark:text-zinc-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded p-0.5 transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {/* 右侧：工作区路径 + 辅助导航 + 语言 + 主题 + Pro 徽章 */}
