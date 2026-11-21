@@ -16,6 +16,16 @@ import { ThemePreset } from './components/ThemeSelector';
 import { ThemeProvider } from './context/ThemeContext';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
 import { generateSandboxDoc } from './utils/sandboxTemplate';
+import {
+  fetchSettings,
+  saveSettings,
+  testLLMConnection,
+  selectDirectory,
+  fetchVersionDiff,
+  rollbackVersion,
+  exportAppZip,
+  openInFileManager,
+} from './services/wailsBridge';
 import { Plus, Send, Square, Hammer, ChevronDown } from 'lucide-react';
 
 interface ChatMessage {
@@ -197,6 +207,14 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
+  useEffect(() => {
+    fetchSettings().then((cfg) => {
+      if (cfg && Object.keys(cfg).length > 0) {
+        setSettings(cfg);
+      }
+    });
+  }, []);
+
   const renderMessageContent = (msg: ChatMessage) => {
     if (msg.id === 'msg-user-1') {
       return t('chat.userDemoPrompt');
@@ -227,21 +245,11 @@ const AppContent: React.FC = () => {
   };
 
   const handleSelectDirectory = async () => {
-    try {
-      const wailsApp = (window as unknown as {
-        go?: { main?: { App?: { SelectDirectory?: (title: string) => Promise<string> } } };
-      })?.go?.main?.App;
-      if (wailsApp?.SelectDirectory) {
-        const selected = await wailsApp.SelectDirectory('Select Workspace Directory');
-        if (selected) {
-          setWorkspaceDir(selected);
-          return;
-        }
-      }
-    } catch {
-      // 捕获异常
-    }
     setWorkspaceDir('/workspace/my-blot-app');
+    const selected = await selectDirectory('Select Workspace Directory');
+    if (selected) {
+      setWorkspaceDir(selected);
+    }
   };
 
   const handleSendPrompt = (e?: React.FormEvent) => {
@@ -731,28 +739,20 @@ const AppContent: React.FC = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         initialSettings={settings}
-        onSave={(newCfg) => setSettings(newCfg)}
-        onTestConnection={async () => 'Connection established successfully'}
+        onSave={async (newCfg) => {
+          setSettings(newCfg);
+          await saveSettings(newCfg);
+        }}
+        onTestConnection={testLLMConnection}
       />
 
       <VersionTimelineModal
         isOpen={isVersionsOpen}
         onClose={() => setIsVersionsOpen(false)}
         versions={versions}
-        onSelectVersion={async (hash) => ({
-          commitHash: hash,
-          message: 'Checkpoint Diff',
-          files: [
-            {
-              path: 'src/App.tsx',
-              status: 'modified',
-              additions: 15,
-              deletions: 3,
-              hunks: ['@@ -10,3 +10,15 @@\n+ // Updated component'],
-            },
-          ],
-        })}
+        onSelectVersion={async (hash) => await fetchVersionDiff(activeAppId, hash)}
         onRollback={async (hash) => {
+          await rollbackVersion(activeAppId, hash);
           setMessages((prev) => [
             ...prev,
             {
@@ -804,8 +804,8 @@ const AppContent: React.FC = () => {
         isOpen={isExportOpen}
         onClose={() => setIsExportOpen(false)}
         appName={activeApp.name}
-        onExportZip={async () => `/downloads/${activeApp.name.toLowerCase().replace(/\s+/g, '-')}-export.zip`}
-        onRevealInFileManager={async () => {}}
+        onExportZip={async () => await exportAppZip(activeAppId)}
+        onRevealInFileManager={openInFileManager}
       />
 
       <TemplateModal
