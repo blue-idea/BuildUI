@@ -3,6 +3,7 @@ import { BlueprintCard, BlueprintDTO } from './components/BlueprintCard';
 import { QuestionnaireCard, QuestionItem } from './components/QuestionnaireCard';
 import { PreviewPanel } from './components/PreviewPanel';
 import { SettingsModal } from './components/SettingsModal';
+import { VersionTimelineModal, VersionItem } from './components/VersionTimelineModal';
 
 interface ChatMessage {
   id: string;
@@ -26,7 +27,16 @@ export const App: React.FC = () => {
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [versions] = useState<VersionItem[]>([
+    {
+      id: 1,
+      commitHash: '03176f3',
+      message: 'Initial working application checkpoint',
+      createdAt: new Date().toISOString(),
+    },
+  ]);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSendPrompt = (e?: React.FormEvent) => {
@@ -155,6 +165,14 @@ export const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsVersionsOpen(true)}
+            aria-label="Open version time machine"
+            className="rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            Versions
+          </button>
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
@@ -302,6 +320,38 @@ export const App: React.FC = () => {
         }}
         onTestConnection={async () => {
           return 'Connection established successfully';
+        }}
+      />
+
+      {/* 版本时光机模态框 */}
+      <VersionTimelineModal
+        isOpen={isVersionsOpen}
+        onClose={() => setIsVersionsOpen(false)}
+        versions={versions}
+        onSelectVersion={async (hash) => {
+          return {
+            commitHash: hash,
+            message: 'Checkpoint Diff',
+            files: [
+              {
+                path: 'src/App.tsx',
+                status: 'modified',
+                additions: 15,
+                deletions: 3,
+                hunks: ['@@ -10,3 +10,15 @@\n+ // Updated component'],
+              },
+            ],
+          };
+        }}
+        onRollback={async (hash) => {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: String(Date.now()),
+              sender: 'assistant',
+              content: `Successfully rolled back to version ${hash.slice(0, 7)}. Working directory and live preview restored.`,
+            },
+          ]);
         }}
       />
     </div>

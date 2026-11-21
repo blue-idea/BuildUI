@@ -14,6 +14,7 @@ import (
 	"buildui/internal/db"
 	"buildui/internal/settings"
 	"buildui/internal/verification/tsc"
+	"buildui/internal/version"
 )
 
 // wailsEventEmitter 适配 Wails runtime.EventsEmit
@@ -39,6 +40,7 @@ type App struct {
 	chatService      *agent.ChatService
 	problemsService  *tsc.ProblemsService
 	settingsService  *settings.SettingsService
+	versionService   *version.VersionService
 }
 
 // NewApp 创建 App 实例
@@ -77,6 +79,7 @@ func (a *App) startup(ctx context.Context) {
 		a.problemsService = tsc.NewProblemsService(a.appRepo, nil)
 		settingsRepo := db.NewSettingsRepository(database)
 		a.settingsService = settings.NewSettingsService(settingsRepo)
+		a.versionService = version.NewVersionService(versionRepo, a.appRepo, emitter)
 	}
 }
 
@@ -157,4 +160,28 @@ func (a *App) TestLLMConnection(baseURL, apiKey, model string) error {
 		return nil
 	}
 	return a.settingsService.TestConnection(a.ctx, baseURL, apiKey, model)
+}
+
+// GetVersions 暴露给前端的获取版本时间线 RPC 方法
+func (a *App) GetVersions(appID int64) ([]version.VersionDTO, error) {
+	if a.versionService == nil {
+		return []version.VersionDTO{}, nil
+	}
+	return a.versionService.ListVersions(a.ctx, appID)
+}
+
+// GetVersionDiff 暴露给前端的获取版本差异 RPC 方法
+func (a *App) GetVersionDiff(appID int64, commitHash string) (*version.VersionDiffResult, error) {
+	if a.versionService == nil {
+		return nil, nil
+	}
+	return a.versionService.GetVersionDiff(a.ctx, appID, commitHash)
+}
+
+// RollbackVersion 暴露给前端的时光机一键回滚 RPC 方法
+func (a *App) RollbackVersion(appID int64, commitHash string) error {
+	if a.versionService == nil {
+		return nil
+	}
+	return a.versionService.RollbackVersion(a.ctx, appID, commitHash)
 }

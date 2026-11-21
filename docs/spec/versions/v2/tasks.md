@@ -71,10 +71,10 @@ _测试类型:_ Integration / Unit
 > 依赖：TASK-010  
 > 官方源码参考：[src/ipc/services/git_service.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/services/git_service.ts)
 
-- [ ] 实现 `VersionService.ListVersions`：从 SQLite `versions` 表读取版本时间线与 Commit Hash 列表
-- [ ] 实现 `VersionService.GetDiff`：调用 `git diff` 解析改动文件与增删代码行，输出高亮 Diff 数据结构
-- [ ] 实现 `VersionService.Rollback`：安全回滚至指定 Commit，并在回滚后通知 Vite 开发服务器重载
-- [ ] 在前端构建 `VersionTimelineModal.tsx` 与 `DiffViewer.tsx`：直观展示版本列表、文件树改动与 Diff 对比，提供“Rollback”按钮
+- [x] 实现 `VersionService.ListVersions`：从 SQLite `versions` 表读取版本时间线与 Commit Hash 列表
+- [x] 实现 `VersionService.GetDiff`：调用 `git diff` 解析改动文件与增删代码行，输出高亮 Diff 数据结构
+- [x] 实现 `VersionService.Rollback`：安全回滚至指定 Commit，并在回滚后通知 Vite 开发服务器重载
+- [x] 在前端构建 `VersionTimelineModal.tsx` 与 `DiffViewer.tsx`：直观展示版本列表、文件树改动与 Diff 对比，提供“Rollback”按钮
 
 **验证方式：**
 ```bash
@@ -82,7 +82,7 @@ go test -v -race ./internal/version/...
 cd frontend && pnpm test -- DiffViewer
 ```
 
-**验收证据：** 能够正确解析 Git 提交差异行，点击回滚后工作区代码与前端预览无缝同步回退。  
+**验收证据：** 能够正确解析 Git 提交差异行，点击回滚后工作区代码与前端预览无缝同步回退（详见 `docs/spec/versions/v2/ac/TASK-011-AC.md`）。  
 _需求:_ `requirements.md` 中 `v2.REQ-003`  
 _验收标准:_ `v2.REQ-003-AC-001`, `v2.REQ-003-AC-002`  
 _测试类型:_ Integration / Unit

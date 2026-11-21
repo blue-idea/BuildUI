@@ -88,4 +88,18 @@ describe('App Main Split Layout & Workflow', () => {
     expect(secondStopBtn).toBeDefined();
     fireEvent.click(secondStopBtn);
   });
+
+  it('opens and closes version time machine modal from top navigation', () => {
+    render(<App />);
+
+    const versionsBtn = screen.getByRole('button', { name: /open version time machine/i });
+    fireEvent.click(versionsBtn);
+
+    expect(screen.getByText('Version Time Machine')).toBeDefined();
+
+    const closeBtn = screen.getByRole('button', { name: /close time machine/i });
+    fireEvent.click(closeBtn);
+
+    expect(screen.queryByText('Version Time Machine')).toBeNull();
+  });
 });
