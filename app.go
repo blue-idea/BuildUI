@@ -195,3 +195,27 @@ func (a *App) SelectDirectory(title string) (string, error) {
 		Title: title,
 	})
 }
+
+// SwitchApp 暴露给前端的切换活跃应用 RPC 方法
+func (a *App) SwitchApp(appID int64) (*app.ActiveAppResponse, error) {
+	if a.appService == nil {
+		return nil, nil
+	}
+	return a.appService.SwitchApp(a.ctx, appID)
+}
+
+// DeleteApp 暴露给前端的删除非活跃应用 RPC 方法
+func (a *App) DeleteApp(appID int64) error {
+	if a.appService == nil {
+		return nil
+	}
+	return a.appService.DeleteApp(a.ctx, appID)
+}
+
+// GetActiveApp 暴露给前端的获取活跃应用 RPC 方法
+func (a *App) GetActiveApp() (*app.ActiveAppResponse, error) {
+	if a.appService == nil {
+		return nil, nil
+	}
+	return a.appService.GetActiveApp(a.ctx)
+}

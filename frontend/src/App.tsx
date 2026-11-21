@@ -4,6 +4,7 @@ import { QuestionnaireCard, QuestionItem } from './components/QuestionnaireCard'
 import { PreviewPanel } from './components/PreviewPanel';
 import { SettingsModal } from './components/SettingsModal';
 import { VersionTimelineModal, VersionItem } from './components/VersionTimelineModal';
+import { AppDrawer, AppItem } from './components/AppDrawer';
 
 interface ChatMessage {
   id: string;
@@ -28,6 +29,16 @@ export const App: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [activeAppId, setActiveAppId] = useState<number>(1);
+  const [apps, setApps] = useState<AppItem[]>([
+    {
+      id: 1,
+      name: 'Default Application',
+      path: '/workspace/default-app',
+      createdAt: new Date().toISOString(),
+    },
+  ]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [workspaceDir, setWorkspaceDir] = useState<string>('default-workspace');
   const [versions] = useState<VersionItem[]>([
@@ -185,6 +196,15 @@ export const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(true)}
+            aria-label="Open applications drawer"
+            className="flex items-center gap-1.5 rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+            <span>Apps</span>
+          </button>
           <button
             type="button"
             onClick={handleSelectDirectory}
@@ -381,6 +401,45 @@ export const App: React.FC = () => {
               content: `Successfully rolled back to version ${hash.slice(0, 7)}. Working directory and live preview restored.`,
             },
           ]);
+        }}
+      />
+
+      {/* 侧边多应用抽屉 */}
+      <AppDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        apps={apps}
+        activeAppId={activeAppId}
+        onSelectApp={(id) => {
+          setActiveAppId(id);
+          const target = apps.find((a) => a.id === id);
+          if (target) {
+            setWorkspaceDir(target.path);
+            setMessages([
+              {
+                id: String(Date.now()),
+                sender: 'assistant',
+                content: `Switched to application "${target.name}". Workspace loaded.`,
+              },
+            ]);
+          }
+          setIsDrawerOpen(false);
+        }}
+        onCreateApp={() => {
+          const newId = Date.now();
+          const newApp: AppItem = {
+            id: newId,
+            name: `Project ${apps.length + 1}`,
+            path: `/workspace/project-${apps.length + 1}`,
+            createdAt: new Date().toISOString(),
+          };
+          setApps((prev) => [...prev, newApp]);
+          setActiveAppId(newId);
+          setWorkspaceDir(newApp.path);
+          setIsDrawerOpen(false);
+        }}
+        onDeleteApp={(id) => {
+          setApps((prev) => prev.filter((a) => a.id !== id));
         }}
       />
     </div>

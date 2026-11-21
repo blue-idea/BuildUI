@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
 
-// 截图保存路径至 v2 reports/screenshots 目录
-const screenshotsDir = path.resolve(process.cwd(), '../docs/spec/versions/v2/reports/screenshots');
+// 截图保存路径至 v2-finished reports/screenshots 目录
+const screenshotsDir = path.resolve(process.cwd(), '../docs/spec/versions/v2-finished/reports/screenshots');
 
 test.beforeAll(() => {
   if (!fs.existsSync(screenshotsDir)) {
