@@ -26,9 +26,9 @@
 > 依赖：无  
 > 官方源码参考：[src/services/package_service.ts](https://github.com/dyad-sh/dyad/blob/main/src/services/package_service.ts)
 
-- [ ] 在 `internal/agent/dependency_manager.go` 中实现 `ValidatePackageName` 与 `SanitizePackages`：正则校验防命令注入
-- [ ] 在 `internal/app/runner/runner.go` 中扩展 `InstallPackages`：异步调用 `pnpm add`，通过 Wails 事件总线推流安装状态
-- [ ] 在 `app.go` 中暴露 `InstallDependencies` RPC 方法供前端与 Agent 触发
+- [x] 在 `internal/agent/dependency_manager.go` 中实现 `ValidatePackageName` 与 `SanitizePackages`：正则校验防命令注入
+- [x] 在 `internal/app/runner/runner.go` 中扩展 `InstallPackages`：异步调用 `pnpm add`，通过 Wails 事件总线推流安装状态
+- [x] 在 `app.go` 中暴露 `InstallDependencies` RPC 方法供前端与 Agent 触发
 
 **验证方式：**
 ```bash

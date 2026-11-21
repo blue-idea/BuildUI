@@ -72,3 +72,46 @@ func TestDependencyManager_EnsureDependencies(t *testing.T) {
 		t.Fatalf("expected canvas-confetti and axios to be installed, got %v", cmd)
 	}
 }
+
+// v4.REQ-001-AC-001: 包名合法性校验与防命令注入测试
+func TestDependencyManager_ValidationAndSanitization(t *testing.T) {
+	validPackages := []string{
+		"react",
+		"lucide-react",
+		"@types/node",
+		"@base-ui/react@^1.0.0",
+		"canvas-confetti@~0.2.1",
+		"lodash.debounce",
+		"framer-motion@11.0.0",
+	}
+
+	for _, pkg := range validPackages {
+		if !ValidatePackageName(pkg) {
+			t.Errorf("expected package %q to be valid, but got false", pkg)
+		}
+	}
+
+	invalidPackages := []string{
+		"react; rm -rf /",
+		"foo && whoami",
+		"bar | cat /etc/passwd",
+		"$(calc.exe)",
+		"`id`",
+		"pkg name with spaces",
+		"../relative/path",
+		"",
+	}
+
+	for _, pkg := range invalidPackages {
+		if ValidatePackageName(pkg) {
+			t.Errorf("expected package %q to be rejected as invalid, but got true", pkg)
+		}
+	}
+
+	// 验证 SanitizePackages 对包含恶意注入的请求报错拦截
+	manager := NewDependencyManager("", nil)
+	_, err := manager.SanitizePackages([]string{"react", "bad;package"})
+	if err == nil {
+		t.Fatalf("expected error when sanitizing malicious packages, got nil")
+	}
+}
