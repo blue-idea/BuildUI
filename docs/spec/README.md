@@ -9,7 +9,7 @@
 ## 当前活跃 Version
 
 ```yaml
-current_version: v3      # → Agent 替换 {{VERSION}} 时取此值
+current_version: v4      # → Agent 替换 {{VERSION}} 时取此值
 ```
 
 ---
@@ -20,8 +20,9 @@ current_version: v3      # → Agent 替换 {{VERSION}} 时取此值
 |---------|:----:|------|------|
 | v1 | finished | `docs/spec/versions/v1-finished/` | 首个版本已圆满收官（脚手架底座、蓝图门禁、XML流式落盘、闭环自愈、本地预览、Turn-level Git） |
 | v2 | finished | `docs/spec/versions/v2-finished/` | 第二版本已圆满收官（真实多模型 LLM 流式接入、多轮上下文记忆与中止、Git 时光机 Diff 审查与回滚、原生桌面体验） |
-| v3 | active | `docs/spec/versions/v3/` | 当前启动规划：分布式协同、云端沙箱同步、组件生态市场与高级扩展 |
-| v4 | planned | `docs/spec/versions/v4/` | 规划中：企业私有化部署、安全审计与自动化多端适配发布 |
+| v3 | finished | `docs/spec/versions/v3-finished/` | 第三版本已圆满收官（多应用抽屉与工作区切换、双向可视化组件审查定位、一键 Zip 导出与原生资源管理器） |
+| v4 | active | `docs/spec/versions/v4/` | 当前启动规划：智能自定义依赖安装、UI 视觉主题系统与组件库预设模版集成 |
+| v5 | planned | `docs/spec/versions/v5/` | 规划中：云端沙箱同步、团队协同与多端发布 |
 
 ---
 
@@ -44,7 +45,8 @@ docs/
     └── versions/
         ├── v1-finished/            # 已归档完成的 v1 版本全量规格与验收证据
         ├── v2-finished/            # 已归档完成的 v2 版本全量规格与验收证据
-        └── v3/                     # 当前活跃的 v3 规格与规划任务
+        ├── v3-finished/            # 已归档完成的 v3 版本全量规格与验收证据
+        └── v4/                     # 当前活跃的 v4 规格与规划任务
 ```
 
 ---
