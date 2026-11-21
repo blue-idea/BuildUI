@@ -94,12 +94,12 @@ _测试类型:_ Unit / Desktop
 > 依赖：TASK-013 ~ TASK-015  
 > 官方源码参考：[src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts)
 
-- [ ] 在 `frontend/e2e/v3-workflow.spec.ts` 中编写端到端自动化测试用例，覆盖：
+- [x] 在 `frontend/e2e/v3-workflow.spec.ts` 中编写端到端自动化测试用例，覆盖：
   1. 侧边栏打开多应用抽屉并切换应用；
   2. 开启预览区组件审查模式，点击元素触发 `@src/components/...` 注入；
   3. 打开工程导出面板执行 Zip 打包与打开目录操作；
   4. 截取并留存 4 组关键里程碑高保真视觉验收截图。
-- [ ] 编写 `docs/spec/versions/v3/ac/TASK-016-AC.md` 与 `v3-final-report.md`，执行全量回归。
+- [x] 编写 `docs/spec/versions/v3/ac/TASK-016-AC.md` 与 `v3-final-report.md`，执行全量回归。
 
 **验证方式：**
 ```bash
