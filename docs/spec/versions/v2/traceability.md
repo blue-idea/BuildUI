@@ -21,7 +21,7 @@
 | **TASK-009** | LLM Provider 抽象层、OpenAI 兼容流式客户端与配置中心（Settings） | `v2.REQ-001` / `AC-001..002` | `done` | LLM Engine & Settings (`internal/llm`, `internal/settings`, `SettingsModal.tsx`) | Unit / Integ | [src/ipc/handlers/settings_handlers.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/handlers/settings_handlers.ts) |
 | **TASK-010** | 多轮会话上下文组装、增量 Prompt 裁剪与流式生成中断控制 | `v2.REQ-002` / `AC-001..002` | `done` | Multi-turn Prompt Assembler & Cancelable Stream (`internal/agent`) | Integ / Unit | [src/prompts/local_agent_prompt.ts](https://github.com/dyad-sh/dyad/blob/main/src/prompts/local_agent_prompt.ts) |
 | **TASK-011** | Git 版本快照时光机、代码 Diff 提取与一键工作区安全回滚 | `v2.REQ-003` / `AC-001..002` | `done` | Git Time Machine & Diff Parser (`internal/version`, `DiffViewer.tsx`) | Integ / Unit | [src/ipc/services/git_service.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/services/git_service.ts) |
-| **TASK-012** | Wails 原生桌面增强与 v2 全流程 Playwright E2E 验证 | `v2.REQ-004` / `AC-001..002` | 待开始 | Desktop Shell & Playwright E2E Suite (`e2e/v2-workflow.spec.ts`) | E2E / Visual | [src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts) |
+| **TASK-012** | Wails 原生桌面增强与 v2 全流程 Playwright E2E 验证 | `v2.REQ-004` / `AC-001..002` | `done` | Desktop Shell & Playwright E2E Suite (`app.go`, `e2e/v2-workflow.spec.ts`) | E2E / Visual | [src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts) |
 
 ---
 
@@ -30,3 +30,4 @@
 | 日期 | 变更内容 | 原因 |
 | :---: | :--- | :--- |
 | 2026-11-21 | 归档 v1 到 `v1-finished/`，正式启动 v2 规格规划，完成需求、设计、审查、任务与追溯文件 | 开启 v2 里程碑 |
+| 2026-11-21 | 完成 TASK-009 至 TASK-012 全量实施与 Playwright E2E 验证验收，v2 任务全部交付 | 收尾 v2 里程碑 |
