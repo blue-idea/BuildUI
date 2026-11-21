@@ -26,7 +26,7 @@ interface ChatMessage {
 }
 
 const AppContent: React.FC = () => {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
 
   const [activeDockTab, setActiveDockTab] = useState<DockTab>('home');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('preview');
@@ -195,6 +195,16 @@ const AppContent: React.FC = () => {
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
+
+  const renderMessageContent = (msg: ChatMessage) => {
+    if (msg.id === 'msg-user-1') {
+      return t('chat.userDemoPrompt');
+    }
+    if (msg.id === 'msg-assistant-1') {
+      return t('chat.assistantDemoReply');
+    }
+    return msg.content;
+  };
 
   const handleSelectTheme = (themeId: string) => {
     setActiveThemeId(themeId);
@@ -505,11 +515,11 @@ const AppContent: React.FC = () => {
 
             <div className="flex items-center gap-1.5 text-slate-400">
               <span className="text-[11px] font-medium text-slate-400 dark:text-zinc-500">
-                Chat & Blueprint
+                {t('chat.chatBlueprint')}
               </span>
               {blueprint?.approved && (
                 <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.2 text-[10px] text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                  Blueprint Approved
+                  {t('chat.blueprintApproved')}
                 </span>
               )}
             </div>
@@ -532,7 +542,7 @@ const AppContent: React.FC = () => {
                       : 'bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 text-slate-800 dark:text-zinc-200 shadow-2xs'
                   }`}
                 >
-                  {msg.content}
+                  {renderMessageContent(msg)}
                 </div>
 
                 {/* 文件修改进度卡片群 */}
@@ -580,13 +590,13 @@ const AppContent: React.FC = () => {
             {installingDeps && (
               <div className="flex items-center gap-2 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
                 <span className="h-2 w-2 animate-spin rounded-full border border-amber-500 border-t-transparent" />
-                <span>Installing sandbox dependencies: {installingDeps}...</span>
+                <span>{t('chat.installingDeps')} {installingDeps}...</span>
               </div>
             )}
             {installedDependencies.length > 0 && (
               <div className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/40 p-2 text-xs text-emerald-700 dark:text-emerald-300">
                 <span>✓</span>
-                <span>Installed dependencies: {installedDependencies.join(', ')}</span>
+                <span>{t('chat.installedDeps')} {installedDependencies.join(', ')}</span>
               </div>
             )}
 
@@ -594,7 +604,7 @@ const AppContent: React.FC = () => {
             {activeTool && (
               <div className="flex items-center gap-2 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/40 p-2.5 text-xs text-blue-700 dark:text-blue-300">
                 <span className="h-2 w-2 animate-ping rounded-full bg-blue-500" />
-                <span>Executing tool: {activeTool}...</span>
+                <span>{t('chat.executingTool')} {activeTool}...</span>
               </div>
             )}
           </div>
@@ -614,7 +624,7 @@ const AppContent: React.FC = () => {
                     handleSendPrompt();
                   }
                 }}
-                placeholder="Describe what to build..."
+                placeholder={t('chat.placeholder')}
                 rows={2}
                 className="w-full resize-none bg-transparent text-xs text-slate-800 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none leading-relaxed"
               />
@@ -645,7 +655,7 @@ const AppContent: React.FC = () => {
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    title="Add attachment"
+                    title={t('chat.addAttachment')}
                     className="p-1.5 text-slate-400 hover:text-slate-600 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
@@ -683,7 +693,7 @@ const AppContent: React.FC = () => {
           onViewChange={setWorkspaceView}
           isLoading={isStartingApp}
           previewUrl={previewUrl}
-          previewDoc={generateSandboxDoc(activeApp.name, activeThemeId, blueprint)}
+          previewDoc={generateSandboxDoc(activeApp.name, activeThemeId, blueprint, locale)}
           isInspectMode={isInspectMode}
           onToggleInspect={() => setIsInspectMode((prev) => !prev)}
           onSelectComponent={(_path, prompt) => {

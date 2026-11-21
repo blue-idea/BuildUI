@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { DiffViewer, FileDiffItem } from './DiffViewer';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface VersionItem {
   id: number;
@@ -29,6 +30,7 @@ export const VersionTimelineModal: React.FC<VersionTimelineModalProps> = ({
   onSelectVersion,
   onRollback,
 }) => {
+  const { t } = useI18n();
   const [selectedHash, setSelectedHash] = useState<string | null>(null);
   const [activeDiff, setActiveDiff] = useState<VersionDiffResult | null>(null);
   const [loadingDiff, setLoadingDiff] = useState(false);
@@ -67,9 +69,9 @@ export const VersionTimelineModal: React.FC<VersionTimelineModalProps> = ({
         <div className="flex h-12 items-center justify-between border-b border-slate-800 px-5">
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400/50" />
-            <h2 className="text-sm font-semibold text-white">Version Time Machine</h2>
+            <h2 className="text-sm font-semibold text-white">{t('modals.versionTitle')}</h2>
             <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
-              {versions.length} Snapshots
+              {t('modals.snapshotsCount').replace('{count}', String(versions.length))}
             </span>
           </div>
           <button
@@ -88,7 +90,7 @@ export const VersionTimelineModal: React.FC<VersionTimelineModalProps> = ({
           <div className="border-r border-slate-800 bg-slate-950/60 overflow-y-auto p-3 space-y-2">
             {versions.length === 0 ? (
               <div className="p-4 text-center text-xs text-slate-500">
-                No version snapshots yet.
+                {t('modals.noSnapshots')}
               </div>
             ) : (
               versions.map((v) => {
@@ -145,7 +147,7 @@ export const VersionTimelineModal: React.FC<VersionTimelineModalProps> = ({
                   onClick={handleRollbackClick}
                   className="rounded bg-rose-600 px-3 py-1 font-semibold text-white shadow-sm hover:bg-rose-500 transition-colors disabled:opacity-50"
                 >
-                  {rollingBack ? 'Rolling back...' : 'Rollback to this version'}
+                  {rollingBack ? t('modals.rollingBack') : t('modals.rollbackBtn')}
                 </button>
               )}
             </div>

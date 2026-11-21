@@ -58,11 +58,24 @@ test.describe('Blot-UI v6 macOS Aesthetic Workbench & Bilingual Theme System', (
 
     // 验证中文界面文案即时呈现
     await expect(page.getByText('管理应用')).toBeVisible();
+    await expect(page.getByText('工作区:')).toBeVisible();
     await expect(page.getByText('新建对话')).toBeVisible();
+    await expect(page.getByText('对话与蓝图')).toBeVisible();
+    await expect(page.getByText('构建一个食材食谱规划器，根据我现有的食材推荐晚餐')).toBeVisible();
+    await expect(page.getByText(/欢迎使用 Blot-UI！已为您配置食材管理清单与晚餐推荐方案/)).toBeVisible();
+    await expect(page.getByText('构建模式')).toBeVisible();
+    await expect(page.getByText('模型: 自动')).toBeVisible();
+    await expect(page.getByPlaceholder('输入您的开发需求或提问...')).toBeVisible();
     await expect(page.getByText('实时预览')).toBeVisible();
     await expect(page.getByText('代码检视')).toBeVisible();
     await expect(page.getByText('打包发布')).toBeVisible();
     await expect(page.getByText('系统运行日志')).toBeVisible();
+
+    // 验证右侧沙箱 iframe 内部完全切换为中文
+    const sandboxFrame = page.frameLocator('iframe');
+    await expect(sandboxFrame.getByText('🥫 食材库存清单')).toBeVisible();
+    await expect(sandboxFrame.getByText('🍽️ 今晚菜谱推荐')).toBeVisible();
+    await expect(sandboxFrame.getByText('实时沙箱运行中')).toBeVisible();
 
     // 截图 2: macOS 浅色主题 + 中文模式
     await page.screenshot({

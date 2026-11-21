@@ -1,27 +1,98 @@
 /**
  * 沙箱实时预览 HTML 生成器
- * 根据当前项目名称、主题与蓝图生成独立运行的高保真应用视图，
- * 彻底消除外部端口未启动时的空白页与递归嵌套画中画问题。
+ * 根据当前项目名称、主题、蓝图与语言生成独立运行的高保真应用视图，
+ * 彻底消除外部端口未启动时的空白页与递归嵌套画中画问题，
+ * 并支持 100% 纯正中英文界面无缝切换。
  */
+
+import { Locale } from '../i18n/types';
 
 export function generateSandboxDoc(
   appName: string = 'Pantry Planner',
   themeId: string = 'clean-light',
-  blueprint?: { appName?: string; designDirection?: string; primaryColor?: string } | null
+  blueprint?: { appName?: string; designDirection?: string; primaryColor?: string } | null,
+  locale: Locale = 'en'
 ): string {
-  const isDark = themeId.includes('dark') || themeId.includes('cyberpunk') || themeId.includes('slate') || themeId.includes('forest');
-  const isCyberpunk = themeId.includes('cyberpunk') || appName.toLowerCase().includes('portfolio') || blueprint?.appName?.toLowerCase().includes('portfolio');
-  const isPantry = appName.toLowerCase().includes('pantry') || (!isCyberpunk && !appName.toLowerCase().includes('saas'));
+  const isZh = locale === 'zh';
+  const isDark =
+    themeId.includes('dark') ||
+    themeId.includes('cyberpunk') ||
+    themeId.includes('slate') ||
+    themeId.includes('forest');
+  const isCyberpunk =
+    themeId.includes('cyberpunk') ||
+    appName.toLowerCase().includes('portfolio') ||
+    blueprint?.appName?.toLowerCase().includes('portfolio');
+  const isPantry =
+    appName.toLowerCase().includes('pantry') ||
+    (!isCyberpunk && !appName.toLowerCase().includes('saas'));
 
   const primaryColor = blueprint?.primaryColor || (isCyberpunk ? '#00ffcc' : '#7c3aed');
 
+  // 食材食谱规划器模版 (Pantry Planner)
   if (isPantry) {
+    const texts = isZh
+      ? {
+          title: appName === 'Pantry Planner' ? '食材规划与食谱助手' : appName,
+          subtitle: '智能晚餐搭配与剩余食材利用',
+          badge: '实时沙箱运行中',
+          pantryTitle: '🥫 食材库存清单',
+          itemCount: '5 件食材',
+          inStock: '库存充足',
+          placeholder: '添加新采购的食材...',
+          addBtn: '+ 添加食材',
+          recipeTitle: '🍽️ 今晚菜谱推荐',
+          matchBadge: '按食材匹配度排序',
+          r1Name: '经典番茄罗勒意面',
+          r1Desc: '15分钟快手炒锅晚餐，使用新鲜番茄与大蒜碎。',
+          r1Match: '✓ 100% 食材已备齐',
+          r2Name: '香蒜香草橄榄油拌面',
+          r2Desc: '意大利传统经典面食，以温热初榨橄榄油慢煎蒜末。',
+          r2Match: '✓ 100% 食材已备齐',
+          r3Name: '香脆帕玛森干酪薄饼',
+          r3Desc: '金黄烤箱烘焙小食，浓郁奶香搭配现磨黑胡椒。',
+          r3Match: '✓ 90% 匹配 (缺少黄油)',
+          addedStatus: '已入库',
+          i1: '🍅 新鲜番茄',
+          i2: '🍝 意式通心粉',
+          i3: '🧄 新鲜大蒜瓣',
+          i4: '🫒 特级初榨橄榄油',
+          i5: '🧀 帕玛森干酪',
+        }
+      : {
+          title: appName,
+          subtitle: 'Smart Dinner & Ingredient Matcher',
+          badge: 'Live Sandbox',
+          pantryTitle: '🥫 Pantry Inventory',
+          itemCount: '5 items',
+          inStock: 'In Stock',
+          placeholder: 'Add new pantry item...',
+          addBtn: '+ Add Ingredient',
+          recipeTitle: '🍽️ Dinner Suggestions',
+          matchBadge: 'Ranked by Match',
+          r1Name: 'Classic Tomato Basil Pasta',
+          r1Desc: 'Quick 15-minute skillet dinner using fresh tomatoes and garlic.',
+          r1Match: '✓ 100% ingredients ready',
+          r2Name: 'Garlic & Herb Aglio e Olio',
+          r2Desc: 'Traditional pasta tossed in warm infused olive oil with minced garlic.',
+          r2Match: '✓ 100% ingredients ready',
+          r3Name: 'Crispy Parmesan Baked Crust',
+          r3Desc: 'Golden oven-baked snack with cheese flakes and pepper.',
+          r3Match: '✓ 90% match (Needs Butter)',
+          addedStatus: 'Added',
+          i1: '🍅 Fresh Tomatoes',
+          i2: '🍝 Italian Pasta',
+          i3: '🧄 Garlic Cloves',
+          i4: '🫒 Extra Virgin Olive Oil',
+          i5: '🧀 Parmesan Cheese',
+        };
+
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${isZh ? 'zh-CN' : 'en'}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${appName}</title>
+  <title>${texts.title}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -166,53 +237,53 @@ export function generateSandboxDoc(
     <div class="brand">
       <div class="logo">🍳</div>
       <div>
-        <div class="title">${appName}</div>
-        <div style="font-size: 11px; color: ${isDark ? '#a1a1aa' : '#64748b'};">Smart Dinner & Ingredient Matcher</div>
+        <div class="title">${texts.title}</div>
+        <div style="font-size: 11px; color: ${isDark ? '#a1a1aa' : '#64748b'};">${texts.subtitle}</div>
       </div>
     </div>
-    <span class="badge">Live Sandbox</span>
+    <span class="badge">${texts.badge}</span>
   </div>
 
   <div class="grid">
     <!-- 配料清单组件 (PantryList.tsx) -->
     <div class="card" id="pantry-card">
       <div class="card-title">
-        <span>🥫 Pantry Inventory</span>
-        <span style="font-size: 11px; color: #7c3aed;">5 items</span>
+        <span>${texts.pantryTitle}</span>
+        <span style="font-size: 11px; color: #7c3aed;">${texts.itemCount}</span>
       </div>
       <ul class="ingredient-list" id="ing-list">
-        <li class="ingredient-item"><span>🍅 Fresh Tomatoes</span><span style="color: #10b981;">In Stock</span></li>
-        <li class="ingredient-item"><span>🍝 Italian Pasta</span><span style="color: #10b981;">In Stock</span></li>
-        <li class="ingredient-item"><span>🧄 Garlic Cloves</span><span style="color: #10b981;">In Stock</span></li>
-        <li class="ingredient-item"><span>🫒 Extra Virgin Olive Oil</span><span style="color: #10b981;">In Stock</span></li>
-        <li class="ingredient-item"><span>🧀 Parmesan Cheese</span><span style="color: #10b981;">In Stock</span></li>
+        <li class="ingredient-item"><span>${texts.i1}</span><span style="color: #10b981;">${texts.inStock}</span></li>
+        <li class="ingredient-item"><span>${texts.i2}</span><span style="color: #10b981;">${texts.inStock}</span></li>
+        <li class="ingredient-item"><span>${texts.i3}</span><span style="color: #10b981;">${texts.inStock}</span></li>
+        <li class="ingredient-item"><span>${texts.i4}</span><span style="color: #10b981;">${texts.inStock}</span></li>
+        <li class="ingredient-item"><span>${texts.i5}</span><span style="color: #10b981;">${texts.inStock}</span></li>
       </ul>
       <div style="margin-top: 14px;">
-        <input type="text" id="new-item" placeholder="Add new pantry item..." class="input" />
-        <button class="btn" onclick="addItem()">+ Add Ingredient</button>
+        <input type="text" id="new-item" placeholder="${texts.placeholder}" class="input" />
+        <button class="btn" onclick="addItem()">${texts.addBtn}</button>
       </div>
     </div>
 
     <!-- 菜谱推荐组件 (RecipeCard.tsx) -->
     <div class="card">
       <div class="card-title">
-        <span>🍽️ Dinner Suggestions</span>
-        <span style="font-size: 11px; color: #10b981;">Ranked by Match</span>
+        <span>${texts.recipeTitle}</span>
+        <span style="font-size: 11px; color: #10b981;">${texts.matchBadge}</span>
       </div>
       <div class="recipe-card">
-        <div class="recipe-name">Classic Tomato Basil Pasta</div>
-        <div class="recipe-desc">Quick 15-minute skillet dinner using fresh tomatoes and garlic.</div>
-        <div class="match-tag">✓ 100% ingredients ready</div>
+        <div class="recipe-name">${texts.r1Name}</div>
+        <div class="recipe-desc">${texts.r1Desc}</div>
+        <div class="match-tag">${texts.r1Match}</div>
       </div>
       <div class="recipe-card">
-        <div class="recipe-name">Garlic & Herb Aglio e Olio</div>
-        <div class="recipe-desc">Traditional pasta tossed in warm infused olive oil with minced garlic.</div>
-        <div class="match-tag">✓ 100% ingredients ready</div>
+        <div class="recipe-name">${texts.r2Name}</div>
+        <div class="recipe-desc">${texts.r2Desc}</div>
+        <div class="match-tag">${texts.r2Match}</div>
       </div>
       <div class="recipe-card">
-        <div class="recipe-name">Crispy Parmesan Baked Crust</div>
-        <div class="recipe-desc">Golden oven-baked snack with cheese flakes and pepper.</div>
-        <div class="match-tag">✓ 90% match (Needs Butter)</div>
+        <div class="recipe-name">${texts.r3Name}</div>
+        <div class="recipe-desc">${texts.r3Desc}</div>
+        <div class="match-tag">${texts.r3Match}</div>
       </div>
     </div>
   </div>
@@ -225,7 +296,7 @@ export function generateSandboxDoc(
       const list = document.getElementById('ing-list');
       const li = document.createElement('li');
       li.className = 'ingredient-item';
-      li.innerHTML = '<span>' + val + '</span><span style="color: #10b981;">Added</span>';
+      li.innerHTML = '<span>' + val + '</span><span style="color: #10b981;">${texts.addedStatus}</span>';
       list.appendChild(li);
       input.value = '';
     }
@@ -236,8 +307,30 @@ export function generateSandboxDoc(
 
   // 赛博朋克深色 Portfolio 页面
   if (isCyberpunk) {
+    const texts = isZh
+      ? {
+          badge: '⚡ 赛博朋克霓虹特别版',
+          name: 'Alex Vance',
+          bio: '高级全栈 UI 架构师与自主智能体专家。专注于构建下一代桌面 Web 沉浸式人机交互体验。',
+          cta: '查看交互式演示',
+          c1Title: '🚀 Blot-UI 桌面级引擎',
+          c1Desc: 'Wails v2 + React 19 高性能多模态 AI 智能工作台。',
+          c2Title: '💎 WebContainers 沙箱虚拟化',
+          c2Desc: '浏览器内零延迟 Node 运行时与轻量微容器技术。',
+        }
+      : {
+          badge: 'CYBERPUNK NEON EDITION',
+          name: 'Alex Vance',
+          bio: 'Senior Full-Stack UI Architect & Autonomous Agent Specialist. Building next-generation desktop web experiences.',
+          cta: 'View Interactive Demos',
+          c1Title: '🚀 Blot-UI Desktop Engine',
+          c1Desc: 'Wails v2 + React 19 high-performance AI studio.',
+          c2Title: '💎 WebContainers Sandbox',
+          c2Desc: 'Zero-latency in-browser node runtime virtualization.',
+        };
+
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${isZh ? 'zh-CN' : 'en'}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -334,19 +427,19 @@ export function generateSandboxDoc(
 <body>
   <div class="hero">
     <div class="avatar">⚡</div>
-    <span class="badge">CYBERPUNK NEON EDITION</span>
-    <h1>Alex Vance</h1>
-    <p>Senior Full-Stack UI Architect & Autonomous Agent Specialist. Building next-generation desktop web experiences.</p>
-    <a href="#" class="cta-btn">View Interactive Demos</a>
+    <span class="badge">${texts.badge}</span>
+    <h1>${texts.name}</h1>
+    <p>${texts.bio}</p>
+    <a href="#" class="cta-btn">${texts.cta}</a>
 
     <div class="grid">
       <div class="card">
-        <div class="card-title">🚀 Blot-UI Desktop Engine</div>
-        <div class="card-desc">Wails v2 + React 19 high-performance AI studio.</div>
+        <div class="card-title">${texts.c1Title}</div>
+        <div class="card-desc">${texts.c1Desc}</div>
       </div>
       <div class="card">
-        <div class="card-title">💎 WebContainers Sandbox</div>
-        <div class="card-desc">Zero-latency in-browser node runtime virtualization.</div>
+        <div class="card-title">${texts.c2Title}</div>
+        <div class="card-desc">${texts.c2Desc}</div>
       </div>
     </div>
   </div>
@@ -355,8 +448,18 @@ export function generateSandboxDoc(
   }
 
   // 通用清爽现代应用模板
+  const texts = isZh
+    ? {
+        desc: '应用沙箱已完全挂载，正在实时响应您的代码修改与指令交互。',
+        status: '沙箱运行中并已通过健康检查',
+      }
+    : {
+        desc: 'Your application sandbox is fully mounted and responding to changes in real-time.',
+        status: 'Sandbox Online & Verified',
+      };
+
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${isZh ? 'zh-CN' : 'en'}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -411,10 +514,10 @@ export function generateSandboxDoc(
   <div class="box">
     <div class="icon">✨</div>
     <h2>${appName}</h2>
-    <p>Your application sandbox is fully mounted and responding to changes in real-time.</p>
+    <p>${texts.desc}</p>
     <div class="status">
       <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
-      <span>Sandbox Online & Verified</span>
+      <span>${texts.status}</span>
     </div>
   </div>
 </body>

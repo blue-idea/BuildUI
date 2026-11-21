@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface VisualItem {
   id: string;
@@ -28,12 +29,14 @@ export const BlueprintCard: React.FC<BlueprintCardProps> = ({
   onApprove,
   loading = false,
 }) => {
+  const { t } = useI18n();
+
   return (
     <div className="w-full max-w-xl rounded-xl border border-slate-700 bg-slate-900 p-5 shadow-lg text-slate-100">
       <div className="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
           <h3 className="text-lg font-semibold text-white">{blueprint.appName}</h3>
-          <p className="text-xs text-slate-400">Application Design Blueprint</p>
+          <p className="text-xs text-slate-400">{t('blueprint.subtitle')}</p>
         </div>
         <span
           className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -42,14 +45,14 @@ export const BlueprintCard: React.FC<BlueprintCardProps> = ({
               : 'bg-amber-950 text-amber-400 border border-amber-800'
           }`}
         >
-          {blueprint.approved ? 'Approved' : 'Pending Approval'}
+          {blueprint.approved ? t('blueprint.approved') : t('blueprint.pendingApproval')}
         </span>
       </div>
 
       <div className="mt-4 space-y-3 text-sm">
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Design Direction
+            {t('blueprint.designDirection')}
           </span>
           <p className="mt-1 text-slate-200">{blueprint.designDirection}</p>
         </div>
@@ -57,7 +60,7 @@ export const BlueprintCard: React.FC<BlueprintCardProps> = ({
         <div className="flex items-center gap-4">
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Primary Color
+              {t('blueprint.primaryColor')}
             </span>
             <div className="mt-1 flex items-center gap-2">
               <span
@@ -70,7 +73,7 @@ export const BlueprintCard: React.FC<BlueprintCardProps> = ({
 
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Theme
+              {t('blueprint.theme')}
             </span>
             <p className="mt-1 capitalize text-slate-200">{blueprint.themeId}</p>
           </div>
@@ -79,19 +82,19 @@ export const BlueprintCard: React.FC<BlueprintCardProps> = ({
         {blueprint.visuals && blueprint.visuals.length > 0 && (
           <div>
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Visual Elements
+              {t('blueprint.visualElements')}
             </span>
-            <div className="mt-2 space-y-1.5">
-              {blueprint.visuals.map((v) => (
+            <div className="mt-2 space-y-2">
+              {blueprint.visuals.map((vis) => (
                 <div
-                  key={v.id}
-                  className="rounded-lg border border-slate-800 bg-slate-950/60 p-2 text-xs"
+                  key={vis.id}
+                  className="flex items-center justify-between rounded-lg bg-slate-800/80 px-3 py-2 text-xs"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-blue-400 uppercase">{v.type}</span>
-                    <span className="text-slate-400">{v.id}</span>
-                  </div>
-                  <p className="mt-1 text-slate-300">{v.description}</p>
+                  <span className="font-medium text-slate-300 uppercase">{vis.id}</span>
+                  <span className="text-slate-400">{vis.description}</span>
+                  <span className="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-300">
+                    {vis.prompt}
+                  </span>
                 </div>
               ))}
             </div>
@@ -99,19 +102,19 @@ export const BlueprintCard: React.FC<BlueprintCardProps> = ({
         )}
       </div>
 
-      <div className="mt-6 border-t border-slate-800 pt-4">
+      <div className="mt-5 border-t border-slate-800 pt-3">
         {blueprint.approved ? (
-          <div className="text-center text-xs font-medium text-emerald-400">
-            ✓ Blueprint approved. Code implementation unlocked.
+          <div className="flex items-center gap-2 text-xs text-emerald-400">
+            <span>{t('blueprint.approvedHint')}</span>
           </div>
         ) : (
           <button
             type="button"
             disabled={loading}
             onClick={() => onApprove(blueprint.chatId)}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-emerald-500 disabled:opacity-50"
+            className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50 shadow-sm"
           >
-            {loading ? 'Approving...' : 'Approve Blueprint & Start Generation'}
+            {loading ? t('common.loading') : t('blueprint.approveBtn')}
           </button>
         )}
       </div>

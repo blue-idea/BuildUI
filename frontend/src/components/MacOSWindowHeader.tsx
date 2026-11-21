@@ -112,7 +112,7 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
             className="flex items-center gap-1 px-2 py-1 text-xs text-slate-600 dark:text-zinc-400 hover:bg-slate-200/60 dark:hover:bg-zinc-800 rounded-md transition-colors"
           >
             <FolderGit2 className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-500">Workspace:</span>
+            <span className="text-slate-500">{t('header.workspace')}</span>
             <span className="max-w-[120px] truncate">{workspaceDir}</span>
           </button>
         )}
@@ -123,7 +123,7 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
             type="button"
             onClick={onOpenVersions}
             aria-label="Open version time machine"
-            title="Version Time Machine"
+            title={t('modals.versionTitle')}
             className="p-1.5 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 rounded-md hover:bg-slate-200/60 dark:hover:bg-zinc-800 transition-colors"
           >
             <Clock className="w-3.5 h-3.5" />
@@ -135,7 +135,7 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
             type="button"
             onClick={onOpenExport}
             aria-label="Open export modal"
-            title="Export Project"
+            title={t('modals.exportTitle')}
             className="p-1.5 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 rounded-md hover:bg-slate-200/60 dark:hover:bg-zinc-800 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
@@ -147,7 +147,7 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
             type="button"
             onClick={onOpenSettings}
             aria-label="Open settings"
-            title="Settings"
+            title={t('modals.settingsTitle')}
             className="p-1.5 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 rounded-md hover:bg-slate-200/60 dark:hover:bg-zinc-800 transition-colors"
           >
             <Settings className="w-3.5 h-3.5" />

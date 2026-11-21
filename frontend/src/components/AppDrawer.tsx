@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface AppItem {
   id: number;
@@ -28,6 +29,8 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
   onOpenTemplates,
   onDeleteApp,
 }) => {
+  const { t } = useI18n();
+
   if (!isOpen) return null;
 
   return (
@@ -38,7 +41,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
         <div className="flex h-12 items-center justify-between border-b border-slate-800 px-4">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
-            <h2 className="text-sm font-semibold text-white">Applications</h2>
+            <h2 className="text-sm font-semibold text-white">{t('modals.appsTitle')}</h2>
             <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
               {apps.length}
             </span>
@@ -58,21 +61,21 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
           <button
             type="button"
             onClick={onCreateApp}
-            aria-label="New Application"
+            aria-label={t('modals.newApp')}
             className="flex-1 flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors"
           >
             <span>+</span>
-            <span>New Application</span>
+            <span>{t('modals.newApp')}</span>
           </button>
           {onOpenTemplates && (
             <button
               type="button"
               onClick={onOpenTemplates}
-              aria-label="Browse Templates"
+              aria-label={t('modals.browseTemplates')}
               className="flex items-center justify-center gap-1.5 rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
             >
               <span>✨</span>
-              <span>Templates</span>
+              <span>{t('modals.browseTemplates')}</span>
             </button>
           )}
         </div>
@@ -95,7 +98,7 @@ export const AppDrawer: React.FC<AppDrawerProps> = ({
                   <span className="font-semibold text-slate-100 truncate">{app.name}</span>
                   {isActive ? (
                     <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/30">
-                      Active
+                      {t('modals.activeBadge')}
                     </span>
                   ) : (
                     <button

@@ -11,6 +11,12 @@ export interface I18nDictionary {
     save: string;
     close: string;
   };
+  header: {
+    workspace: string;
+    commandHint: string;
+    techBadge: string;
+    inspect: string;
+  };
   dock: {
     toggle: string;
     home: string;
@@ -23,6 +29,8 @@ export interface I18nDictionary {
   chat: {
     newChat: string;
     version: string;
+    chatBlueprint: string;
+    blueprintApproved: string;
     placeholder: string;
     send: string;
     modeBuild: string;
@@ -32,6 +40,26 @@ export interface I18nDictionary {
     completed: string;
     inspectFile: string;
     stopGeneration: string;
+    addAttachment: string;
+    installedDeps: string;
+    installingDeps: string;
+    executingTool: string;
+    stoppedByUser: string;
+    codeGenSuccess: string;
+    userDemoPrompt: string;
+    assistantDemoReply: string;
+    newChatWelcome: string;
+  };
+  blueprint: {
+    subtitle: string;
+    pendingApproval: string;
+    approved: string;
+    designDirection: string;
+    primaryColor: string;
+    theme: string;
+    visualElements: string;
+    approveBtn: string;
+    approvedHint: string;
   };
   workspace: {
     preview: string;
@@ -41,8 +69,13 @@ export interface I18nDictionary {
     systemMessages: string;
     reload: string;
     openExternal: string;
+    back: string;
+    forward: string;
     addressBar: string;
     emptyConsole: string;
+    exportZipBtn: string;
+    publishDesc: string;
+    noFileLoaded: string;
   };
   theme: {
     light: string;
@@ -53,5 +86,35 @@ export interface I18nDictionary {
     en: string;
     zh: string;
     toggle: string;
+  };
+  modals: {
+    settingsTitle: string;
+    settingsDesc: string;
+    providerLabel: string;
+    baseUrlLabel: string;
+    apiKeyLabel: string;
+    modelLabel: string;
+    testConnection: string;
+    testing: string;
+    saveSettings: string;
+    versionTitle: string;
+    versionDesc: string;
+    snapshotsCount: string;
+    noSnapshots: string;
+    rollbackBtn: string;
+    rollingBack: string;
+    appsTitle: string;
+    newApp: string;
+    browseTemplates: string;
+    activeBadge: string;
+    exportTitle: string;
+    exportZip: string;
+    exportSuccess: string;
+    revealBtn: string;
+    templateTitle: string;
+    templateDesc: string;
+    templateSearch: string;
+    useTemplate: string;
+    commandSearch: string;
   };
 }

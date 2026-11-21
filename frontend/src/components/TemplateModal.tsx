@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface AppTemplate {
   id: string;
@@ -23,18 +24,19 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
   templates,
   onSelectTemplate,
 }) => {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState('');
 
   if (!isOpen) return null;
 
-  const filteredTemplates = templates.filter((t) => {
+  const filteredTemplates = templates.filter((item) => {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return true;
     return (
-      t.name.toLowerCase().includes(q) ||
-      t.description.toLowerCase().includes(q) ||
-      t.category.toLowerCase().includes(q) ||
-      t.tags.some((tag) => tag.toLowerCase().includes(q))
+      item.name.toLowerCase().includes(q) ||
+      item.description.toLowerCase().includes(q) ||
+      item.category.toLowerCase().includes(q) ||
+      item.tags.some((tag) => tag.toLowerCase().includes(q))
     );
   });
 
@@ -49,9 +51,9 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
                 ✨
               </span>
               <div>
-                <h2 className="text-base font-bold text-white">Application Templates</h2>
+                <h2 className="text-base font-bold text-white">{t('modals.templateTitle')}</h2>
                 <p className="text-xs text-slate-400">
-                  Pick a curated starter architecture to jumpstart your project
+                  {t('modals.templateDesc')}
                 </p>
               </div>
             </div>
@@ -70,7 +72,7 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search templates by name, category, or tag..."
+              placeholder={t('modals.templateSearch')}
               className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -85,28 +87,28 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredTemplates.map((t) => (
+              {filteredTemplates.map((item) => (
                 <div
-                  key={t.id}
+                  key={item.id}
                   className="group flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-950/60 p-4 transition-all hover:border-blue-500/50 hover:bg-slate-950 hover:shadow-lg"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl">{t.icon}</span>
+                        <span className="text-2xl">{item.icon}</span>
                         <h3 className="font-semibold text-sm text-slate-100 group-hover:text-blue-400 transition-colors">
-                          {t.name}
+                          {item.name}
                         </h3>
                       </div>
                       <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400 font-medium border border-slate-700/60">
-                        {t.category}
+                        {item.category}
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-2">
-                      {t.description}
+                      {item.description}
                     </p>
                     <div className="flex flex-wrap gap-1.5 mb-4">
-                      {t.tags.map((tag) => (
+                      {item.tags.map((tag) => (
                         <span
                           key={tag}
                           className="rounded bg-slate-900 px-1.5 py-0.5 text-[10px] text-slate-400 border border-slate-800"
@@ -119,11 +121,11 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => onSelectTemplate(t.id)}
-                    aria-label={`Use template ${t.name}`}
+                    onClick={() => onSelectTemplate(item.id)}
+                    aria-label={`Use template ${item.name}`}
                     className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors"
                   >
-                    <span>Use Template</span>
+                    <span>{t('modals.useTemplate')}</span>
                     <span>→</span>
                   </button>
                 </div>

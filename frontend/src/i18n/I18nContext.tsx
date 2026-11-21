@@ -84,10 +84,29 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children, initialLoc
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 };
 
+const defaultContextValue: I18nContextValue = {
+  locale: 'en',
+  setLocale: () => {},
+  toggleLocale: () => {},
+  t: (path: string, fallback?: string): string => {
+    const keys = path.split('.');
+    let current: any = dictionaries.en;
+    for (const key of keys) {
+      if (current && typeof current === 'object' && key in current) {
+        current = current[key];
+      } else {
+        return fallback || path;
+      }
+    }
+    return typeof current === 'string' ? current : (fallback || path);
+  },
+  dict: dictionaries.en,
+};
+
 export const useI18n = (): I18nContextValue => {
   const context = useContext(I18nContext);
   if (!context) {
-    throw new Error('useI18n must be used within an I18nProvider');
+    return defaultContextValue;
   }
   return context;
 };

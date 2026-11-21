@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface ExportModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   onExportZip,
   onRevealInFileManager,
 }) => {
+  const { t } = useI18n();
   const [exporting, setExporting] = useState(false);
   const [exportedPath, setExportedPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
-            <h2 id="export-modal-title" className="text-base font-semibold text-white">Export Project</h2>
+            <h2 id="export-modal-title" className="text-base font-semibold text-white">{t('modals.exportTitle')}</h2>
           </div>
           <button
             type="button"
@@ -105,10 +107,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               <button
                 type="button"
                 onClick={handleReveal}
-                aria-label="Reveal in Explorer"
+                aria-label={t('modals.revealBtn')}
                 className="rounded border border-slate-700 bg-slate-800 px-3 py-1.5 font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
               >
-                Reveal in Explorer
+                {t('modals.revealBtn')}
               </button>
             )}
           </div>
@@ -119,16 +121,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               onClick={onClose}
               className="rounded px-3 py-1.5 text-slate-400 hover:text-white transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
               disabled={exporting}
               onClick={handleExport}
-              aria-label="Export as ZIP"
+              aria-label={t('modals.exportZip')}
               className="rounded bg-blue-600 px-4 py-1.5 font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors disabled:opacity-50"
             >
-              {exporting ? 'Exporting...' : 'Export as ZIP'}
+              {exporting ? t('common.loading') : t('modals.exportZip')}
             </button>
           </div>
         </div>

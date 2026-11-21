@@ -115,7 +115,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             }`}
           >
             <Scan className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Inspect</span>
+            <span className="hidden sm:inline">{t('header.inspect')}</span>
           </button>
         )}
       </div>
@@ -125,14 +125,14 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
         <div className="flex items-center gap-1 text-slate-400 dark:text-zinc-500">
           <button
             type="button"
-            title="Back"
+            title={t('workspace.back')}
             className="p-1 hover:text-slate-700 dark:hover:text-zinc-200 rounded transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
           </button>
           <button
             type="button"
-            title="Forward"
+            title={t('workspace.forward')}
             className="p-1 hover:text-slate-700 dark:hover:text-zinc-200 rounded transition-colors"
           >
             <ArrowRight className="w-3.5 h-3.5" />
@@ -232,7 +232,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
               </div>
             )}
             <div className="flex-1 p-4 overflow-auto font-mono text-xs bg-slate-900 text-slate-100">
-              <pre>{activeFile ? activeFile.content : '// No file loaded.'}</pre>
+              <pre>{activeFile ? activeFile.content : t('workspace.noFileLoaded')}</pre>
             </div>
           </div>
         )}
@@ -246,14 +246,14 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
               {t('workspace.publish')}
             </h3>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mb-6 leading-relaxed">
-              Export production-ready bundle or deploy directly to cloud hosting platforms (Vercel, Netlify).
+              {t('workspace.publishDesc')}
             </p>
             <button
               type="button"
               onClick={onPublish}
               className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg shadow-sm transition-colors"
             >
-              Export Standalone Zip
+              {t('workspace.exportZipBtn')}
             </button>
           </div>
         )}

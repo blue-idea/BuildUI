@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSave,
   onTestConnection,
 }) => {
+  const { t } = useI18n();
   const [provider, setProvider] = useState<string>(initialSettings['llm.provider'] || 'openai');
   const [baseURL, setBaseURL] = useState<string>(
     initialSettings['llm.base_url'] || PRESETS['openai'].baseURL
@@ -109,7 +111,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-2xl text-slate-100">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <h2 className="text-base font-semibold text-white">LLM Provider Settings</h2>
+          <h2 className="text-base font-semibold text-white">{t('modals.settingsTitle')}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -124,13 +126,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* 提供方选择 */}
           <div>
             <label htmlFor="llm-provider-select" className="block text-xs font-medium text-slate-300">
-              Select Provider
+              {t('modals.providerLabel')}
             </label>
             <select
               id="llm-provider-select"
               value={provider}
               onChange={handleProviderChange}
-              aria-label="Select Provider"
+              aria-label={t('modals.providerLabel')}
               className="mt-1 w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
             >
               <option value="openai">OpenAI (Official)</option>
@@ -142,7 +144,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Base URL */}
           <div>
-            <label className="block text-xs font-medium text-slate-300">Base URL</label>
+            <label className="block text-xs font-medium text-slate-300">{t('modals.baseUrlLabel')}</label>
             <input
               type="text"
               value={baseURL}
@@ -154,7 +156,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* API Key */}
           <div>
-            <label className="block text-xs font-medium text-slate-300">API Key</label>
+            <label className="block text-xs font-medium text-slate-300">{t('modals.apiKeyLabel')}</label>
             <input
               type="password"
               value={apiKey}
@@ -166,7 +168,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* Model Name */}
           <div>
-            <label className="block text-xs font-medium text-slate-300">Model Name</label>
+            <label className="block text-xs font-medium text-slate-300">{t('modals.modelLabel')}</label>
             <input
               type="text"
               value={model}
@@ -198,7 +200,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onClick={handleTest}
               className="rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors disabled:opacity-50"
             >
-              {testing ? 'Testing...' : 'Test Connection'}
+              {testing ? t('modals.testing') : t('modals.testConnection')}
             </button>
 
             <div className="flex items-center gap-2">
@@ -207,14 +209,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onClick={onClose}
                 className="rounded-md px-3 py-1.5 text-xs text-slate-400 hover:text-white transition-colors"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={saving}
                 className="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition-colors disabled:opacity-50"
               >
-                {saving ? 'Saving...' : 'Save Settings'}
+                {saving ? t('common.loading') : t('modals.saveSettings')}
               </button>
             </div>
           </div>
