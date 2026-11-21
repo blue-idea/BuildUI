@@ -23,7 +23,7 @@ current_version: v6      # → Agent 替换 {{VERSION}} 时取此值
 | v3 | finished | `docs/spec/versions/v3-finished/` | 第三版本已圆满收官（多应用抽屉与工作区切换、双向可视化组件审查定位、一键 Zip 导出与原生资源管理器） |
 | v4 | finished | `docs/spec/versions/v4-finished/` | 第四版本已圆满收官（智能第三方依赖提取与沙箱自动安装、UI 视觉主题预设引擎与跨沙箱动态 CSS 注入） |
 | v5 | finished | `docs/spec/versions/v5-finished/` | 第五版本已圆满收官（应用模版预设库与脚手架初始化、全局快捷键与命令面板 Ctrl+K 全键盘交互） |
-| v6 | active | `docs/spec/versions/v6/` | 当前启动规划：生产环境静态站点一键构建与托管配置生成（Vercel / Netlify）、静态包预览 |
+| v6 | active | `docs/spec/versions/v6/` | 当前活跃版本：macOS 极致美学应用程序界面（浅色/深色双模主题）、中英双语国际化系统（i18n） |
 | v7 | planned | `docs/spec/versions/v7/` | 规划中：云端沙箱同步、团队协作与实时分享 |
 
 ---
