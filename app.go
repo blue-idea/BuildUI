@@ -5,17 +5,33 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/wailsapp/wails/v2/pkg/runtime"
+
 	"buildui/internal/app"
+	"buildui/internal/blueprint"
 	"buildui/internal/db"
 )
 
+// wailsEventEmitter 适配 Wails runtime.EventsEmit
+type wailsEventEmitter struct {
+	ctx context.Context
+}
+
+func (w *wailsEventEmitter) Emit(eventName string, optionalData ...interface{}) {
+	if w.ctx != nil {
+		runtime.EventsEmit(w.ctx, eventName, optionalData...)
+	}
+}
+
 // App Wails 应用主结构体
 type App struct {
-	ctx        context.Context
-	db         *db.DB
-	appRepo    *db.AppRepository
-	chatRepo   *db.ChatRepository
-	appService *app.AppService
+	ctx              context.Context
+	db               *db.DB
+	appRepo          *db.AppRepository
+	chatRepo         *db.ChatRepository
+	bpRepo           *db.BlueprintRepository
+	appService       *app.AppService
+	blueprintService *blueprint.BlueprintService
 }
 
 // NewApp 创建 App 实例
@@ -41,7 +57,11 @@ func (a *App) startup(ctx context.Context) {
 		a.db = database
 		a.appRepo = db.NewAppRepository(database)
 		a.chatRepo = db.NewChatRepository(database)
+		a.bpRepo = db.NewBlueprintRepository(database)
+
 		a.appService = app.NewAppService(a.appRepo, database)
+		a.blueprintService = blueprint.NewBlueprintService(a.bpRepo, a.appRepo, database)
+		a.blueprintService.SetEmitter(&wailsEventEmitter{ctx: ctx})
 	}
 }
 
@@ -60,4 +80,14 @@ func (a *App) CreateApp(req app.CreateAppRequest) (*app.CreateAppResponse, error
 // ListApps 暴露给前端的 Wails RPC 方法
 func (a *App) ListApps() ([]app.AppDTO, error) {
 	return a.appService.ListApps(a.ctx)
+}
+
+// GetBlueprint 暴露给前端的获取蓝图 RPC 方法
+func (a *App) GetBlueprint(chatID int64) (*blueprint.BlueprintDTO, error) {
+	return a.blueprintService.GetBlueprint(a.ctx, chatID)
+}
+
+// ApproveBlueprint 暴露给前端的审批蓝图 RPC 方法
+func (a *App) ApproveBlueprint(chatID int64) error {
+	return a.blueprintService.ApproveBlueprint(a.ctx, chatID)
 }

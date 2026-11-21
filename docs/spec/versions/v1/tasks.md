@@ -59,15 +59,15 @@
 
 ---
 
-- [ ] **TASK-003 · 需求澄清问卷与蓝图前置审批门禁（BlueprintService）**
+- [x] **TASK-003 · 需求澄清问卷与蓝图前置审批门禁（BlueprintService）**
 
   > 依赖：TASK-002  
   > 官方源码参考：[src/ipc/handlers/app_blueprint_handlers.ts](https://github.com/dyad-sh/dyad/blob/main/src/ipc/handlers/app_blueprint_handlers.ts) 与 [src/pro/main/ipc/handlers/local_agent/tools/write_app_blueprint.ts](https://github.com/dyad-sh/dyad/blob/main/src/pro/main/ipc/handlers/local_agent/tools/write_app_blueprint.ts)
 
-  - [ ] 实现 `planning_questionnaire` 问卷注入机制，支持向前端分发 1~5 个需求澄清问题
-  - [ ] 实现 `write_app_blueprint` 数据提取器，生成应用名称、设计风格与视觉规范
-  - [ ] 构建会话审批门禁状态机：在用户未点击 Approve 前，锁定写盘工具；Approve 后解锁并推送 `app-blueprint:approved` 事件
-  - [ ] 前端实现交互式问卷卡片与蓝图审批卡片组件（React 19 + Base UI）
+  - [x] 实现 `planning_questionnaire` 问卷注入机制，支持向前端分发 1~5 个需求澄清问题
+  - [x] 实现 `write_app_blueprint` 数据提取器，生成应用名称、设计风格与视觉规范
+  - [x] 构建会话审批门禁状态机：在用户未点击 Approve 前，锁定写盘工具；Approve 后解锁并推送 `app-blueprint:approved` 事件
+  - [x] 前端实现交互式问卷卡片与蓝图审批卡片组件（React 19 + Base UI）
 
   **验证方式：**
   ```bash
