@@ -21,7 +21,7 @@
 | **TASK-021** | 应用模版元数据管理与脚手架初始化服务 | `v5.REQ-001` / `AC-001..002` | `done` | TemplateService & Scaffolder (`internal/template`, `app.go`) | Unit / Integ | [src/services/template_service.ts](https://github.com/dyad-sh/dyad/blob/main/src/services/template_service.ts) |
 | **TASK-022** | 前端模版选择器组件 `TemplateModal.tsx` 与新建项目联动 | `v5.REQ-001` / `AC-003` | `done` | TemplatePicker Modal (`frontend/src/components/TemplateModal.tsx`) | Unit / UI | [src/components/TemplatePicker.tsx](https://github.com/dyad-sh/dyad/blob/main/src/components/TemplatePicker.tsx) |
 | **TASK-023** | 全局命令面板 `CommandPalette.tsx` 与全键盘快捷键系统集成 | `v5.REQ-002` / `AC-001..003` | `done` | CommandPalette & Global Keyboard Shortcuts (`CommandPalette.tsx`, `App.tsx`) | UI / Unit | [src/components/CommandPalette.tsx](https://github.com/dyad-sh/dyad/blob/main/src/components/CommandPalette.tsx) |
-| **TASK-024** | Blot-UI v5 全流程整合与 Playwright E2E 自动化验收 | `v5.REQ-001..002` 全量 AC | 待开始 | Desktop Shell & Playwright E2E Suite (`frontend/e2e/v5-workflow.spec.ts`) | E2E / Visual | [src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts) |
+| **TASK-024** | Blot-UI v5 全流程整合与 Playwright E2E 自动化验收 | `v5.REQ-001..002` 全量 AC | `done` | Desktop Shell & Playwright E2E Suite (`frontend/e2e/v5-workflow.spec.ts`) | E2E / Visual | [src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts) |
 
 ---
 
@@ -30,3 +30,4 @@
 | 日期 | 变更内容 | 原因 |
 | :---: | :--- | :--- |
 | 2026-11-21 | 归档 v4 到 `v4-finished/`，正式启动 v5 规格规划，完成需求、设计、审查、任务与追溯文件 | 开启 v5 里程碑 |
+| 2026-11-21 | 完成 TASK-021 ~ TASK-024 全部任务交付，Playwright E2E 验收通过，产出 4 组截图与最终报告 | 完成 v5 里程碑全量交付 |

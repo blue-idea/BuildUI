@@ -89,12 +89,12 @@ _测试类型:_ UI / Unit
 > 依赖：TASK-021 ~ TASK-023  
 > 官方源码参考：[src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts)
 
-- [ ] 在 `frontend/e2e/v5-workflow.spec.ts` 中编写端到端自动化测试用例，覆盖：
+- [x] 在 `frontend/e2e/v5-workflow.spec.ts` 中编写端到端自动化测试用例，覆盖：
   1. 通过模版中心选择 `SaaS Analytics Dashboard` 模版一键初始化全新项目；
   2. 使用快捷键 `Ctrl+K` 呼出命令面板，输入关键字模糊搜索；
   3. 通过命令面板切换至 `Cyberpunk Neon` 主题；
   4. 截取并留存 4 组关键高保真验收截图。
-- [ ] 编写 `docs/spec/versions/v5/ac/TASK-024-AC.md` 与 `v5-final-report.md`，执行全量回归。
+- [x] 编写 `docs/spec/versions/v5/ac/TASK-024-AC.md` 与 `v5-final-report.md`，执行全量回归。
 
 **验证方式：**
 ```bash
