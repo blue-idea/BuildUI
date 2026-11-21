@@ -194,4 +194,41 @@ describe('App Main Split Layout & Workflow', () => {
       screen.getByText('Add animated charts with recharts and lucide-react')
     ).toBeDefined();
   });
+
+  it('opens command palette and allows executing actions', () => {
+    render(<App />);
+
+    const cmdBtn = screen.getByRole('button', { name: /open command palette/i });
+    expect(cmdBtn).toBeDefined();
+
+    fireEvent.click(cmdBtn);
+    expect(screen.getByPlaceholderText(/type a command or search/i)).toBeDefined();
+    expect(screen.getByText('Switch Theme: Cyberpunk Neon')).toBeDefined();
+
+    // 点击命令项触发
+    fireEvent.click(screen.getByText('Switch Theme: Cyberpunk Neon'));
+    expect(screen.queryByPlaceholderText(/type a command or search/i)).toBeNull();
+  });
+
+  it('opens template modal from applications drawer and instantiates project', () => {
+    render(<App />);
+
+    // 打开 Apps 抽屉
+    const appsBtn = screen.getByRole('button', { name: /open applications drawer/i });
+    fireEvent.click(appsBtn);
+
+    // 点击 Browse Templates
+    const tmplBtn = screen.getByRole('button', { name: /browse templates/i });
+    fireEvent.click(tmplBtn);
+
+    expect(screen.getByText('Application Templates')).toBeDefined();
+    expect(screen.getByText('SaaS Analytics Dashboard')).toBeDefined();
+
+    // 点击使用模版
+    const useBtns = screen.getAllByRole('button', { name: /use template/i });
+    fireEvent.click(useBtns[0]);
+
+    // 模版弹窗应关闭
+    expect(screen.queryByText('Application Templates')).toBeNull();
+  });
 });

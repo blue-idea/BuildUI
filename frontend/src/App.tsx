@@ -7,6 +7,8 @@ import { VersionTimelineModal, VersionItem } from './components/VersionTimelineM
 import { AppDrawer, AppItem } from './components/AppDrawer';
 import { ExportModal } from './components/ExportModal';
 import { ThemeSelector, ThemePreset } from './components/ThemeSelector';
+import { TemplateModal, AppTemplate } from './components/TemplateModal';
+import { CommandPalette, CommandAction } from './components/CommandPalette';
 
 interface ChatMessage {
   id: string;
@@ -88,7 +90,58 @@ export const App: React.FC = () => {
   const [activeThemeId, setActiveThemeId] = useState<string>('dark-slate');
   const [installedDependencies, setInstalledDependencies] = useState<string[]>([]);
   const [installingDeps, setInstallingDeps] = useState<string | null>(null);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [templates] = useState<AppTemplate[]>([
+    {
+      id: 'saas-dashboard',
+      name: 'SaaS Analytics Dashboard',
+      description: 'Production-ready metrics dashboard featuring revenue KPI cards',
+      category: 'Analytics',
+      tags: ['Charts', 'KPIs', 'Metrics'],
+      icon: '📊',
+      themeId: 'dark-slate',
+    },
+    {
+      id: 'portfolio',
+      name: 'Creative Developer Portfolio',
+      description: 'High-contrast personal portfolio layout with bio hero and projects showcase',
+      category: 'Personal',
+      tags: ['Cyberpunk', 'Hero', 'Projects'],
+      icon: '⚡',
+      themeId: 'cyberpunk-neon',
+    },
+    {
+      id: 'landing-page',
+      name: 'Modern Product Landing Page',
+      description: 'Clean landing page featuring sticky navigation and pricing tables',
+      category: 'Marketing',
+      tags: ['Landing', 'SaaS', 'Pricing'],
+      icon: '🚀',
+      themeId: 'clean-light',
+    },
+    {
+      id: 'storefront',
+      name: 'E-Commerce Showcase',
+      description: 'Warm twilight storefront with product cards and cart drawer',
+      category: 'Commerce',
+      tags: ['Shop', 'Catalog', 'Cart'],
+      icon: '🛍️',
+      themeId: 'sunset-glow',
+    },
+  ]);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   const handleSelectTheme = (themeId: string) => {
     setActiveThemeId(themeId);
@@ -258,6 +311,96 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleSelectTemplate = (templateId: string) => {
+    const tmpl = templates.find((t) => t.id === templateId);
+    if (!tmpl) return;
+
+    const newId = Date.now();
+    const newApp: AppItem = {
+      id: newId,
+      name: tmpl.name,
+      path: `/workspace/${tmpl.id}`,
+      createdAt: new Date().toISOString(),
+    };
+    setApps((prev) => [...prev, newApp]);
+    setActiveAppId(newId);
+    setWorkspaceDir(newApp.path);
+    if (tmpl.themeId) {
+      handleSelectTheme(tmpl.themeId);
+    }
+    setIsTemplateModalOpen(false);
+    setMessages([
+      {
+        id: String(Date.now()),
+        sender: 'assistant',
+        content: `Instantiated new application from template "${tmpl.name}". Initial codebase scaffolded and loaded into workspace.`,
+      },
+    ]);
+  };
+
+  const commandActions: CommandAction[] = [
+    {
+      id: 'cmd-templates',
+      title: 'Open Template Center',
+      category: 'Navigation',
+      shortcut: 'T',
+      run: () => setIsTemplateModalOpen(true),
+    },
+    {
+      id: 'cmd-apps',
+      title: 'Open Applications Drawer',
+      category: 'Navigation',
+      shortcut: 'A',
+      run: () => setIsDrawerOpen(true),
+    },
+    {
+      id: 'cmd-theme-cyberpunk',
+      title: 'Switch Theme: Cyberpunk Neon',
+      category: 'Theme',
+      run: () => handleSelectTheme('cyberpunk-neon'),
+    },
+    {
+      id: 'cmd-theme-forest',
+      title: 'Switch Theme: Forest Emerald',
+      category: 'Theme',
+      run: () => handleSelectTheme('forest-emerald'),
+    },
+    {
+      id: 'cmd-theme-slate',
+      title: 'Switch Theme: Midnight Slate',
+      category: 'Theme',
+      run: () => handleSelectTheme('dark-slate'),
+    },
+    {
+      id: 'cmd-export-zip',
+      title: 'Export Project as ZIP',
+      category: 'Action',
+      shortcut: 'E',
+      run: () => setIsExportOpen(true),
+    },
+    {
+      id: 'cmd-toggle-inspector',
+      title: 'Toggle Component Inspector',
+      category: 'Action',
+      shortcut: 'I',
+      run: () => setIsInspectMode((prev) => !prev),
+    },
+    {
+      id: 'cmd-open-settings',
+      title: 'Open Settings',
+      category: 'Navigation',
+      shortcut: 'S',
+      run: () => setIsSettingsOpen(true),
+    },
+    {
+      id: 'cmd-open-versions',
+      title: 'Open Version Time Machine',
+      category: 'Navigation',
+      shortcut: 'V',
+      run: () => setIsVersionsOpen(true),
+    },
+  ];
+
   return (
     <div className="flex h-screen w-screen flex-col bg-slate-950 text-slate-100 font-sans">
       {/* 顶部全局导航栏 */}
@@ -273,6 +416,18 @@ export const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            aria-label="Open command palette"
+            className="flex items-center gap-1.5 rounded border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <span>🔍</span>
+            <span className="text-slate-400">Commands</span>
+            <kbd className="rounded bg-slate-800 px-1 py-0.5 text-[9px] font-mono text-slate-400 border border-slate-700">
+              Ctrl+K
+            </kbd>
+          </button>
           <button
             type="button"
             onClick={() => setIsDrawerOpen(true)}
@@ -551,6 +706,10 @@ export const App: React.FC = () => {
         onDeleteApp={(id) => {
           setApps((prev) => prev.filter((a) => a.id !== id));
         }}
+        onOpenTemplates={() => {
+          setIsDrawerOpen(false);
+          setIsTemplateModalOpen(true);
+        }}
       />
 
       {/* 工程导出模态框 */}
@@ -579,6 +738,21 @@ export const App: React.FC = () => {
             await wailsApp.OpenInFileManager(path);
           }
         }}
+      />
+
+      {/* 模版中心模态框 */}
+      <TemplateModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        templates={templates}
+        onSelectTemplate={handleSelectTemplate}
+      />
+
+      {/* 全局命令面板 */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        actions={commandActions}
       />
     </div>
   );
