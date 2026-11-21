@@ -97,7 +97,16 @@ export const VersionTimelineModal: React.FC<VersionTimelineModalProps> = ({
                 return (
                   <div
                     key={v.commitHash}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select version ${shortHash}`}
                     onClick={() => handleSelect(v.commitHash)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSelect(v.commitHash);
+                      }
+                    }}
                     className={`cursor-pointer rounded-lg border p-3 text-xs transition-all ${
                       isSelected
                         ? 'border-cyan-500 bg-cyan-950/30 text-white shadow-sm'

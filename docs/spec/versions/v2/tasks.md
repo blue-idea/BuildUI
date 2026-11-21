@@ -94,13 +94,13 @@ _测试类型:_ Integration / Unit
 > 依赖：TASK-009 ~ TASK-011  
 > 官方源码参考：[src/main.ts](https://github.com/dyad-sh/dyad/blob/main/src/main.ts)
 
-- [ ] 集成 Wails 原生系统目录选择器与桌面应用事件绑定
-- [ ] 编写 Playwright E2E 自动化测试用例 `e2e/v2-workflow.spec.ts`，覆盖：
+- [x] 集成 Wails 原生系统目录选择器与桌面应用事件绑定
+- [x] 编写 Playwright E2E 自动化测试用例 `e2e/v2-workflow.spec.ts`，覆盖：
   1. 打开设置面板并配置 LLM Provider；
   2. 连续两轮应用生成会话，验证多轮增量修改；
   3. 打开版本历史面板查看代码 Diff，并执行一键回滚；
   4. 截取并留存关键步骤高保真视觉验收截图。
-- [ ] 编写 `docs/spec/versions/v2/ac/TASK-012-AC.md` 与 `v2-final-report.md`，执行全量回归。
+- [x] 编写 `docs/spec/versions/v2/ac/TASK-012-AC.md` 与 `v2-final-report.md`，执行全量回归。
 
 **验证方式：**
 ```bash

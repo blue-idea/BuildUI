@@ -29,6 +29,7 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [workspaceDir, setWorkspaceDir] = useState<string>('default-workspace');
   const [versions] = useState<VersionItem[]>([
     {
       id: 1,
@@ -38,6 +39,25 @@ export const App: React.FC = () => {
     },
   ]);
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSelectDirectory = async () => {
+    try {
+      const wailsApp = (window as unknown as {
+        go?: { main?: { App?: { SelectDirectory?: (title: string) => Promise<string> } } };
+      })?.go?.main?.App;
+      if (wailsApp?.SelectDirectory) {
+        const selected = await wailsApp.SelectDirectory('Select Workspace Directory');
+        if (selected) {
+          setWorkspaceDir(selected);
+          return;
+        }
+      }
+    } catch {
+      // 捕获潜在异常并使用默认回退
+    }
+    // Web / E2E 模式下的回退模拟路径
+    setWorkspaceDir('/workspace/my-blot-app');
+  };
 
   const handleSendPrompt = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -165,6 +185,15 @@ export const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSelectDirectory}
+            aria-label="Select workspace directory"
+            className="flex items-center gap-1.5 rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            <span className="text-slate-400">Workspace:</span>
+            <span className="max-w-[120px] truncate">{workspaceDir}</span>
+          </button>
           <button
             type="button"
             onClick={() => setIsVersionsOpen(true)}
