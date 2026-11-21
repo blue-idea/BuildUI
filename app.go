@@ -246,3 +246,29 @@ func (a *App) OpenInFileManager(targetPath string) error {
 	svc := export.NewExportService()
 	return svc.OpenInFileManager(targetPath)
 }
+
+// InstallDependencies 暴露给前端的动态依赖安全校验与异步安装 RPC 方法
+func (a *App) InstallDependencies(appID int64, packages []string) error {
+	if a.appRepo == nil {
+		return nil
+	}
+	appEntity, err := a.appRepo.GetByID(a.ctx, appID)
+	if err != nil {
+		return err
+	}
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "dep_install_started", packages)
+	}
+	depMgr := agent.NewDependencyManager(appEntity.Path, nil)
+	err = depMgr.EnsureDependencies(a.ctx, packages)
+	if err != nil {
+		if a.ctx != nil {
+			runtime.EventsEmit(a.ctx, "dep_install_error", err.Error())
+		}
+		return err
+	}
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "dep_install_success", packages)
+	}
+	return nil
+}

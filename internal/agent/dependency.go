@@ -6,10 +6,26 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"buildui/internal/errs"
 )
+
+// npmPackageRegex 匹配合法标准与 scope 包名 (带可选语义化版本)
+var npmPackageRegex = regexp.MustCompile(`^(?i)(?:@[a-z0-9-~][a-z0-9-._~]*/)?[a-z0-9-~][a-z0-9-._~]*(?:@[a-z0-9-._~^><=]+)?$`)
+
+// ValidatePackageName 校验 npm 包名是否合法，防止命令注入与特殊字符风险
+func ValidatePackageName(pkg string) bool {
+	trimmed := strings.TrimSpace(pkg)
+	if trimmed == "" {
+		return false
+	}
+	if strings.ContainsAny(trimmed, ";&|`$<> \t\r\n\\") || strings.Contains(trimmed, "..") {
+		return false
+	}
+	return npmPackageRegex.MatchString(trimmed)
+}
 
 // CommandExecutor 抽象命令行调用接口，支持测试环境 Mock
 type CommandExecutor interface {
@@ -48,9 +64,33 @@ func NewDependencyManager(appDir string, executor CommandExecutor) *DependencyMa
 	}
 }
 
+// SanitizePackages 校验并过滤传入的一组依赖包，若有非法包名则返回 ValidationError
+func (m *DependencyManager) SanitizePackages(packages []string) ([]string, error) {
+	var valid []string
+	for _, p := range packages {
+		trimmed := strings.TrimSpace(p)
+		if trimmed == "" {
+			continue
+		}
+		if !ValidatePackageName(trimmed) {
+			return nil, errs.NewValidationError("invalid or unsafe npm package name: "+trimmed, nil)
+		}
+		valid = append(valid, trimmed)
+	}
+	return valid, nil
+}
+
 // EnsureDependencies 检查依赖是否已存在于 package.json 中，若不存在则调用 pnpm add
 func (m *DependencyManager) EnsureDependencies(ctx context.Context, packages []string) error {
 	if len(packages) == 0 {
+		return nil
+	}
+
+	sanitized, err := m.SanitizePackages(packages)
+	if err != nil {
+		return err
+	}
+	if len(sanitized) == 0 {
 		return nil
 	}
 
@@ -74,15 +114,10 @@ func (m *DependencyManager) EnsureDependencies(ctx context.Context, packages []s
 	}
 
 	var missing []string
-	for _, p := range packages {
-		trimmed := strings.TrimSpace(p)
-		if trimmed == "" {
-			continue
-		}
-		// 如果指定了包版本（如 pkg@latest 或 @org/pkg@1.0.0），提取裸包名进行存在性判定
-		bareName := extractBarePackageName(trimmed)
+	for _, p := range sanitized {
+		bareName := extractBarePackageName(p)
 		if !existing[bareName] {
-			missing = append(missing, trimmed)
+			missing = append(missing, p)
 		}
 	}
 
