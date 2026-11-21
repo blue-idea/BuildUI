@@ -185,3 +185,13 @@ func (a *App) RollbackVersion(appID int64, commitHash string) error {
 	}
 	return a.versionService.RollbackVersion(a.ctx, appID, commitHash)
 }
+
+// SelectDirectory 暴露给前端唤起原生操作系统目录选择器的 RPC 方法
+func (a *App) SelectDirectory(title string) (string, error) {
+	if a.ctx == nil {
+		return "", nil
+	}
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: title,
+	})
+}

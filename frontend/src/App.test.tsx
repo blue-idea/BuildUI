@@ -102,4 +102,14 @@ describe('App Main Split Layout & Workflow', () => {
 
     expect(screen.queryByText('Version Time Machine')).toBeNull();
   });
+
+  it('allows user to select and toggle workspace directory', () => {
+    render(<App />);
+
+    const workspaceBtn = screen.getByRole('button', { name: /select workspace directory/i });
+    expect(workspaceBtn).toBeDefined();
+
+    fireEvent.click(workspaceBtn);
+    expect(screen.getByText(/my-blot-app/i)).toBeDefined();
+  });
 });
