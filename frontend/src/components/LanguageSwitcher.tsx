@@ -7,7 +7,7 @@ export interface LanguageSwitcherProps {
 }
 
 export const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ className = '' }) => {
-  const { locale, toggleLocale, t } = useI18n();
+  const { locale, toggleLocale } = useI18n();
 
   return (
     <button

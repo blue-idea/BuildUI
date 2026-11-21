@@ -7,7 +7,7 @@ export interface ThemeModeToggleProps {
 }
 
 export const ThemeModeToggle: React.FC<ThemeModeToggleProps> = ({ className = '' }) => {
-  const { themeMode, toggleTheme, isDark } = useMacOSTheme();
+  const { toggleTheme, isDark } = useMacOSTheme();
 
   return (
     <button

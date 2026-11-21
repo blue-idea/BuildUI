@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { en } from './locales/en';
 import { zh } from './locales/zh';
 import { I18nProvider, useI18n } from './I18nContext';
