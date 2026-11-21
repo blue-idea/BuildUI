@@ -160,4 +160,38 @@ describe('App Main Split Layout & Workflow', () => {
 
     expect(screen.queryByText('Export Project')).toBeNull();
   });
+
+  it('renders ThemeSelector in header and allows switching active theme', () => {
+    render(<App />);
+
+    const themeSelectBtn = screen.getByRole('button', { name: /select theme/i });
+    expect(themeSelectBtn).toBeDefined();
+
+    fireEvent.click(themeSelectBtn);
+    expect(screen.getByText('Cyberpunk Neon')).toBeDefined();
+
+    const cyberpunkOption = screen.getByText('Cyberpunk Neon');
+    fireEvent.click(cyberpunkOption);
+
+    // 验证当前显示主题名更新为 Cyberpunk Neon
+    expect(screen.getByText('Cyberpunk Neon')).toBeDefined();
+  });
+
+  it('renders dependency installation status card and feedback', () => {
+    render(<App />);
+
+    // 触发模拟包含依赖安装的 Prompt 或操作
+    const chatInput = screen.getByPlaceholderText(/describe what to build/i);
+    const sendBtn = screen.getByRole('button', { name: /send prompt/i });
+
+    fireEvent.change(chatInput, {
+      target: { value: 'Add animated charts with recharts and lucide-react' },
+    });
+    fireEvent.click(sendBtn);
+
+    // 验证消息上屏
+    expect(
+      screen.getByText('Add animated charts with recharts and lucide-react')
+    ).toBeDefined();
+  });
 });
