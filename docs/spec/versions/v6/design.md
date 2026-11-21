@@ -10,76 +10,101 @@
 
 ## 1. 架构演进全景
 
-Blot-UI v6 在前端工程中引入 **macOS 主题引擎（ThemeContext）** 与 **轻量国际化体系（I18nContext）**：
+Blot-UI v6 重构前端视图层为 macOS 工业级三栏式容器架构，并引入双模主题引擎与双语 i18n 响应式上下文：
 
 ```mermaid
 graph TD
-    subgraph HostFrontend [React 19 宿主桌面应用]
-        ThemeContext[ThemeContext: light / dark / system]
-        I18nContext[I18nContext: en / zh 字典管理]
-        TitleBar[TitleBar.tsx: macOS 红黄绿交通灯 + 统揽栏]
-        CommandPalette[CommandPalette.tsx: 命令面板]
-        AppUI[App.tsx 主分栏工作区]
-        PreviewContainer[PreviewPanel.tsx 实时沙箱]
+    subgraph AppRoot [App.tsx 根容器]
+        I18nProvider[I18n Context / zh-CN & en-US]
+        ThemeProvider[Theme Context / light & dark]
+        WindowFrame[macOS 窗口容器 / Traffic Lights]
     end
 
-    subgraph DesignTokens [macOS 视觉令牌库]
-        LightTokens[Light: #f5f5f7 / #ffffff / #0071e3]
-        DarkTokens[Dark: #1c1c1e / #2c2c2e / #0a84ff]
+    subgraph WindowHeader [顶部窗口与全局栏]
+        TrafficLights[红黄绿交通灯]
+        AppTabs[项目标签页 + Manage App]
+        HeaderRight[语言切换 EN/中 + 主题切换 ☀/☾ + Pro 徽章]
     end
 
-    subgraph Locales [双语本地化资源库]
-        LocEN[en.ts: 完整英文词条]
-        LocZH[zh.ts: 完整中文词条]
+    subgraph MainWorkbench [主工作台三栏布局]
+        LeftDock[左侧微坞 LeftDock.tsx / 7个操作图标]
+        ChatColumn[会话与任务列 ChatColumn.tsx]
+        PreviewColumn[工作区容器 WorkspacePanel.tsx]
     end
 
-    ThemeContext --> LightTokens
-    ThemeContext --> DarkTokens
-    I18nContext --> LocEN
-    I18nContext --> LocZH
+    subgraph ChatColumnSub [ChatColumn 内部结构]
+        ChatHeader[New Chat + Version 1 下拉]
+        ChatFeed[消息流 + FileChangeCard 进度卡片]
+        ChatInput[多模态富输入框 / Build·Plan + Model + 附件 + 发送]
+    end
 
-    ThemeContext --> AppUI
-    I18nContext --> AppUI
-    AppUI --> TitleBar
-    AppUI --> CommandPalette
-    AppUI --> PreviewContainer
+    subgraph PreviewColumnSub [WorkspacePanel 内部结构]
+        SegmentedTabs[👁 Preview / <> Code / 🌐 Publish]
+        BrowserBar[拟真浏览器地址栏 ← → ⎋ / ↻]
+        CanvasArea[预览 Iframe / 代码高亮 / 发布导出]
+        SystemDrawer[底部可折叠 System Messages 抽屉]
+    end
+
+    AppRoot --> WindowFrame
+    WindowFrame --> WindowHeader
+    WindowFrame --> MainWorkbench
+
+    MainWorkbench --> LeftDock
+    MainWorkbench --> ChatColumn
+    MainWorkbench --> PreviewColumn
+
+    ChatColumn --> ChatHeader
+    ChatColumn --> ChatFeed
+    ChatColumn --> ChatInput
+
+    PreviewColumn --> SegmentedTabs
+    PreviewColumn --> BrowserBar
+    PreviewColumn --> CanvasArea
+    PreviewColumn --> SystemDrawer
 ```
 
 ---
 
-## 2. macOS 视觉规范与 Token 映射
+## 2. 配色系统与 macOS 设计规范 (Design Tokens)
 
-| 语义分类 | macOS 浅色 (Light Mode) | macOS 深色 (Dark Mode) | 说明 |
-|:---|:---|:---|:---|
-| **Window Background** | `#f5f5f7` (macOS 系统浅灰) | `#1c1c1e` (macOS Space Gray) | 窗口最底层背景 |
-| **Surface / Card** | `rgba(255, 255, 255, 0.85)` | `rgba(44, 44, 46, 0.8)` | 半透明卡片表面 |
-| **Header Toolbar** | `rgba(255, 255, 255, 0.7)` | `rgba(28, 28, 30, 0.75)` | 磨砂毛玻璃高斯模糊 (`backdrop-blur-xl`) |
-| **Border / Divider** | `rgba(0, 0, 0, 0.08)` | `rgba(255, 255, 255, 0.12)` | 超细柔和微边框 |
-| **Text Primary** | `#1d1d1f` (SF Pro Black) | `#f5f5f7` (SF Pro White) | 主标题与核心内容 |
-| **Text Muted** | `#86868b` (SF Pro Gray) | `#98989d` (SF Pro Dark Gray) | 辅助描述与标签 |
-| **System Accent** | `#0071e3` (Apple Royal Blue) | `#0a84ff` (Apple Neon Blue) | 重点按键与活跃高亮 |
-| **Traffic Lights** | Close `#ff5f56`, Min `#ffbd2e`, Max `#27c93f` | Close `#ff5f56`, Min `#ffbd2e`, Max `#27c93f` | 经典三色交通灯点 |
+### 2.1 浅色模式 (macOS Light Mode)
+- **Window Surface**: `#ffffff` / `bg-white`
+- **Window Chrome / Titlebar**: `#f5f5f7` (macOS 系统浅灰)
+- **Border / Dividers**: `#e5e5ea` / `border-slate-200`
+- **Left Dock Background**: `#f8f9fa`
+- **User Message Bubble**: `#e8e5ff` (淡紫色优雅气泡), 文本 `#2c246b`
+- **Assistant Message Card**: `#ffffff` 纯白卡片，带 `#e2e8f0` 细微边框与 `shadow-sm`
+- **File Card Hover**: `hover:border-blue-400 hover:shadow-md`
+- **Accent Purple Active**: `#7c3aed` / `bg-purple-600/10 text-purple-600`
+
+### 2.2 深色模式 (macOS Dark Mode)
+- **Window Surface**: `#18181b` (Zinc 900)
+- **Window Chrome / Titlebar**: `#121215` (Zinc 950 极深灰)
+- **Border / Dividers**: `#27272a` / `border-zinc-800`
+- **Left Dock Background**: `#111114`
+- **User Message Bubble**: `#312e81/70` (深紫外光感气泡), 文本 `#e0e7ff`
+- **Assistant Message Card**: `#1e1e24` 磨砂暗色，带 `#3f3f46/40` 微描边
+- **File Card Hover**: `hover:border-purple-500/50 hover:bg-zinc-900`
+- **Accent Purple Active**: `#a78bfa` / `bg-purple-500/20 text-purple-300`
 
 ---
 
-## 3. 国际化与双模切换执行时序
+## 3. 核心时序图：多语言与主题联动
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant User as 用户
-    participant Toolbar as TitleBar (Controls)
-    participant ThemeCtx as ThemeContext
-    participant I18nCtx as I18nContext
-    participant DOM as Document Root (HTML/Body)
-    participant Preview as Preview Iframe
+    participant Header as WindowHeader
+    participant I18n as I18n Context
+    participant Theme as Theme Context
+    participant Views as Workbench Views
 
-    User->>Toolbar: 点击切换深浅主题
-    Toolbar->>ThemeCtx: setThemeMode("light" | "dark")
-    ThemeCtx->>DOM: 切换 'dark' class & CSS 变量
-    ThemeCtx->>Preview: postMessage({ type: 'THEME_INJECT', mode })
-
-    User->>Toolbar: 点击切换语言 (EN ↔ 中文)
-    Toolbar->>I18nCtx: setLocale("zh" | "en")
-    I18nCtx->>I18nCtx: 触发响应式重绘，各组件即时渲染对应字典词条
+    User->>Header: 点击 "中 / EN"
+    Header->>I18n: setLocale(locale === 'en' ? 'zh' : 'en')
+    I18n-->>Views: 触发全局词条即时替换 (t('...'))
+    User->>Header: 点击 "☀ / ☾"
+    Header->>Theme: setTheme(theme === 'dark' ? 'light' : 'dark')
+    Theme-->>Views: 动态切换根 DOM class ('dark' <-> 'light')
+    Note over Views: 零页面重载、零输入丢失完成全套视觉刷新
 ```
