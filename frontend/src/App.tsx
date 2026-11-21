@@ -25,6 +25,7 @@ import {
   rollbackVersion,
   exportAppZip,
   openInFileManager,
+  subscribeChatEvents,
 } from './services/wailsBridge';
 import { Plus, Send, Square, Hammer, ChevronDown } from 'lucide-react';
 
@@ -213,6 +214,37 @@ const AppContent: React.FC = () => {
         setSettings(cfg);
       }
     });
+
+    const unsubscribe = subscribeChatEvents({
+      onChunk: (data) => {
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.sender === 'assistant') {
+            return [
+              ...prev.slice(0, -1),
+              { ...last, content: last.content + data.chunk },
+            ];
+          }
+          return prev;
+        });
+      },
+      onToolStart: (data) => {
+        setActiveTool(`${data.tool}${data.path ? ': ' + data.path : ''}`);
+      },
+      onToolEnd: () => {
+        setActiveTool(null);
+      },
+      onEnd: () => {
+        setIsGenerating(false);
+        setActiveTool(null);
+      },
+      onCancelled: () => {
+        setIsGenerating(false);
+        setActiveTool(null);
+      },
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const renderMessageContent = (msg: ChatMessage) => {

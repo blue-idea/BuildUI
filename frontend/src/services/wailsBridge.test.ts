@@ -9,6 +9,8 @@ import {
   fetchVersions,
   fetchVersionDiff,
   exportAppZip,
+  checkTypeScript,
+  subscribeChatEvents,
 } from './wailsBridge';
 
 describe('Wails Bridge Client Service', () => {
@@ -84,5 +86,57 @@ describe('Wails Bridge Client Service', () => {
   it('handles LLM connection tests gracefully', async () => {
     const res = await testLLMConnection('https://api.openai.com/v1', 'key', 'gpt-4o');
     expect(res).toBe('Connection established successfully');
+  });
+
+  it('checks TypeScript problems and safely falls back', async () => {
+    const res = await checkTypeScript(1, ['src/App.tsx']);
+    expect(res.hasErrors).toBe(false);
+    expect(res.problems).toEqual([]);
+
+    const mockCheck = vi.fn().mockResolvedValue({
+      hasErrors: true,
+      problems: [
+        {
+          file: 'src/App.tsx',
+          line: 12,
+          column: 5,
+          message: 'Type error: Variable unassigned',
+          severity: 'error',
+        },
+      ],
+    });
+
+    (window as any).go = {
+      main: {
+        App: {
+          CheckTypeScript: mockCheck,
+        },
+      },
+    };
+
+    const mockRes = await checkTypeScript(1, ['src/App.tsx']);
+    expect(mockCheck).toHaveBeenCalledWith({ appId: 1, paths: ['src/App.tsx'] });
+    expect(mockRes.hasErrors).toBe(true);
+    expect(mockRes.problems[0].message).toContain('Type error');
+  });
+
+  it('subscribes to chat events and unregisters properly on cleanup', () => {
+    const mockEventsOn = vi.fn().mockReturnValue(() => {});
+    (window as any).runtime = {
+      EventsOn: mockEventsOn,
+    };
+
+    const onChunk = vi.fn();
+    const onEnd = vi.fn();
+
+    const unsubscribe = subscribeChatEvents({
+      onChunk,
+      onEnd,
+    });
+
+    expect(mockEventsOn).toHaveBeenCalledWith('chat:chunk', expect.any(Function));
+    expect(mockEventsOn).toHaveBeenCalledWith('chat:end', expect.any(Function));
+
+    unsubscribe();
   });
 });

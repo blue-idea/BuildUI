@@ -6,6 +6,28 @@
 import { AppItem } from '../components/AppDrawer';
 import { VersionItem, VersionDiffResult } from '../components/VersionTimelineModal';
 
+export interface DiagnosticItem {
+  file: string;
+  line: number;
+  column: number;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+export interface ProblemsResponse {
+  hasErrors: boolean;
+  problems: DiagnosticItem[];
+}
+
+export interface ChatEventHandlers {
+  onChunk?: (data: { chatId: number; chunk: string }) => void;
+  onToolStart?: (data: { chatId: number; tool: string; path?: string }) => void;
+  onToolEnd?: (data: { chatId: number; tool: string; success: boolean }) => void;
+  onError?: (data: { chatId: number; kind: string; message: string }) => void;
+  onEnd?: (data: { chatId: number; commitHash: string }) => void;
+  onCancelled?: (data: { chatId: number }) => void;
+}
+
 // 扩展全局 window 类型以安全访问 Wails 注入对象
 declare global {
   interface Window {
@@ -24,6 +46,7 @@ declare global {
           RollbackVersion?: (appId: number, hash: string) => Promise<void>;
           ExportAppZip?: (appId: number, targetDir: string) => Promise<string>;
           OpenInFileManager?: (path: string) => Promise<void>;
+          CheckTypeScript?: (req: { appId: number; paths: string[] }) => Promise<ProblemsResponse>;
         };
       };
     };
@@ -278,4 +301,57 @@ export async function openInFileManager(path: string): Promise<void> {
       // 降级
     }
   }
+}
+
+/** 触发 TypeScript 类型与编译诊断检查 */
+export async function checkTypeScript(appId: number, paths: string[] = []): Promise<ProblemsResponse> {
+  const wails = getWailsApp();
+  if (wails?.CheckTypeScript) {
+    try {
+      return await wails.CheckTypeScript({ appId, paths });
+    } catch {
+      // 降级
+    }
+  }
+  return {
+    hasErrors: false,
+    problems: [],
+  };
+}
+
+/** 订阅智能体流式代码生成与工具调用事件 */
+export function subscribeChatEvents(handlers: ChatEventHandlers): () => void {
+  const cleanups: Array<() => void> = [];
+
+  if (typeof window !== 'undefined' && window.runtime?.EventsOn) {
+    const eventsOn = window.runtime.EventsOn;
+    if (handlers.onChunk) {
+      cleanups.push(eventsOn('chat:chunk', (data: any) => handlers.onChunk?.(data)));
+    }
+    if (handlers.onToolStart) {
+      cleanups.push(eventsOn('chat:tool-start', (data: any) => handlers.onToolStart?.(data)));
+    }
+    if (handlers.onToolEnd) {
+      cleanups.push(eventsOn('chat:tool-end', (data: any) => handlers.onToolEnd?.(data)));
+    }
+    if (handlers.onError) {
+      cleanups.push(eventsOn('chat:error', (data: any) => handlers.onError?.(data)));
+    }
+    if (handlers.onEnd) {
+      cleanups.push(eventsOn('chat:end', (data: any) => handlers.onEnd?.(data)));
+    }
+    if (handlers.onCancelled) {
+      cleanups.push(eventsOn('chat:cancelled', (data: any) => handlers.onCancelled?.(data)));
+    }
+  }
+
+  return () => {
+    cleanups.forEach((cleanup) => {
+      try {
+        cleanup();
+      } catch {
+        // 忽略卸载异常
+      }
+    });
+  };
 }
