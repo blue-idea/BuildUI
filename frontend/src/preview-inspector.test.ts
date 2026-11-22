@@ -133,4 +133,27 @@ describe('preview-inspector (TDD)', () => {
 
     teardown?.();
   });
+
+  it('监听路由变化并在 pushState / popstate / hashchange 时向父级分发 buildui:route-changed 消息', () => {
+    const teardown = setupPreviewInspector(window);
+
+    // 触发 pushState
+    window.history.pushState({}, '', '/dashboard');
+    expect(parentPostMessage).toHaveBeenCalled();
+
+    const pushCall = parentPostMessage.mock.calls.find(
+      (call) => call[0]?.type === 'buildui:route-changed' && call[0]?.pathname === '/dashboard'
+    );
+    expect(pushCall).toBeDefined();
+    expect(pushCall![0].url).toContain('/dashboard');
+
+    // 触发 popstate
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    const popCall = parentPostMessage.mock.calls.find(
+      (call) => call[0]?.type === 'buildui:route-changed'
+    );
+    expect(popCall).toBeDefined();
+
+    teardown?.();
+  });
 });

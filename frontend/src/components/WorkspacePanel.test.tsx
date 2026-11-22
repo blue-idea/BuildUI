@@ -268,4 +268,95 @@ describe('WorkspacePanel Code Review Layout', () => {
     // 验证调用了 onViewChange('code')
     expect(onViewChangeMock).toHaveBeenCalledWith('code');
   });
+
+  describe('TASK-064: 拟真地址栏交互输入与路由跳转', () => {
+    it('渲染可交互的地址输入框并呈现当前地址', () => {
+      renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl="http://localhost:8080"
+        />
+      );
+
+      const addressInput = screen.getByTestId('browser-address-input') as HTMLInputElement;
+      expect(addressInput).toBeDefined();
+      expect(addressInput.value).toBe('http://localhost:8080');
+    });
+
+    it('手动输入相对路由 /dashboard 回车后驱动 iframe 跳转到目标路径', () => {
+      renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl="http://localhost:8080"
+        />
+      );
+
+      const addressInput = screen.getByTestId('browser-address-input') as HTMLInputElement;
+      fireEvent.change(addressInput, { target: { value: '/dashboard' } });
+      fireEvent.submit(addressInput.closest('form')!);
+
+      const iframe = screen.getByTitle('App live preview') as HTMLIFrameElement;
+      expect(iframe.src).toBe('http://localhost:8080/dashboard');
+      expect(addressInput.value).toBe('http://localhost:8080/dashboard');
+    });
+
+    it('手动输入无前导斜杠路径 settings 自动规范化为 /settings 并跳转', () => {
+      renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl="http://localhost:8080"
+        />
+      );
+
+      const addressInput = screen.getByTestId('browser-address-input') as HTMLInputElement;
+      fireEvent.change(addressInput, { target: { value: 'settings' } });
+      fireEvent.submit(addressInput.closest('form')!);
+
+      const iframe = screen.getByTitle('App live preview') as HTMLIFrameElement;
+      expect(iframe.src).toBe('http://localhost:8080/settings');
+    });
+
+    it('按下 Escape 键时恢复原始地址并退出编辑态', () => {
+      renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl="http://localhost:8080"
+        />
+      );
+
+      const addressInput = screen.getByTestId('browser-address-input') as HTMLInputElement;
+      fireEvent.change(addressInput, { target: { value: '/unsaved-route' } });
+      expect(addressInput.value).toBe('/unsaved-route');
+
+      fireEvent.keyDown(addressInput, { key: 'Escape' });
+      expect(addressInput.value).toBe('http://localhost:8080');
+    });
+
+    it('接收沙箱内 buildui:route-changed 消息时自动同步更新地址栏显示', async () => {
+      renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl="http://localhost:8080"
+        />
+      );
+
+      const addressInput = screen.getByTestId('browser-address-input') as HTMLInputElement;
+
+      // 模拟沙箱内路由变迁
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            type: 'buildui:route-changed',
+            pathname: '/products/42',
+            url: 'http://localhost:8080/products/42',
+          },
+          origin: 'http://localhost:8080',
+        })
+      );
+
+      await waitFor(() => {
+        expect(addressInput.value).toBe('http://localhost:8080/products/42');
+      });
+    });
+  });
 });

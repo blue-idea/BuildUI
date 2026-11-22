@@ -123,14 +123,62 @@ export function setupPreviewInspector(win: Window = window) {
     );
   };
 
+  // 路由跳变通知机制 (pushState, replaceState, popstate, hashchange)
+  const notifyRouteChange = () => {
+    try {
+      if (win.parent && win.parent !== win) {
+        const loc = win.location;
+        const pathname = (loc.pathname || '/') + (loc.search || '') + (loc.hash || '');
+        win.parent.postMessage(
+          {
+            type: 'buildui:route-changed',
+            pathname,
+            url: loc.href,
+          },
+          '*'
+        );
+      }
+    } catch {
+      // 忽略跨域通知异常
+    }
+  };
+
+  const origPushState = win.history?.pushState?.bind(win.history);
+  const origReplaceState = win.history?.replaceState?.bind(win.history);
+
+  if (win.history) {
+    if (origPushState) {
+      win.history.pushState = function (...args) {
+        const result = origPushState(...args);
+        notifyRouteChange();
+        return result;
+      };
+    }
+    if (origReplaceState) {
+      win.history.replaceState = function (...args) {
+        const result = origReplaceState(...args);
+        notifyRouteChange();
+        return result;
+      };
+    }
+  }
+
   win.addEventListener('message', handleMessage);
   win.addEventListener('mousemove', handleMouseMove, { passive: true });
   win.addEventListener('click', handleClick, true);
+  win.addEventListener('popstate', notifyRouteChange);
+  win.addEventListener('hashchange', notifyRouteChange);
 
   return () => {
     win.removeEventListener('message', handleMessage);
     win.removeEventListener('mousemove', handleMouseMove);
     win.removeEventListener('click', handleClick, true);
+    win.removeEventListener('popstate', notifyRouteChange);
+    win.removeEventListener('hashchange', notifyRouteChange);
+    if (win.history) {
+      if (origPushState) win.history.pushState = origPushState;
+      if (origReplaceState) win.history.replaceState = origReplaceState;
+    }
     if (overlay && overlay.parentNode) {
       overlay.parentNode.removeChild(overlay);
     }
