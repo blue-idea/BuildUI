@@ -171,7 +171,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
   return (
     <div
       data-testid="component-center-view"
-      className="flex-1 h-full overflow-y-auto bg-slate-50/70 dark:bg-zinc-950 p-8 flex flex-col transition-colors selection:bg-indigo-100 dark:selection:bg-indigo-950"
+      className="flex-1 h-full overflow-y-auto bg-slate-50/70 dark:bg-zinc-950 p-8 flex flex-col transition-colors selection:bg-blue-100 dark:selection:bg-blue-950"
     >
       <div className="max-w-5xl mx-auto w-full flex flex-col gap-8 pb-12">
         {/* 顶部导航与操作条 */}
@@ -203,7 +203,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
               type="button"
               data-testid="btn-open-add-plugin"
               onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-98 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>+ Add Plugin</span>
@@ -254,7 +254,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search catalog"
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-2xs"
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-2xs"
               />
             </div>
           </div>

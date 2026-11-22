@@ -13,6 +13,7 @@ import { LeftDock, DockTab } from './components/LeftDock';
 import { HomeGuideView } from './components/HomeGuideView';
 import { TemplateCenterView } from './components/TemplateCenterView';
 import { ComponentCenterView } from './components/ComponentCenterView';
+import { StyleCenterView } from './components/StyleCenterView';
 import { FileChangeCard } from './components/FileChangeCard';
 import { WorkspacePanel, WorkspaceView } from './components/WorkspacePanel';
 import { FileActionItem } from './types/fileAction';
@@ -162,7 +163,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     },
   ]);
 
-  const [themePresets] = useState<ThemePreset[]>([
+  const [themePresets, setThemePresets] = useState<ThemePreset[]>([
     {
       id: 'dark-slate',
       name: 'Midnight Slate',
@@ -981,39 +982,17 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             onGoBack={() => setActiveDockTab(previousDockTab || 'builder')}
           />
         ) : activeDockTab === 'style' ? (
-          <div className="flex-1 h-full overflow-y-auto bg-slate-50 dark:bg-zinc-950 p-8 flex flex-col gap-6 transition-colors">
-            <div className="max-w-4xl mx-auto w-full flex flex-col gap-4">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-zinc-100">{t('dock.style')}</h2>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                  Manage application design styles, color tokens, and visual themes.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {themePresets.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => handleSelectTheme(preset.id)}
-                    className={`p-4 rounded-2xl border text-left flex flex-col gap-3 transition-all ${
-                      activeThemeId === preset.id
-                        ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/30 ring-1 ring-blue-500 shadow-sm'
-                        : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-slate-300 dark:hover:border-zinc-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-xs text-slate-800 dark:text-zinc-200">{preset.name}</span>
-                      <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: preset.primary }} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-md border border-slate-200 dark:border-zinc-700" style={{ backgroundColor: preset.background }} />
-                      <div className="w-6 h-6 rounded-md" style={{ backgroundColor: preset.primary }} />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <StyleCenterView
+            presets={themePresets}
+            activeThemeId={activeThemeId}
+            onSelectTheme={handleSelectTheme}
+            onAddCustomPreset={(newPreset) => {
+              setThemePresets((prev) => [newPreset, ...prev]);
+            }}
+            onDeleteCustomPreset={(presetId) => {
+              setThemePresets((prev) => prev.filter((p) => p.id !== presetId));
+            }}
+          />
         ) : (
           <>
             {/* 中间：会话与任务列 (ChatColumn) */}

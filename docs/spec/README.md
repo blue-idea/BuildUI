@@ -9,7 +9,7 @@
 ## 当前活跃 Version
 
 ```yaml
-current_version: v9      # → Agent 替换 {{VERSION}} 时取此值
+current_version: v10     # → Agent 替换 {{VERSION}} 时取此值
 ```
 
 ---
@@ -26,7 +26,8 @@ current_version: v9      # → Agent 替换 {{VERSION}} 时取此值
 | v6 | finished | `docs/spec/versions/v6-finished/` | 第六版本已圆满收官：macOS 极致美学三栏式容器工作台、双模（浅色/深色）主题引擎、轻量强类型中英双语国际化（i18n） |
 | v7 | finished | `docs/spec/versions/v7-finished/` | 第七版本已圆满收官：多模型服务商增强（Multi-Provider LLM Suite），包括多服务商凭证独立持久化、模型选择框联动与动态拉取调度 |
 | v8 | finished | `docs/spec/versions/v8-finished/` | 第八版本已圆满收官：工作区代码编辑器集成（轻量语法高亮、行号指示、错误诊断项直接跳转代码行） |
-| v9 | active | `docs/spec/versions/v9/` | 进行中：组件库与 MCP 插件市场中心（Plugins Catalog & Custom Add Modal） |
+| v9 | finished | `docs/spec/versions/v9-finished/` | 第九版本已圆满收官：组件库与 MCP 插件市场中心（Plugins & Component Catalog View） |
+| v10 | active | `docs/spec/versions/v10/` | 进行中：风格中心与参照物提取器（Style Center & Reference Extractor） |
 
 ---
 

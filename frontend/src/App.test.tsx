@@ -67,7 +67,9 @@ describe('App Guided Mode Home & Navigation', () => {
 
     // Click dock-style
     fireEvent.click(screen.getByTestId('dock-style'));
-    expect(screen.getByText(/Manage application design styles/i)).toBeDefined();
+    expect(screen.getByTestId('style-center-view')).toBeDefined();
+    expect(screen.getByTestId('style-tab-templates')).toBeDefined();
+    expect(screen.getByTestId('style-tab-extractor')).toBeDefined();
 
     // Click dock-home
     fireEvent.click(screen.getByTestId('dock-home'));

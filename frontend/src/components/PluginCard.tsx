@@ -15,7 +15,7 @@ const renderBrandIcon = (plugin: PluginItem) => {
   switch (plugin.id) {
     case 'stripe':
       return (
-        <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
           <div className="w-4 h-4 border-2 border-white rounded-xs transform -rotate-12" />
         </div>
       );
@@ -122,7 +122,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove 
           <button
             type="button"
             onClick={() => onAdd?.(plugin)}
-            className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-2xs active:scale-98"
+            className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors shadow-2xs active:scale-98"
           >
             Add
           </button>
