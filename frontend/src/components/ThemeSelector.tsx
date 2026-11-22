@@ -31,21 +31,21 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Select theme"
-        className="flex items-center gap-2 rounded border border-slate-700 bg-slate-800 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+        className="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white/90 dark:bg-zinc-800/90 px-2.5 py-1 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 hover:text-slate-900 dark:hover:text-white transition-colors shadow-2xs"
       >
         <span
           className="h-2 w-2 rounded-full shadow-sm"
           style={{ backgroundColor: currentTheme?.primary || '#3b82f6' }}
         />
-        <span className="font-medium text-slate-200">
+        <span className="font-medium text-slate-800 dark:text-zinc-200">
           {currentTheme?.name || 'Theme'}
         </span>
-        <span className="text-[10px] text-slate-400">▼</span>
+        <span className="text-[10px] text-slate-400 dark:text-zinc-500">▼</span>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-1.5 w-48 rounded-lg border border-slate-700 bg-slate-900 p-1.5 shadow-xl z-50">
-          <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        <div className="absolute right-0 mt-1.5 w-48 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-xl z-50 transition-colors select-none">
+          <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
             Presets
           </div>
           {presets.map((preset) => {
@@ -58,10 +58,10 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
                   onSelectTheme(preset.id);
                   setIsOpen(false);
                 }}
-                className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-xs text-left transition-colors ${
+                className={`flex w-full items-center justify-between rounded-xl px-2 py-1.5 text-xs text-left transition-colors ${
                   isSelected
-                    ? 'bg-blue-600/30 text-white font-medium'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-medium'
+                    : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -71,7 +71,7 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
                   />
                   <span>{preset.name}</span>
                 </div>
-                {isSelected && <span className="text-[11px] text-blue-400">✓</span>}
+                {isSelected && <span className="text-[11px] text-blue-600 dark:text-blue-400 font-bold">✓</span>}
               </button>
             );
           })}

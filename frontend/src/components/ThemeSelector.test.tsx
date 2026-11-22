@@ -59,4 +59,22 @@ describe('ThemeSelector Component', () => {
 
     expect(handleSelect).toHaveBeenCalledWith('cyberpunk-neon');
   });
+
+  it('adapts trigger button and popover with light/dark theme classes', () => {
+    render(
+      <ThemeSelector
+        presets={mockPresets}
+        activeThemeId="dark-slate"
+        onSelectTheme={vi.fn()}
+      />
+    );
+    const toggleBtn = screen.getByRole('button', { name: /select theme/i });
+    expect(toggleBtn.className).toContain('border-slate-200');
+    expect(toggleBtn.className).toContain('dark:border-zinc-700');
+
+    fireEvent.click(toggleBtn);
+    const dropdown = document.querySelector('.absolute.right-0');
+    expect(dropdown?.className).toContain('bg-white');
+    expect(dropdown?.className).toContain('dark:bg-zinc-900');
+  });
 });

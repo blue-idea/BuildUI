@@ -79,14 +79,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/60 p-4 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/60 p-4 backdrop-blur-sm animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-xl flex flex-col rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl text-slate-100 overflow-hidden">
+      <div className="w-full max-w-xl flex flex-col rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-2xl text-slate-800 dark:text-zinc-100 overflow-hidden transition-colors">
         {/* 顶部搜索框 */}
-        <div className="flex items-center gap-3 border-b border-slate-800 px-4 py-3 bg-slate-950/60">
+        <div className="flex items-center gap-3 border-b border-slate-100 dark:border-zinc-800 px-4 py-3 bg-slate-50/70 dark:bg-zinc-950/60">
           <span className="text-slate-400 text-sm">🔍</span>
           <input
             ref={inputRef}
@@ -98,9 +98,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             }}
             onKeyDown={handleKeyDown}
             placeholder={t('modals.commandSearch')}
-            className="flex-1 bg-transparent text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none"
           />
-          <kbd className="rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">
+          <kbd className="rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-500 dark:text-zinc-400">
             ESC
           </kbd>
         </div>
@@ -108,7 +108,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* 命令动作列表 */}
         <div className="max-h-80 overflow-y-auto p-2 space-y-1">
           {filteredActions.length === 0 ? (
-            <div className="py-8 text-center text-xs text-slate-500">
+            <div className="py-8 text-center text-xs text-slate-400 dark:text-zinc-500">
               No matching commands found.
             </div>
           ) : (
@@ -122,10 +122,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     onClose();
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`flex cursor-pointer items-center justify-between rounded-lg px-3 py-2.5 text-xs transition-colors ${
+                  className={`flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 text-xs transition-colors ${
                     isSelected
                       ? 'bg-blue-600 text-white font-medium shadow-sm'
-                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                      : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800/80 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -133,7 +133,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       className={`rounded px-1.5 py-0.5 text-[10px] font-mono ${
                         isSelected
                           ? 'bg-blue-700 text-blue-100'
-                          : 'bg-slate-800 text-slate-400 border border-slate-700/60'
+                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700/60'
                       }`}
                     >
                       {action.category}
@@ -146,7 +146,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
                         isSelected
                           ? 'bg-blue-700/60 text-white'
-                          : 'bg-slate-800 text-slate-400 border border-slate-700/50'
+                          : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700/50'
                       }`}
                     >
                       {action.shortcut}
@@ -159,7 +159,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         </div>
 
         {/* 底部按键提示 */}
-        <div className="flex items-center justify-between border-t border-slate-800/80 px-4 py-2 text-[11px] text-slate-500 bg-slate-950/40">
+        <div className="flex items-center justify-between border-t border-slate-100 dark:border-zinc-800/80 px-4 py-2 text-[11px] text-slate-500 dark:text-zinc-400 bg-slate-50/70 dark:bg-zinc-950/40 select-none">
           <div className="flex items-center gap-3">
             <span>↑↓ to navigate</span>
             <span>↵ to select</span>

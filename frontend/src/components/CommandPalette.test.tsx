@@ -100,4 +100,20 @@ describe('CommandPalette Component', () => {
 
     expect(handleClose).toHaveBeenCalled();
   });
+
+  it('adapts command palette container with light/dark theme classes', () => {
+    render(
+      <CommandPalette
+        isOpen={true}
+        onClose={vi.fn()}
+        actions={mockActions}
+      />
+    );
+    const panel = document.querySelector('.max-w-xl');
+    expect(panel).not.toBeNull();
+    expect(panel?.className).toContain('bg-white');
+    expect(panel?.className).toContain('dark:bg-zinc-900');
+    expect(panel?.className).toContain('border-slate-200');
+    expect(panel?.className).toContain('dark:border-zinc-800');
+  });
 });
