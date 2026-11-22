@@ -13,7 +13,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe('LeftDock Navigation Bar', () => {
-  it('renders navigation icons in the exact order: home, builder, style, templates, components, settings and removes toggle and help buttons', () => {
+  it('renders navigation icons in the exact order: home, builder, projects, style, templates, components, settings and removes toggle and help buttons', () => {
     const onSelectTab = vi.fn();
 
     renderWithProviders(<LeftDock activeTab="home" onSelectTab={onSelectTab} />);
@@ -25,6 +25,7 @@ describe('LeftDock Navigation Bar', () => {
     // 获取所有导航按钮
     const homeBtn = screen.getByTestId('dock-home');
     const builderBtn = screen.getByTestId('dock-builder');
+    const projectsBtn = screen.getByTestId('dock-projects');
     const styleBtn = screen.getByTestId('dock-style');
     const templatesBtn = screen.getByTestId('dock-templates');
     const componentsBtn = screen.getByTestId('dock-components');
@@ -32,18 +33,20 @@ describe('LeftDock Navigation Bar', () => {
 
     expect(homeBtn).toBeDefined();
     expect(builderBtn).toBeDefined();
+    expect(projectsBtn).toBeDefined();
     expect(styleBtn).toBeDefined();
     expect(templatesBtn).toBeDefined();
     expect(componentsBtn).toBeDefined();
     expect(settingsBtn).toBeDefined();
 
-    // 验证在 DOM 中仅有 6 个导航按钮且严格按顺序排列
+    // 验证在 DOM 中仅有 7 个导航按钮且构建区下方为工程管理区
     const allDockButtons = screen.getAllByRole('button');
-    expect(allDockButtons).toHaveLength(6);
+    expect(allDockButtons).toHaveLength(7);
     const buttonTestIds = allDockButtons.map((btn) => btn.getAttribute('data-testid'));
     expect(buttonTestIds).toEqual([
       'dock-home',
       'dock-builder',
+      'dock-projects',
       'dock-style',
       'dock-templates',
       'dock-components',
@@ -53,6 +56,7 @@ describe('LeftDock Navigation Bar', () => {
 
   it('triggers onSelectTab and action callbacks when clicking dock items', () => {
     const onSelectTab = vi.fn();
+    const onOpenProjects = vi.fn();
     const onOpenTemplates = vi.fn();
     const onOpenSettings = vi.fn();
     const onOpenComponents = vi.fn();
@@ -62,6 +66,7 @@ describe('LeftDock Navigation Bar', () => {
       <LeftDock
         activeTab="home"
         onSelectTab={onSelectTab}
+        onOpenProjects={onOpenProjects}
         onOpenTemplates={onOpenTemplates}
         onOpenSettings={onOpenSettings}
         onOpenComponents={onOpenComponents}
@@ -72,6 +77,11 @@ describe('LeftDock Navigation Bar', () => {
     // 点击构建区
     fireEvent.click(screen.getByTestId('dock-builder'));
     expect(onSelectTab).toHaveBeenCalledWith('builder');
+
+    // 点击构建区下方的工程管理区
+    fireEvent.click(screen.getByTestId('dock-projects'));
+    expect(onSelectTab).toHaveBeenCalledWith('projects');
+    expect(onOpenProjects).toHaveBeenCalled();
 
     // 点击风格页
     fireEvent.click(screen.getByTestId('dock-style'));
@@ -95,10 +105,10 @@ describe('LeftDock Navigation Bar', () => {
   });
 
   it('applies blue active highlight styles matching the new theme color', () => {
-    renderWithProviders(<LeftDock activeTab="builder" />);
+    renderWithProviders(<LeftDock activeTab="projects" />);
 
-    const builderBtn = screen.getByTestId('dock-builder');
-    expect(builderBtn.className).toContain('text-blue-600');
-    expect(builderBtn.className).toContain('bg-blue-100');
+    const projectsBtn = screen.getByTestId('dock-projects');
+    expect(projectsBtn.className).toContain('text-blue-600');
+    expect(projectsBtn.className).toContain('bg-blue-100');
   });
 });

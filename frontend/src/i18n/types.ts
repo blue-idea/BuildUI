@@ -22,6 +22,7 @@ export interface I18nDictionary {
     toggle: string;
     home: string;
     builder: string;
+    projects: string;
     style: string;
     settings: string;
     docs: string;
@@ -61,6 +62,28 @@ export interface I18nDictionary {
     noResults: string;
     clearSearch: string;
     allCount: string;
+  };
+  projectsPage: {
+    title: string;
+    subtitle: string;
+    searchPlaceholder: string;
+    newProject: string;
+    createProject: string;
+    projectNameLabel: string;
+    projectNamePlaceholder: string;
+    browseTemplates: string;
+    activeBadge: string;
+    openProject: string;
+    revealInFinder: string;
+    deleteProject: string;
+    deleteConfirm: string;
+    renameProject: string;
+    emptyTitle: string;
+    emptyDesc: string;
+    totalCount: string;
+    createdTime: string;
+    projectPath: string;
+    cancel: string;
   };
   chat: {
     newChat: string;

@@ -92,6 +92,24 @@ describe('App Guided Mode Home & Navigation', () => {
     // Should return to Home
     expect(screen.getByTestId('guide-submit-btn')).toBeDefined();
   });
+
+  it('switches to ProjectsCenterView via dock-projects in LeftDock and manages applications', () => {
+    render(<App initialDockTab="home" />);
+
+    // Click dock-projects below dock-builder
+    fireEvent.click(screen.getByTestId('dock-projects'));
+
+    // Should render ProjectsCenterView
+    const projectsView = screen.getByTestId('projects-center-view');
+    expect(projectsView).toBeDefined();
+    expect(within(projectsView).getByText('Pantry Planner')).toBeDefined();
+
+    // Click Open Project on Pantry Planner
+    fireEvent.click(screen.getByTestId('open-project-btn-1'));
+
+    // Should transition to Builder view
+    expect(screen.getByText(/Chat & Blueprint/i)).toBeDefined();
+  });
 });
 
 describe('App Main Split Layout & Workflow', () => {
@@ -207,19 +225,21 @@ describe('App Main Split Layout & Workflow', () => {
     expect(screen.getByText(/my-blot-app/i)).toBeDefined();
   });
 
-  it('opens applications drawer and supports switching apps', () => {
+  it('opens project management center from header manage app button and supports switching apps', () => {
     renderBuilder();
 
-    const appsBtn = screen.getByRole('button', { name: /open applications drawer/i });
+    const appsBtn = screen.getByRole('button', { name: /manage app/i });
     fireEvent.click(appsBtn);
 
-    expect(screen.getByText('Applications')).toBeDefined();
+    expect(screen.getByTestId('projects-center-view')).toBeDefined();
     expect(screen.getByText('Default Application')).toBeDefined();
 
-    const closeBtn = screen.getByRole('button', { name: /close applications drawer/i });
-    fireEvent.click(closeBtn);
+    // 点击切换打开 Default Application
+    const openBtn = screen.getByTestId('open-project-btn-2');
+    fireEvent.click(openBtn);
 
-    expect(screen.queryByText('Applications')).toBeNull();
+    // 回到 Builder 视图
+    expect(screen.getByText(/Chat & Blueprint/i)).toBeDefined();
   });
 
   it('toggles component inspector and injects prompt on element click', () => {
@@ -331,14 +351,14 @@ describe('App Main Split Layout & Workflow', () => {
     expect(screen.queryByPlaceholderText(/type a command or search/i)).toBeNull();
   });
 
-  it('opens template modal from applications drawer and instantiates project', () => {
+  it('opens template center from project management page and instantiates project', () => {
     renderBuilder();
 
-    // 打开 Apps 抽屉
-    const appsBtn = screen.getByRole('button', { name: /open applications drawer/i });
+    // 点击顶栏 Manage App 进入工程管理页面
+    const appsBtn = screen.getByRole('button', { name: /manage app/i });
     fireEvent.click(appsBtn);
 
-    // 点击 Browse Templates
+    // 点击从模版浏览
     const tmplBtn = screen.getByRole('button', { name: /browse templates/i });
     fireEvent.click(tmplBtn);
 
@@ -349,8 +369,8 @@ describe('App Main Split Layout & Workflow', () => {
     const useBtns = screen.getAllByRole('button', { name: /use template/i });
     fireEvent.click(useBtns[0]);
 
-    // 模版弹窗应关闭
-    expect(screen.queryByText('Application Templates')).toBeNull();
+    // 模版中心使用后进入构建区
+    expect(screen.getByText(/Chat & Blueprint/i)).toBeDefined();
   });
 
   it('supports selecting and previewing image attachments before sending', async () => {

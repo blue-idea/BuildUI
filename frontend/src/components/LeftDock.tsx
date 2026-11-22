@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Home,
   Hammer,
+  FolderKanban,
   Palette,
   LayoutTemplate,
   Blocks,
@@ -9,11 +10,12 @@ import {
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 
-export type DockTab = 'home' | 'builder' | 'style' | 'templates' | 'components' | 'settings' | 'docs';
+export type DockTab = 'home' | 'builder' | 'projects' | 'style' | 'templates' | 'components' | 'settings' | 'docs';
 
 export interface LeftDockProps {
   activeTab?: DockTab;
   onSelectTab?: (tab: DockTab) => void;
+  onOpenProjects?: () => void;
   onOpenTemplates?: () => void;
   onOpenSettings?: () => void;
   onOpenComponents?: () => void;
@@ -24,6 +26,7 @@ export interface LeftDockProps {
 export const LeftDock: React.FC<LeftDockProps> = ({
   activeTab = 'home',
   onSelectTab,
+  onOpenProjects,
   onOpenTemplates,
   onOpenSettings,
   onOpenComponents,
@@ -34,6 +37,7 @@ export const LeftDock: React.FC<LeftDockProps> = ({
 
   const handleTabClick = (tab: DockTab) => {
     onSelectTab?.(tab);
+    if (tab === 'projects') onOpenProjects?.();
     if (tab === 'templates') onOpenTemplates?.();
     if (tab === 'settings') onOpenSettings?.();
     if (tab === 'components') onOpenComponents?.();
@@ -41,10 +45,11 @@ export const LeftDock: React.FC<LeftDockProps> = ({
     if (tab === 'docs') onOpenDocs?.();
   };
 
-  // 左侧栏图标严格依次为：首页、构建区、风格页、模版中心、组件库、设置
+  // 左侧栏图标严格依次为：首页、构建区、工程管理区、风格页、模版中心、组件库、设置
   const dockItems = [
     { id: 'home' as const, testId: 'dock-home', icon: Home, label: t('dock.home') },
     { id: 'builder' as const, testId: 'dock-builder', icon: Hammer, label: t('dock.builder') },
+    { id: 'projects' as const, testId: 'dock-projects', icon: FolderKanban, label: t('dock.projects') },
     { id: 'style' as const, testId: 'dock-style', icon: Palette, label: t('dock.style') },
     { id: 'templates' as const, testId: 'dock-templates', icon: LayoutTemplate, label: t('dock.templates') },
     { id: 'components' as const, testId: 'dock-components', icon: Blocks, label: t('dock.components') },
@@ -53,7 +58,7 @@ export const LeftDock: React.FC<LeftDockProps> = ({
 
   return (
     <aside className="w-[52px] shrink-0 h-full bg-slate-50 dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col items-center py-3 select-none z-20 transition-colors">
-      {/* 导航图标列表：首页、构建区、风格页、模版中心、组件库、设置 */}
+      {/* 导航图标列表：首页、构建区、工程管理区、风格页、模版中心、组件库、设置 */}
       <div className="flex flex-col items-center gap-2.5 w-full">
         {dockItems.map((item) => {
           const Icon = item.icon;

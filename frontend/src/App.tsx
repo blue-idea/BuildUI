@@ -14,6 +14,7 @@ import { HomeGuideView } from './components/HomeGuideView';
 import { TemplateCenterView } from './components/TemplateCenterView';
 import { ComponentCenterView } from './components/ComponentCenterView';
 import { StyleCenterView } from './components/StyleCenterView';
+import { ProjectsCenterView } from './components/ProjectsCenterView';
 import { FileChangeCard } from './components/FileChangeCard';
 import { WorkspacePanel, WorkspaceView } from './components/WorkspacePanel';
 import { FileActionItem } from './types/fileAction';
@@ -445,6 +446,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     setApps((previous) => [...previous, { id: created.appId, name: created.name, path: created.path }]);
     setIsDrawerOpen(false);
     setIsTemplateModalOpen(false);
+    setActiveDockTab('builder');
     await activateProject(created.appId);
   });
 
@@ -619,7 +621,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     if (desktop) {
       try {
         if (activeApp) await desktopApp().OpenInFileManager(activeApp.path);
-        else setIsDrawerOpen(true);
+        else {
+          if (activeDockTab !== 'projects') setPreviousDockTab(activeDockTab);
+          setActiveDockTab('projects');
+        }
       } catch (error) {
         reportError(error);
       }
@@ -656,7 +661,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     const prompt = inputPrompt.trim();
     if (!prompt && attachments.length === 0) return;
     if (desktop && !chatID.current) {
-      setIsDrawerOpen(true);
+      if (activeDockTab !== 'projects') setPreviousDockTab(activeDockTab);
+      setActiveDockTab('projects');
       return;
     }
     if (desktop && (turn.current || isChangingProject)) return;
@@ -852,8 +858,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
 
   const handleNewChat = () => {
     if (desktop) {
-      if (!activeAppId) setIsDrawerOpen(true);
-      else if (!isGenerating && !isChangingProject) {
+      if (!activeAppId) {
+        if (activeDockTab !== 'projects') setPreviousDockTab(activeDockTab);
+        setActiveDockTab('projects');
+      } else if (!isGenerating && !isChangingProject) {
         void updateProject(async () => loadChat(await desktopApp().CreateProjectChat(activeAppId)));
       }
       return;
@@ -869,6 +877,13 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
 
   const commandActions: CommandAction[] = [
     {
+      id: 'cmd-projects',
+      title: 'Open Projects Center',
+      category: 'Navigation',
+      shortcut: 'P',
+      run: () => setActiveDockTab('projects'),
+    },
+    {
       id: 'cmd-templates',
       title: 'Open Template Center',
       category: 'Navigation',
@@ -877,10 +892,13 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     },
     {
       id: 'cmd-apps',
-      title: 'Open Applications Drawer',
+      title: 'Open Applications Center',
       category: 'Navigation',
       shortcut: 'A',
-      run: () => setIsDrawerOpen(true),
+      run: () => {
+        if (activeDockTab !== 'projects') setPreviousDockTab(activeDockTab);
+        setActiveDockTab('projects');
+      },
     },
     {
       id: 'cmd-theme-cyberpunk',
@@ -920,7 +938,12 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         themePresets={themePresets}
         activeThemeId={activeThemeId}
         onSelectTheme={handleSelectTheme}
-        onManageApp={() => setIsDrawerOpen(true)}
+        onManageApp={() => {
+          if (activeDockTab !== 'projects') {
+            setPreviousDockTab(activeDockTab);
+          }
+          setActiveDockTab('projects');
+        }}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenVersions={() => setIsVersionsOpen(true)}
@@ -940,6 +963,12 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               setPreviousDockTab(activeDockTab);
             }
             setActiveDockTab(tab);
+          }}
+          onOpenProjects={() => {
+            if (activeDockTab !== 'projects') {
+              setPreviousDockTab(activeDockTab);
+            }
+            setActiveDockTab('projects');
           }}
           onOpenTemplates={() => {
             if (activeDockTab !== 'templates') {
@@ -977,6 +1006,70 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               setActiveDockTab('builder');
             }}
             onBrowseTemplates={() => setActiveDockTab('templates')}
+          />
+        ) : activeDockTab === 'projects' ? (
+          <ProjectsCenterView
+            apps={apps}
+            activeAppId={activeAppId}
+            busy={desktop && (isChangingProject || isGenerating || isStartingApp)}
+            error={desktop ? projectError : undefined}
+            onSelectApp={(id) => {
+              if (desktop) {
+                void updateProject(() => activateProject(id));
+                return;
+              }
+              setActiveAppId(id);
+              const target = apps.find((a) => a.id === id);
+              if (target) {
+                setWorkspaceDir(target.path);
+              }
+            }}
+            onOpenProject={(id) => {
+              if (desktop) {
+                void updateProject(async () => {
+                  await activateProject(id);
+                  setActiveDockTab('builder');
+                });
+                return;
+              }
+              setActiveAppId(id);
+              const target = apps.find((a) => a.id === id);
+              if (target) {
+                setWorkspaceDir(target.path);
+              }
+              setActiveDockTab('builder');
+            }}
+            onCreateNamedApp={desktop ? createDesktopProject : undefined}
+            onCreateApp={() => {
+              const newId = Date.now();
+              const nextIndex = apps.length === 1 || apps.some((a) => a.id === 1) ? 2 : apps.length + 1;
+              const newApp: AppItem = {
+                id: newId,
+                name: `Project ${nextIndex}`,
+                path: `/workspace/project-${nextIndex}`,
+                createdAt: new Date().toISOString(),
+              };
+              setApps((prev) => [...prev, newApp]);
+              setActiveAppId(newId);
+              setWorkspaceDir(newApp.path);
+            }}
+            onDeleteApp={(id) => {
+              if (desktop) {
+                void updateProject(async () => {
+                  await desktopApp().DeleteApp(id);
+                  setApps((await desktopApp().ListApps()) ?? []);
+                });
+                return;
+              }
+              setApps((prev) => prev.filter((a) => a.id !== id));
+            }}
+            onRenameApp={(id, newName) => {
+              setApps((prev) => prev.map((a) => (a.id === id ? { ...a, name: newName } : a)));
+            }}
+            onOpenTemplates={() => {
+              setActiveDockTab('templates');
+            }}
+            onOpenInFileManager={desktop ? (path) => desktopApp().OpenInFileManager(path) : openInFileManager}
           />
         ) : activeDockTab === 'templates' ? (
           <TemplateCenterView
@@ -1042,7 +1135,14 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {projectError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{projectError}</p>}
             {!activeApp && (
-              <button type="button" onClick={() => setIsDrawerOpen(true)} className="text-sm font-medium text-blue-600">
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviousDockTab(activeDockTab);
+                  setActiveDockTab('projects');
+                }}
+                className="text-sm font-medium text-blue-600"
+              >
                 Create or open a project
               </button>
             )}

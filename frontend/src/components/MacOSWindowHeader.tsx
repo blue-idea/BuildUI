@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, X, Command, Settings, Clock, Download, FolderGit2, TestTube2 } from 'lucide-react';
+import { X, Command, Settings, Clock, Download, FolderGit2, TestTube2, FolderKanban } from 'lucide-react';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeModeToggle } from './ThemeModeToggle';
 import { ThemeSelector, ThemePreset } from './ThemeSelector';
@@ -78,10 +78,12 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
         <button
           type="button"
           onClick={onManageApp}
-          aria-label="Manage app - Open applications drawer"
-          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors"
+          data-testid="header-manage-app-btn"
+          aria-label="Manage app - Open applications drawer and projects"
+          title={t('common.manageApp')}
+          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
         >
-          <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+          <FolderKanban className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
           <span>{t('common.manageApp')}</span>
         </button>
 
