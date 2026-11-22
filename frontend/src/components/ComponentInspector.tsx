@@ -8,6 +8,9 @@ export interface ComponentInspectorProps {
   onExit: () => void;
   onSelectComponent: (componentPath: string, suggestedPrompt: string) => void;
   availableElements?: InspectedElement[];
+  selectedElement?: InspectedElement | null;
+  onClearSelectedElement?: () => void;
+  onJumpToCode?: (filePath: string, line?: number) => void;
 }
 
 /**
@@ -42,17 +45,30 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
   onExit,
   onSelectComponent,
   availableElements = DEFAULT_PREVIEW_ELEMENTS,
+  selectedElement: externalSelectedElement,
+  onClearSelectedElement,
+  onJumpToCode,
 }) => {
-  const [selectedElement, setSelectedElement] = useState<InspectedElement | null>(null);
+  const [internalSelectedElement, setInternalSelectedElement] = useState<InspectedElement | null>(null);
 
   if (!isActive) return null;
 
+  const currentElement =
+    externalSelectedElement !== undefined ? externalSelectedElement : internalSelectedElement;
+
   const handleSelectTarget = (el: InspectedElement) => {
-    setSelectedElement(el);
+    setInternalSelectedElement(el);
+  };
+
+  const handleCancelSelection = () => {
+    if (onClearSelectedElement) {
+      onClearSelectedElement();
+    }
+    setInternalSelectedElement(null);
   };
 
   const handleApplyLocalEdit = (el: InspectedElement, prompt: string) => {
-    setSelectedElement(null);
+    handleCancelSelection();
     onSelectComponent(el.componentPath, prompt);
   };
 
@@ -113,11 +129,12 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
       </div>
 
       {/* 选中元素后弹出的局部编辑控制器 */}
-      {selectedElement && (
+      {currentElement && (
         <LocalEditPopover
-          element={selectedElement}
-          onCancel={() => setSelectedElement(null)}
+          element={currentElement}
+          onCancel={handleCancelSelection}
           onSubmit={handleApplyLocalEdit}
+          onJumpToCode={onJumpToCode}
         />
       )}
     </>

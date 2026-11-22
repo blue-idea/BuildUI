@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { InspectedElement } from '../types/inspect';
 import { DEFAULT_QUICK_ACTIONS, formatTargetedPrompt } from '../utils/targetedPrompt';
-import { Wand2, X, Sparkles, CornerDownLeft } from 'lucide-react';
+import { Wand2, X, Sparkles, CornerDownLeft, Code2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface LocalEditPopoverProps {
   element: InspectedElement;
   onCancel: () => void;
   onSubmit: (element: InspectedElement, formattedPrompt: string) => void;
+  onJumpToCode?: (filePath: string, line?: number) => void;
 }
 
 export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
   element,
   onCancel,
   onSubmit,
+  onJumpToCode,
 }) => {
   const [instruction, setInstruction] = useState('');
+  const [showSnippet, setShowSnippet] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -38,6 +41,12 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
     setInstruction(templateStr);
   };
 
+  const lineRangeText = element.codeRegion
+    ? `Lines ${element.codeRegion.startLine}-${element.codeRegion.endLine}`
+    : element.line
+      ? `Line ${element.line}`
+      : null;
+
   return (
     <div
       data-testid="local-edit-popover"
@@ -57,6 +66,11 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
               <span className="text-[11px] text-slate-400 dark:text-zinc-500 font-mono truncate max-w-xs">
                 {element.componentPath}
               </span>
+              {lineRangeText && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+                  {lineRangeText}
+                </span>
+              )}
             </div>
             {element.textSnippet && (
               <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
@@ -66,14 +80,61 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onCancel}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
+        <div className="flex items-center gap-1.5">
+          {onJumpToCode && (
+            <button
+              type="button"
+              onClick={() => onJumpToCode(element.componentPath, element.codeRegion?.startLine ?? element.line)}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 dark:hover:bg-purple-900/60 border border-purple-200/60 dark:border-purple-800 transition-colors cursor-pointer"
+              title="Open in Code View"
+            >
+              <Code2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span>Jump to Code</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
+
+      {/* 锁定的源代码区域折叠卡片 */}
+      {element.codeRegion?.codeSnippet && (
+        <div className="py-2.5 border-b border-slate-100 dark:border-zinc-800">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-slate-600 dark:text-zinc-300 flex items-center gap-1.5">
+              <Code2 className="w-3.5 h-3.5 text-blue-500" />
+              <span>Target Code Region</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowSnippet(!showSnippet)}
+              className="text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer flex items-center gap-1"
+            >
+              {showSnippet ? (
+                <>
+                  <span>Hide Code</span>
+                  <ChevronUp className="w-3 h-3" />
+                </>
+              ) : (
+                <>
+                  <span>View Code</span>
+                  <ChevronDown className="w-3 h-3" />
+                </>
+              )}
+            </button>
+          </div>
+          {showSnippet && (
+            <pre className="mt-2 max-h-36 overflow-auto p-2.5 rounded-xl bg-slate-950 text-slate-200 font-mono text-[11px] leading-relaxed border border-slate-800">
+              <code>{element.codeRegion.codeSnippet}</code>
+            </pre>
+          )}
+        </div>
+      )}
 
       {/* 快捷操作药丸 */}
       <div className="py-3 flex flex-wrap gap-1.5 items-center">

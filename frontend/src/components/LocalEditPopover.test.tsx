@@ -10,6 +10,14 @@ describe('LocalEditPopover Component (TDD)', () => {
     componentPath: 'src/components/RecipeCard.tsx',
     className: 'px-4 py-2 bg-blue-600 text-white rounded-lg',
     textSnippet: 'Save Dinner',
+    line: 8,
+    codeRegion: {
+      filePath: 'src/components/RecipeCard.tsx',
+      startLine: 8,
+      endLine: 13,
+      codeSnippet: `<button className="px-4 py-2 bg-blue-600 text-white rounded-lg">\n  <span>Save Dinner</span>\n</button>`,
+      found: true,
+    },
   };
 
   it('renders inspected element metadata like tagName, path, and prompt input', () => {
@@ -25,6 +33,46 @@ describe('LocalEditPopover Component (TDD)', () => {
     expect(screen.getByText(/RecipeCard\.tsx/i)).toBeDefined();
     expect(screen.getByPlaceholderText(/Describe what to change for this specific element/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /Apply Edit/i })).toBeDefined();
+  });
+
+  it('renders code region line numbers badge and expandable code snippet preview', () => {
+    render(
+      <LocalEditPopover
+        element={mockElement}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    );
+
+    // 验证展示行号范围 Lines 8-13
+    expect(screen.getByText(/Lines 8-13/i)).toBeDefined();
+
+    // 默认折叠或提供展开代码预览按钮
+    const toggleCodeBtn = screen.getByRole('button', { name: /view code|hide code|code snippet/i });
+    expect(toggleCodeBtn).toBeDefined();
+
+    // 点击展开代码预览
+    fireEvent.click(toggleCodeBtn);
+    expect(screen.getByText(/<span>Save Dinner<\/span>/)).toBeDefined();
+  });
+
+  it('triggers onJumpToCode when clicking Jump to Code button', () => {
+    const handleJumpToCode = vi.fn();
+    render(
+      <LocalEditPopover
+        element={mockElement}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+        onJumpToCode={handleJumpToCode}
+      />
+    );
+
+    const jumpBtn = screen.getByRole('button', { name: /jump to code/i });
+    expect(jumpBtn).toBeDefined();
+    fireEvent.click(jumpBtn);
+
+    expect(handleJumpToCode).toHaveBeenCalledTimes(1);
+    expect(handleJumpToCode).toHaveBeenCalledWith('src/components/RecipeCard.tsx', 8);
   });
 
   it('populates prompt when clicking a quick action pill', () => {
