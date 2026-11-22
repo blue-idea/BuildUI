@@ -24,6 +24,23 @@ import { locateCodeRegion } from '../utils/sourceLocator';
 import type { InspectedElement } from '../types/inspect';
 import type { DiagnosticItem } from '../services/wailsBridge';
 
+export function resolveNavigationUrl(rawInput: string, basePreviewUrl: string): string {
+  const trimmed = rawInput.trim();
+  if (!trimmed) return basePreviewUrl;
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  const routePath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  try {
+    const base = basePreviewUrl || 'http://localhost:5173';
+    return new URL(routePath, base).toString();
+  } catch {
+    return trimmed;
+  }
+}
+
 export type WorkspaceView = 'preview' | 'code' | 'publish';
 
 export interface WorkspacePanelProps {
@@ -84,12 +101,24 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   const [selectedFilePath, setSelectedFilePath] = useState<string>(files[0]?.path || '');
   const [source, setSource] = useState<{ path: string; text: string; error: boolean } | null>(null);
   const [selectedInspectElement, setSelectedInspectElement] = useState<InspectedElement | null>(null);
+  const [activeUrl, setActiveUrl] = useState<string>(previewUrl || '');
+  const [addressInput, setAddressInput] = useState<string>(previewUrl || '');
+  const [isAddressFocused, setIsAddressFocused] = useState<boolean>(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const activeFile = files.find((f) => f.path === selectedFilePath) || files[0];
   const codePaths = sourcePaths ?? files.map((file) => file.path);
   const activePath = codePaths.includes(selectedFilePath) ? selectedFilePath : codePaths[0];
   const previewOrigin = previewUrl && !previewDoc ? new URL(previewUrl).origin : '';
+
+  useEffect(() => {
+    if (previewUrl) {
+      setActiveUrl(previewUrl);
+      if (!isAddressFocused) {
+        setAddressInput(previewUrl);
+      }
+    }
+  }, [previewUrl]);
 
   useEffect(() => {
     if (!isInspectMode) {
@@ -122,12 +151,26 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
 
   useEffect(syncInspector, [previewOrigin, isInspectMode, activeView, previewKey]);
   useEffect(() => {
-    if (!isInspectMode || !previewOrigin || activeView !== 'preview') return;
+    if (activeView !== 'preview') return;
     const receive = async (event: MessageEvent) => {
       if (previewOrigin && event.origin !== previewOrigin) return;
       if (iframeRef.current?.contentWindow && event.source && event.source !== iframeRef.current.contentWindow) return;
 
-      const { type, path, element } = event.data ?? {};
+      const { type, path, element, pathname, url } = event.data ?? {};
+
+      // 沙箱内部路由变化通知双向同步
+      if (type === 'buildui:route-changed') {
+        const newUrl = url || (pathname ? resolveNavigationUrl(pathname, previewUrl) : '');
+        if (newUrl) {
+          setActiveUrl(newUrl);
+          if (!isAddressFocused) {
+            setAddressInput(newUrl);
+          }
+        }
+        return;
+      }
+
+      if (!isInspectMode) return;
 
       if (type === 'buildui:element-selected' && element) {
         const inspectedEl = { ...element } as InspectedElement;
@@ -165,7 +208,39 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
     };
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
-  }, [activeView, files, isInspectMode, onReadFile, onSelectComponent, previewOrigin]);
+  }, [activeView, files, isAddressFocused, isInspectMode, onReadFile, onSelectComponent, previewOrigin, previewUrl]);
+
+  const handleNavigate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addressInput.trim()) return;
+    const targetUrl = resolveNavigationUrl(addressInput, previewUrl);
+    setActiveUrl(targetUrl);
+    setAddressInput(targetUrl);
+    (document.activeElement as HTMLElement)?.blur();
+  };
+
+  const handleAddressKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setAddressInput(activeUrl || previewUrl);
+      e.currentTarget.blur();
+    }
+  };
+
+  const handleGoBack = () => {
+    try {
+      iframeRef.current?.contentWindow?.history.back();
+    } catch {
+      // 忽略跨域访问限制
+    }
+  };
+
+  const handleGoForward = () => {
+    try {
+      iframeRef.current?.contentWindow?.history.forward();
+    } catch {
+      // 忽略跨域访问限制
+    }
+  };
 
   const handleSelectDiagnostic = (diag: DiagnosticItem) => {
     if (diag.file) {
@@ -254,6 +329,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
         <div className="flex items-center gap-1 text-slate-400 dark:text-zinc-500">
           <button
             type="button"
+            onClick={handleGoBack}
             title={t('workspace.back')}
             className="p-1 hover:text-slate-700 dark:hover:text-zinc-200 rounded transition-colors"
           >
@@ -261,6 +337,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
           </button>
           <button
             type="button"
+            onClick={handleGoForward}
             title={t('workspace.forward')}
             className="p-1 hover:text-slate-700 dark:hover:text-zinc-200 rounded transition-colors"
           >
@@ -268,7 +345,10 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
           </button>
           <button
             type="button"
-            onClick={onOpenExternal}
+            onClick={onOpenExternal ? () => onOpenExternal() : () => {
+              const target = activeUrl || previewUrl;
+              if (target) window.open(target, '_blank', 'noopener,noreferrer');
+            }}
             title={t('workspace.openExternal')}
             className="p-1 hover:text-slate-700 dark:hover:text-zinc-200 rounded transition-colors"
           >
@@ -277,12 +357,28 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
         </div>
 
         {/* 地址输入栏 */}
-        <div
-          data-testid="browser-address"
-          className="flex-1 flex items-center px-2.5 py-1 text-xs text-slate-600 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md font-mono"
+        <form
+          onSubmit={handleNavigate}
+          className="flex-1 flex items-center min-w-0"
         >
-          <span className="truncate">{previewDoc ? '/' : previewUrl || 'Preview is stopped'}</span>
-        </div>
+          <div
+            data-testid="browser-address"
+            className="w-full flex items-center px-2.5 py-1 text-xs text-slate-600 dark:text-zinc-400 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md font-mono focus-within:ring-1 focus-within:ring-blue-500/50 focus-within:border-blue-500 transition-all"
+          >
+            <input
+              data-testid="browser-address-input"
+              type="text"
+              value={addressInput}
+              onChange={(e) => setAddressInput(e.target.value)}
+              onFocus={() => setIsAddressFocused(true)}
+              onBlur={() => setIsAddressFocused(false)}
+              onKeyDown={handleAddressKeyDown}
+              placeholder={previewDoc ? '/' : previewUrl || 'Preview is stopped'}
+              disabled={!previewUrl && !previewDoc}
+              className="w-full bg-transparent outline-none text-slate-800 dark:text-zinc-200 placeholder:text-slate-400 dark:placeholder:text-zinc-500 font-mono text-xs"
+            />
+          </div>
+        </form>
 
         {/* 刷新按钮 */}
         <button
@@ -346,7 +442,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                 ref={iframeRef}
                 onLoad={syncInspector}
                 title="App live preview"
-                src={previewDoc ? undefined : previewUrl}
+                src={previewDoc ? undefined : activeUrl || previewUrl}
                 srcDoc={previewDoc}
                 sandbox={previewDoc ? undefined : 'allow-scripts allow-same-origin allow-forms'}
                 className="w-full h-full rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs bg-white"
