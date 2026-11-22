@@ -199,4 +199,122 @@ describe('SettingsModal', () => {
     fireEvent.click(lightBtn);
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
+
+  it('lists configured providers in the preferences page and displays details', async () => {
+    const initialSettings = {
+      'llm.provider_ids': 'openai,ollama',
+      'llm.active_provider': 'ollama',
+      'llm.providers.openai.name': 'OpenAI (Official)',
+      'llm.providers.openai.base_url': 'https://api.openai.com/v1',
+      'llm.providers.openai.api_key': 'sk-test-openai',
+      'llm.providers.openai.model': 'gpt-4o',
+      'llm.providers.ollama.name': 'Ollama (Local)',
+      'llm.providers.ollama.base_url': 'http://localhost:11434/v1',
+      'llm.providers.ollama.api_key': '',
+      'llm.providers.ollama.model': 'qwen2.5-coder',
+    };
+
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialSettings={initialSettings}
+      />
+    );
+
+    // 偏好设置中列出已设置的 Provider
+    const providerList = screen.getByTestId('configured-providers-list');
+    expect(providerList).toBeDefined();
+
+    // 检查 OpenAI 和 Ollama 在列表中渲染
+    expect(providerList.textContent).toContain('OpenAI (Official)');
+    expect(providerList.textContent).toContain('Ollama (Local)');
+    expect(providerList.textContent).toContain('qwen2.5-coder');
+    expect(providerList.textContent).toContain('gpt-4o');
+  });
+
+  it('supports adding and setting a new local Ollama provider without api key', async () => {
+    const handleSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSave={handleSave}
+        initialSettings={{
+          'llm.provider_ids': 'openai',
+          'llm.providers.openai.base_url': 'https://api.openai.com/v1',
+          'llm.providers.openai.api_key': 'sk-test',
+          'llm.providers.openai.model': 'gpt-4o',
+        }}
+      />
+    );
+
+    // 点击添加 Provider 按钮
+    const addBtn = screen.getByTestId('add-provider-btn');
+    fireEvent.click(addBtn);
+
+    // 填写统一配置项：URL、Key（留空）、模型名称
+    const nameInput = screen.getByTestId('provider-name-input') as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: 'My Local Ollama' } });
+
+    const urlInput = screen.getByTestId('provider-url-input') as HTMLInputElement;
+    fireEvent.change(urlInput, { target: { value: 'http://127.0.0.1:11434/v1' } });
+
+    // Key 保持为空（兼容本地 Ollama 无 key）
+    const keyInput = screen.getByTestId('provider-key-input') as HTMLInputElement;
+    fireEvent.change(keyInput, { target: { value: '' } });
+
+    const modelInput = screen.getByTestId('provider-model-input') as HTMLInputElement;
+    fireEvent.change(modelInput, { target: { value: 'deepseek-r1:14b' } });
+
+    // 保存 Provider
+    const saveProviderBtn = screen.getByTestId('save-provider-config-btn');
+    fireEvent.click(saveProviderBtn);
+
+    // 点击底部保存全部设置
+    const saveAllBtn = screen.getByRole('button', { name: 'Save Settings' });
+    fireEvent.click(saveAllBtn);
+
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'llm.providers.ollama.base_url': 'http://127.0.0.1:11434/v1',
+          'llm.providers.ollama.model': 'deepseek-r1:14b',
+        })
+      );
+    });
+  });
+
+  it('supports deleting a provider from the configured list', async () => {
+    const handleSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSave={handleSave}
+        initialSettings={{
+          'llm.provider_ids': 'openai,custom_test',
+          'llm.providers.openai.base_url': 'https://api.openai.com/v1',
+          'llm.providers.openai.model': 'gpt-4o',
+          'llm.providers.custom_test.name': 'Temp Provider',
+          'llm.providers.custom_test.base_url': 'http://temp.internal/v1',
+          'llm.providers.custom_test.model': 'temp-model',
+        }}
+      />
+    );
+
+    // 找到 Temp Provider 对应的删除按钮
+    const deleteBtn = screen.getByTestId('delete-provider-custom_test');
+    fireEvent.click(deleteBtn);
+
+    // 保存全部设置
+    const saveAllBtn = screen.getByRole('button', { name: 'Save Settings' });
+    fireEvent.click(saveAllBtn);
+
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalled();
+      const savedArgs = handleSave.mock.calls[0][0];
+      expect(savedArgs['llm.provider_ids']).not.toContain('custom_test');
+    });
+  });
 });

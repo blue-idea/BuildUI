@@ -614,4 +614,52 @@ describe('App Main Split Layout & Workflow', () => {
     expect(modelSelectorBtn.getAttribute('aria-expanded')).toBe('false');
     expect(modelSelectorBtn.textContent).toMatch(/Auto|自动/i);
   });
+
+  it('populates model selector in builder from current configured providers in settings', async () => {
+    // 注入预先配置好的 providers settings
+    const mockSettings = {
+      'llm.provider_ids': 'ollama,deepseek',
+      'llm.active_provider': 'ollama',
+      'llm.providers.ollama.name': 'Ollama Local',
+      'llm.providers.ollama.base_url': 'http://localhost:11434/v1',
+      'llm.providers.ollama.model': 'qwen2.5-coder',
+      'llm.providers.deepseek.name': 'DeepSeek Cloud',
+      'llm.providers.deepseek.base_url': 'https://api.deepseek.com/v1',
+      'llm.providers.deepseek.api_key': 'sk-deepseek-test',
+      'llm.providers.deepseek.model': 'deepseek-chat',
+    };
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: vi.fn().mockResolvedValue(mockSettings),
+        },
+      },
+    });
+
+    try {
+      renderBuilder();
+
+      await waitFor(() => {
+        const modelSelectorBtn = screen.getByRole('button', { name: /model selector/i });
+        expect(modelSelectorBtn).toBeDefined();
+      });
+
+      const modelSelectorBtn = screen.getByRole('button', { name: /model selector/i });
+      fireEvent.click(modelSelectorBtn);
+
+      // 应该从 settings 中获取到 Ollama 与 DeepSeek
+      const ollamaOption = screen.getByRole('option', { name: /qwen2\.5-coder/i });
+      expect(ollamaOption).toBeDefined();
+      expect(ollamaOption.textContent).toContain('Ollama Local');
+
+      const deepseekOption = screen.getByRole('option', { name: /deepseek-chat/i });
+      expect(deepseekOption).toBeDefined();
+
+      // 选择 Ollama 后按钮文字更新
+      fireEvent.click(ollamaOption);
+      expect(modelSelectorBtn.textContent).toContain('qwen2.5-coder');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

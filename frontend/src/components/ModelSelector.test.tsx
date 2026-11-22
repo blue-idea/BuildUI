@@ -171,4 +171,68 @@ describe('ModelSelector Component', () => {
     fireEvent.click(manageBtn);
     expect(handleOpenSettings).toHaveBeenCalled();
   });
+
+  it('supports Ollama without api key as a configured provider from settings', () => {
+    const handleChange = vi.fn();
+    const mockSettings = {
+      'llm.provider_ids': 'ollama',
+      'llm.providers.ollama.name': 'Ollama (Local)',
+      'llm.providers.ollama.base_url': 'http://localhost:11434/v1',
+      'llm.providers.ollama.api_key': '',
+      'llm.providers.ollama.model': 'qwen2.5-coder',
+    };
+
+    renderWithI18n(
+      <ModelSelector
+        value="auto"
+        onChange={handleChange}
+        settings={mockSettings}
+      />
+    );
+
+    const triggerBtn = screen.getByRole('button', { name: /model selector/i });
+    fireEvent.click(triggerBtn);
+
+    const ollamaOption = screen.getByRole('option', { name: /qwen2\.5-coder/i });
+    expect(ollamaOption).toBeDefined();
+
+    fireEvent.click(ollamaOption);
+    expect(handleChange).toHaveBeenCalledWith('provider:ollama');
+  });
+
+  it('supports dynamically added custom providers from settings and selects them', () => {
+    const handleChange = vi.fn();
+    const mockSettings = {
+      'llm.provider_ids': 'custom_fast,custom_slow',
+      'llm.providers.custom_fast.name': 'Fast Inference Proxy',
+      'llm.providers.custom_fast.base_url': 'http://proxy.internal:8000/v1',
+      'llm.providers.custom_fast.api_key': 'fast-key-123',
+      'llm.providers.custom_fast.model': 'llama-3-8b-instant',
+      'llm.providers.custom_slow.name': 'Heavy Reasoning',
+      'llm.providers.custom_slow.base_url': 'http://reasoning.internal:8000/v1',
+      'llm.providers.custom_slow.api_key': '',
+      'llm.providers.custom_slow.model': 'deepseek-r1:70b',
+    };
+
+    renderWithI18n(
+      <ModelSelector
+        value="provider:custom_fast"
+        onChange={handleChange}
+        settings={mockSettings}
+      />
+    );
+
+    const triggerBtn = screen.getByRole('button', { name: /model selector/i });
+    expect(triggerBtn.textContent).toContain('llama-3-8b-instant');
+
+    fireEvent.click(triggerBtn);
+
+    const fastOption = screen.getByRole('option', { name: /llama-3-8b-instant/i });
+    const slowOption = screen.getByRole('option', { name: /deepseek-r1:70b/i });
+    expect(fastOption).toBeDefined();
+    expect(slowOption).toBeDefined();
+
+    fireEvent.click(slowOption);
+    expect(handleChange).toHaveBeenCalledWith('provider:custom_slow');
+  });
 });

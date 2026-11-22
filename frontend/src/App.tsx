@@ -23,6 +23,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
 import { generateSandboxDoc } from './utils/sandboxTemplate';
 import { generateSafeAppName } from './utils/appName';
+import { parseConfiguredProviders } from './config/providers';
 import {
   fetchSettings,
   saveSettings,
@@ -475,7 +476,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       if (selectedModel && selectedModel !== 'auto') {
         if (selectedModel.startsWith('provider:')) {
           reqProvider = selectedModel.replace('provider:', '');
-          reqModel = settings[`llm.providers.${reqProvider}.model`];
+          reqModel =
+            settings[`llm.providers.${reqProvider}.model`] ||
+            parseConfiguredProviders(settings).find((p) => p.id === reqProvider)?.model;
         } else if (selectedModel === 'configured') {
           reqProvider = settings['llm.provider'];
           reqModel = settings['llm.model'];

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Check, Sparkles, Settings } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
+import { parseConfiguredProviders, isProviderConfigured } from '../config/providers';
 
 export interface ModelSelectorProps {
   /** 当前选中的项：'auto' 或 'configured' 或 'provider:<id>' */
@@ -22,22 +23,15 @@ export interface ModelSelectorProps {
 }
 
 interface ConfiguredOption {
-  id: string; // 'provider:openai' 或 'configured'
+  id: string; // 'provider:<id>' 或 'configured'
   provider: string;
   model: string;
   label: string;
 }
 
-const KNOWN_PROVIDERS = [
-  { id: 'openai', name: 'OpenAI', defaultModel: 'gpt-4o' },
-  { id: 'deepseek', name: 'DeepSeek', defaultModel: 'deepseek-chat' },
-  { id: 'ollama', name: 'Ollama', defaultModel: 'qwen2.5-coder' },
-  { id: 'custom', name: 'Custom', defaultModel: 'gpt-4o' },
-];
-
 /**
  * 模型选择下拉组件
- * 默认选中 auto，可动态列出所有已配置的服务商及其模型，并提供管理设置快捷入口
+ * 默认选中 auto，动态从当前设置中获取已配置的 Provider 及其模型，并提供快捷管理入口
  */
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
   value,
@@ -53,33 +47,19 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 解析所有已配置服务商
+  // 动态从 settings 中解析所有已设置的服务商
   const configuredList = useMemo<ConfiguredOption[]>(() => {
-    if (settings) {
-      const list: ConfiguredOption[] = [];
-      KNOWN_PROVIDERS.forEach((kp) => {
-        const prefix = `llm.providers.${kp.id}.`;
-        const isLegacy = settings['llm.provider'] === kp.id;
-        const apiKey = settings[prefix + 'api_key'] || (isLegacy ? settings['llm.api_key'] : '') || '';
-        const baseURL = settings[prefix + 'base_url'] || (isLegacy ? settings['llm.base_url'] : '') || '';
-        const model =
-          settings[prefix + 'model'] ||
-          (isLegacy ? settings['llm.model'] : '') ||
-          kp.defaultModel;
+    if (settings && Object.keys(settings).length > 0) {
+      const allProviders = parseConfiguredProviders(settings);
+      const configured = allProviders.filter(isProviderConfigured);
 
-        // 若配置了 API Key，或为无需 API Key 的 Ollama/自定义端点
-        const isConfigured = Boolean(apiKey || (kp.id === 'ollama' && baseURL) || (baseURL && kp.id === 'custom'));
-        if (isConfigured) {
-          list.push({
-            id: `provider:${kp.id}`,
-            provider: kp.name,
-            model: model || kp.defaultModel,
-            label: `${kp.name} (${model || kp.defaultModel})`,
-          });
-        }
-      });
-      if (list.length > 0) {
-        return list;
+      if (configured.length > 0) {
+        return configured.map((cp) => ({
+          id: `provider:${cp.id}`,
+          provider: cp.name,
+          model: cp.model,
+          label: `${cp.name} (${cp.model})`,
+        }));
       }
     }
 

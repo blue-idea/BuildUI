@@ -177,4 +177,41 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
       expect.anything()
     );
   });
+
+  it('retrieves and displays configured providers in model selector on home page from settings', () => {
+    const onSelectModel = vi.fn();
+    const mockSettings = {
+      'llm.provider_ids': 'ollama,custom_deepseek',
+      'llm.providers.ollama.name': 'Ollama Local Host',
+      'llm.providers.ollama.base_url': 'http://localhost:11434/v1',
+      'llm.providers.ollama.model': 'qwen2.5-coder:7b',
+      'llm.providers.custom_deepseek.name': 'DeepSeek Production',
+      'llm.providers.custom_deepseek.base_url': 'https://api.deepseek.com/v1',
+      'llm.providers.custom_deepseek.api_key': 'sk-test',
+      'llm.providers.custom_deepseek.model': 'deepseek-coder-v2',
+    };
+
+    renderWithProviders(
+      <HomeGuideView
+        onStartBuilding={vi.fn()}
+        selectedModel="auto"
+        onSelectModel={onSelectModel}
+        settings={mockSettings}
+      />
+    );
+
+    // 打开首页的模型选择下拉菜单
+    const modelBtn = screen.getByLabelText('Model selector');
+    fireEvent.click(modelBtn);
+
+    // 应该列出当前设置的 Provider 及其模型
+    const ollamaOption = screen.getByRole('option', { name: /qwen2\.5-coder:7b/i });
+    const deepseekOption = screen.getByRole('option', { name: /deepseek-coder-v2/i });
+    expect(ollamaOption).toBeDefined();
+    expect(deepseekOption).toBeDefined();
+
+    // 点击选择 Ollama 模型
+    fireEvent.click(ollamaOption);
+    expect(onSelectModel).toHaveBeenCalledWith('provider:ollama');
+  });
 });
