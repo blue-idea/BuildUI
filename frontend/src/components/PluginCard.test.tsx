@@ -2,6 +2,11 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { PluginCard } from './PluginCard';
 import { PluginItem } from '../types/plugin';
+import { I18nProvider } from '../i18n/I18nContext';
+
+const renderWithI18n = (ui: React.ReactElement, initialLocale = 'en' as const) => {
+  return render(<I18nProvider initialLocale={initialLocale}>{ui}</I18nProvider>);
+};
 
 describe('PluginCard Component (TDD)', () => {
   const samplePlugin: PluginItem = {
@@ -16,7 +21,7 @@ describe('PluginCard Component (TDD)', () => {
   };
 
   it('renders plugin details including name, badge, description, and domain', () => {
-    render(<PluginCard plugin={samplePlugin} onAdd={vi.fn()} />);
+    renderWithI18n(<PluginCard plugin={samplePlugin} onAdd={vi.fn()} />);
 
     expect(screen.getByText('Stripe')).toBeDefined();
     expect(screen.getByText('OAuth')).toBeDefined();
@@ -26,7 +31,7 @@ describe('PluginCard Component (TDD)', () => {
 
   it('calls onAdd callback when clicking the Add button for uninstalled plugin', () => {
     const handleAdd = vi.fn();
-    render(<PluginCard plugin={samplePlugin} onAdd={handleAdd} />);
+    renderWithI18n(<PluginCard plugin={samplePlugin} onAdd={handleAdd} />);
 
     const addButton = screen.getByRole('button', { name: /Add/i });
     expect(addButton).toBeDefined();
@@ -42,7 +47,7 @@ describe('PluginCard Component (TDD)', () => {
       isInstalled: true,
     };
 
-    render(<PluginCard plugin={installedPlugin} onAdd={vi.fn()} onRemove={vi.fn()} />);
+    renderWithI18n(<PluginCard plugin={installedPlugin} onAdd={vi.fn()} onRemove={vi.fn()} />);
 
     expect(screen.getByText('Added')).toBeDefined();
   });

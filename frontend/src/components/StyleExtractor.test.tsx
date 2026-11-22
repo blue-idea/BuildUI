@@ -1,10 +1,16 @@
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { StyleExtractor } from './StyleExtractor';
+import { I18nProvider } from '../i18n/I18nContext';
+
+const renderWithI18n = (ui: React.ReactElement, initialLocale = 'en' as const) => {
+  return render(<I18nProvider initialLocale={initialLocale}>{ui}</I18nProvider>);
+};
 
 describe('StyleExtractor Component (TDD)', () => {
   it('renders input area for reference brand/product and image upload trigger', () => {
-    render(<StyleExtractor onSaveTemplate={vi.fn()} />);
+    renderWithI18n(<StyleExtractor onSaveTemplate={vi.fn()} />);
 
     expect(screen.getByPlaceholderText(/e\.g\. Linear, Stripe, Apple, Notion/i)).toBeDefined();
     expect(screen.getByText(/Upload Reference Image/i)).toBeDefined();
@@ -12,7 +18,7 @@ describe('StyleExtractor Component (TDD)', () => {
   });
 
   it('extracts style and displays color palette and generated design prompt when extracting', async () => {
-    render(<StyleExtractor onSaveTemplate={vi.fn()} />);
+    renderWithI18n(<StyleExtractor onSaveTemplate={vi.fn()} />);
 
     const brandInput = screen.getByPlaceholderText(/e\.g\. Linear, Stripe, Apple, Notion/i);
     fireEvent.change(brandInput, { target: { value: 'Linear' } });
@@ -29,7 +35,7 @@ describe('StyleExtractor Component (TDD)', () => {
 
   it('calls onSaveTemplate callback when clicking Save as Style Template button', () => {
     const handleSave = vi.fn();
-    render(<StyleExtractor onSaveTemplate={handleSave} />);
+    renderWithI18n(<StyleExtractor onSaveTemplate={handleSave} />);
 
     const brandInput = screen.getByPlaceholderText(/e\.g\. Linear, Stripe, Apple, Notion/i);
     fireEvent.change(brandInput, { target: { value: 'Stripe' } });

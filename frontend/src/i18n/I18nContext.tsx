@@ -14,7 +14,7 @@ interface I18nContextValue {
   locale: Locale;
   setLocale: (locale: Locale) => void;
   toggleLocale: () => void;
-  t: (path: string, fallback?: string) => string;
+  t: (path: string, paramsOrFallback?: Record<string, string | number> | string, fallback?: string) => string;
   dict: I18nDictionary;
 }
 
@@ -24,6 +24,18 @@ export interface I18nProviderProps {
   children: React.ReactNode;
   initialLocale?: Locale;
 }
+
+const interpolate = (
+  raw: string,
+  params?: Record<string, string | number>
+): string => {
+  if (!params) return raw;
+  let result = raw;
+  for (const [key, val] of Object.entries(params)) {
+    result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), String(val));
+  }
+  return result;
+};
 
 export const I18nProvider: React.FC<I18nProviderProps> = ({ children, initialLocale }) => {
   const [locale, setLocaleState] = useState<Locale>(() => {
@@ -57,7 +69,14 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children, initialLoc
 
   const currentDict = dictionaries[locale] || dictionaries.en;
 
-  const t = (path: string, fallback?: string): string => {
+  const t = (
+    path: string,
+    paramsOrFallback?: Record<string, string | number> | string,
+    fallback?: string
+  ): string => {
+    const params = typeof paramsOrFallback === 'object' && paramsOrFallback !== null ? paramsOrFallback : undefined;
+    const fb = typeof paramsOrFallback === 'string' ? paramsOrFallback : fallback;
+
     const keys = path.split('.');
     let current: any = currentDict;
     for (const key of keys) {
@@ -74,10 +93,12 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({ children, initialLoc
             break;
           }
         }
-        return typeof fallbackDict === 'string' ? fallbackDict : (fallback || path);
+        const resolvedFallback = typeof fallbackDict === 'string' ? fallbackDict : (fb || path);
+        return interpolate(resolvedFallback, params);
       }
     }
-    return typeof current === 'string' ? current : (fallback || path);
+    const resolved = typeof current === 'string' ? current : (fb || path);
+    return interpolate(resolved, params);
   };
 
   const value: I18nContextValue = {
@@ -95,17 +116,25 @@ const defaultContextValue: I18nContextValue = {
   locale: 'en',
   setLocale: () => {},
   toggleLocale: () => {},
-  t: (path: string, fallback?: string): string => {
+  t: (
+    path: string,
+    paramsOrFallback?: Record<string, string | number> | string,
+    fallback?: string
+  ): string => {
+    const params = typeof paramsOrFallback === 'object' && paramsOrFallback !== null ? paramsOrFallback : undefined;
+    const fb = typeof paramsOrFallback === 'string' ? paramsOrFallback : fallback;
+
     const keys = path.split('.');
     let current: any = dictionaries.en;
     for (const key of keys) {
       if (current && typeof current === 'object' && key in current) {
         current = current[key];
       } else {
-        return fallback || path;
+        return interpolate(fb || path, params);
       }
     }
-    return typeof current === 'string' ? current : (fallback || path);
+    const resolved = typeof current === 'string' ? current : (fb || path);
+    return interpolate(resolved, params);
   },
   dict: dictionaries.en,
 };

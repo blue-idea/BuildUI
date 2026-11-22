@@ -1,10 +1,16 @@
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { AddPluginModal } from './AddPluginModal';
+import { I18nProvider } from '../i18n/I18nContext';
+
+const renderWithI18n = (ui: React.ReactElement, initialLocale = 'en' as const) => {
+  return render(<I18nProvider initialLocale={initialLocale}>{ui}</I18nProvider>);
+};
 
 describe('AddPluginModal Component (TDD)', () => {
   it('renders dialog with inputs for name, endpoint/command, and description when open', () => {
-    render(
+    renderWithI18n(
       <AddPluginModal
         isOpen={true}
         onClose={vi.fn()}
@@ -18,7 +24,7 @@ describe('AddPluginModal Component (TDD)', () => {
   });
 
   it('does not render when isOpen is false', () => {
-    render(
+    renderWithI18n(
       <AddPluginModal
         isOpen={false}
         onClose={vi.fn()}
@@ -31,7 +37,7 @@ describe('AddPluginModal Component (TDD)', () => {
 
   it('validates required fields before submitting', () => {
     const handleSubmit = vi.fn();
-    render(
+    renderWithI18n(
       <AddPluginModal
         isOpen={true}
         onClose={vi.fn()}
@@ -50,7 +56,7 @@ describe('AddPluginModal Component (TDD)', () => {
   it('submits valid plugin information and triggers callback', () => {
     const handleSubmit = vi.fn();
     const handleClose = vi.fn();
-    render(
+    renderWithI18n(
       <AddPluginModal
         isOpen={true}
         onClose={handleClose}

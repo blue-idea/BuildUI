@@ -954,6 +954,12 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             }
             setActiveDockTab('components');
           }}
+          onOpenStyle={() => {
+            if (activeDockTab !== 'style') {
+              setPreviousDockTab(activeDockTab);
+            }
+            setActiveDockTab('style');
+          }}
         />
 
         {activeDockTab === 'home' ? (

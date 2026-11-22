@@ -151,4 +151,96 @@ describe('TASK-026: i18n Localization Engine and Dictionaries', () => {
     expect(screen.getByText('App')).toBeDefined();
     expect(screen.getByText('空白项目')).toBeDefined();
   });
+
+  it('renders ComponentCenterView in Chinese when locale is zh and English when locale is en', async () => {
+    const { ComponentCenterView } = await import('../components/ComponentCenterView');
+
+    // zh 测试
+    const { unmount } = render(
+      <I18nProvider initialLocale="zh">
+        <ComponentCenterView />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText('插件与组件扩展')).toBeDefined();
+    expect(screen.getByText('连接外部插件（MCP 服务器）赋予 AI 更多生产力工具。')).toBeDefined();
+    expect(screen.getByRole('button', { name: /\+ 添加插件/i })).toBeDefined();
+    expect(screen.getByText('从精选目录添加')).toBeDefined();
+    expect(screen.getByText('精选推荐')).toBeDefined();
+    expect(screen.getByText('AI 与多媒体')).toBeDefined();
+    expect(screen.getByPlaceholderText('搜索插件目录...')).toBeDefined();
+
+    unmount();
+
+    // en 测试
+    render(
+      <I18nProvider initialLocale="en">
+        <ComponentCenterView />
+      </I18nProvider>
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Plugins' })).toBeDefined();
+    expect(screen.getByText('Connect plugins (MCP servers) to give the AI new tools.')).toBeDefined();
+    expect(screen.getByRole('button', { name: /\+ Add Plugin/i })).toBeDefined();
+    expect(screen.getByText('Add from catalog')).toBeDefined();
+    expect(screen.getByText('Featured')).toBeDefined();
+    expect(screen.getByText('AI & Media')).toBeDefined();
+    expect(screen.getByPlaceholderText('Search catalog')).toBeDefined();
+  });
+
+  it('renders StyleCenterView & StyleExtractor in Chinese when locale is zh and English when en', async () => {
+    const { StyleCenterView } = await import('../components/StyleCenterView');
+
+    const samplePresets = [
+      {
+        id: 'macos',
+        name: 'macOS Tahoe Blue',
+        primary: '#007aff',
+        background: '#f8fafc',
+        surface: '#ffffff',
+        text: '#0f172a',
+      },
+    ];
+
+    // zh 测试
+    const { unmount } = render(
+      <I18nProvider initialLocale="zh">
+        <StyleCenterView presets={samplePresets} activeThemeId="macos" onSelectTheme={() => {}} />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText('风格与设计中心')).toBeDefined();
+    expect(screen.getByText('风格模版库')).toBeDefined();
+    expect(screen.getByText('参照物风格提取器')).toBeDefined();
+    expect(screen.getByText(/可用风格模版 \(1\)/)).toBeDefined();
+    expect(screen.getByText('已启用')).toBeDefined();
+
+    // 切换至提取器
+    fireEvent.click(screen.getByTestId('style-tab-extractor'));
+    expect(screen.getByText('参照物输入')).toBeDefined();
+    expect(screen.getByText('参照物品牌或关键词')).toBeDefined();
+    expect(screen.getByPlaceholderText(/例如：Linear, Stripe, Apple/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /提取风格与设计 Prompt/i })).toBeDefined();
+
+    unmount();
+
+    // en 测试
+    render(
+      <I18nProvider initialLocale="en">
+        <StyleCenterView presets={samplePresets} activeThemeId="macos" onSelectTheme={() => {}} />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText('Design & Style Center')).toBeDefined();
+    expect(screen.getByText('Style Templates')).toBeDefined();
+    expect(screen.getByText('Reference Extractor')).toBeDefined();
+    expect(screen.getByText(/Available Templates \(1\)/)).toBeDefined();
+    expect(screen.getByText('Active')).toBeDefined();
+
+    fireEvent.click(screen.getByTestId('style-tab-extractor'));
+    expect(screen.getByText('Reference Input')).toBeDefined();
+    expect(screen.getByText('Reference Brand or Keyword')).toBeDefined();
+    expect(screen.getByPlaceholderText(/e\.g\. Linear, Stripe, Apple/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /Extract Style & Prompt/i })).toBeDefined();
+  });
 });

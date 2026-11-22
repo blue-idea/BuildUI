@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PluginItem } from '../types/plugin';
 import { X, Plug, AlertCircle } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface AddPluginModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
   onClose,
   onSubmit,
 }) => {
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
   const [description, setDescription] = useState('');
@@ -44,11 +46,11 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setErrorMessage('Plugin name is required.');
+      setErrorMessage(t('pluginsPage.errorNameRequired'));
       return;
     }
     if (!domain.trim()) {
-      setErrorMessage('Endpoint or command is required.');
+      setErrorMessage(t('pluginsPage.errorEndpointRequired'));
       return;
     }
 
@@ -80,10 +82,10 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100">
-                Add Custom Plugin
+                {t('pluginsPage.modalTitle')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Connect an external MCP server or custom tool.
+                {t('pluginsPage.modalDesc')}
               </p>
             </div>
           </div>
@@ -107,7 +109,7 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-              Plugin Name *
+              {t('pluginsPage.modalNameLabel')}
             </label>
             <input
               type="text"
@@ -116,14 +118,14 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
                 setName(e.target.value);
                 if (errorMessage) setErrorMessage('');
               }}
-              placeholder="e.g. GitHub MCP or Postgres"
+              placeholder={t('pluginsPage.modalNamePlaceholder')}
               className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-              Endpoint URL or Command *
+              {t('pluginsPage.modalEndpointLabel')}
             </label>
             <input
               type="text"
@@ -132,21 +134,21 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
                 setDomain(e.target.value);
                 if (errorMessage) setErrorMessage('');
               }}
-              placeholder="mcp.example.com or npx -y ..."
+              placeholder={t('pluginsPage.modalEndpointPlaceholder')}
               className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-              Description (Optional)
+              {t('pluginsPage.modalDescLabel')}
             </label>
             <textarea
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of this tool capability"
-              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
+              placeholder={t('pluginsPage.modalDescPlaceholder')}
+              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
             />
           </div>
 
@@ -156,14 +158,14 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 text-xs font-medium rounded-xl text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
             >
-              Cancel
+              {t('pluginsPage.modalCancel')}
             </button>
             <button
               type="submit"
               data-testid="btn-submit-plugin"
               className="px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-colors"
             >
-              Add Plugin
+              {t('pluginsPage.modalSubmit')}
             </button>
           </div>
         </form>

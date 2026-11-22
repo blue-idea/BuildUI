@@ -8,7 +8,7 @@ import { I18nProvider } from '../i18n/I18nContext';
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(
     <ThemeProvider>
-      <I18nProvider>{ui}</I18nProvider>
+      <I18nProvider initialLocale="en">{ui}</I18nProvider>
     </ThemeProvider>
   );
 };

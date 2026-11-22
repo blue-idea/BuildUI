@@ -3,6 +3,7 @@ import { ArrowLeft, Plus, Search, Star, Sparkles } from 'lucide-react';
 import { PluginItem, CatalogCategory } from '../types/plugin';
 import { PluginCard } from './PluginCard';
 import { AddPluginModal } from './AddPluginModal';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface ComponentCenterViewProps {
   onGoBack?: () => void;
@@ -96,6 +97,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
   onGoBack,
   initialInstalledPlugins = [],
 }) => {
+  const { t } = useI18n();
   const [installedPlugins, setInstalledPlugins] = useState<PluginItem[]>(initialInstalledPlugins);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -184,7 +186,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Go Back</span>
+                <span>{t('pluginsPage.goBack')}</span>
               </button>
             </div>
           )}
@@ -192,10 +194,10 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100">
-                Plugins
+                {t('pluginsPage.title')}
               </h1>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-                Connect plugins (MCP servers) to give the AI new tools.
+                {t('pluginsPage.subtitle')}
               </p>
             </div>
 
@@ -206,19 +208,19 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Add Plugin</span>
+              <span>{t('pluginsPage.addPlugin')}</span>
             </button>
           </div>
 
           {/* 插件统计与状态 */}
           <div className="flex flex-col gap-2">
             <div className="text-xs font-medium text-slate-500 dark:text-zinc-400">
-              {totalPlugins} plugins · {totalTools} tools enabled
+              {t('pluginsPage.statusSummary', { plugins: totalPlugins, tools: totalTools })}
             </div>
 
             {totalPlugins === 0 ? (
               <div className="text-xs text-slate-400 dark:text-zinc-500 py-3">
-                No plugins added yet.
+                {t('pluginsPage.emptyInstalled')}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
@@ -239,10 +241,10 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
-                Add from catalog
+                {t('pluginsPage.catalogTitle')}
               </h2>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                Curated plugins that connect with minimal configuration.
+                {t('pluginsPage.catalogSubtitle')}
               </p>
             </div>
 
@@ -253,7 +255,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search catalog"
+                placeholder={t('pluginsPage.searchPlaceholder')}
                 className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-2xs"
               />
             </div>
@@ -263,7 +265,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
           <div className="space-y-6">
             {filteredCategories.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400 dark:text-zinc-500 bg-white dark:bg-zinc-900/50 rounded-2xl border border-slate-200 dark:border-zinc-800">
-                No plugins found matching &quot;{searchQuery}&quot;.
+                {t('pluginsPage.noResults', { query: searchQuery })}
               </div>
             ) : (
               filteredCategories.map((category) => (
@@ -274,7 +276,13 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
                     ) : (
                       <Sparkles className="w-3.5 h-3.5 text-slate-400" />
                     )}
-                    <span>{category.title}</span>
+                    <span>
+                      {category.id === 'featured'
+                        ? t('pluginsPage.catFeatured')
+                        : category.id === 'ai_media'
+                          ? t('pluginsPage.catAiMedia')
+                          : category.title}
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

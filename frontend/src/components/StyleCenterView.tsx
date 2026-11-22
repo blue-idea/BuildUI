@@ -3,6 +3,7 @@ import { ThemePreset } from './ThemeSelector';
 import { StyleExtractor } from './StyleExtractor';
 import { ExtractedStyle } from '../types/style';
 import { Palette, Sparkles, Check, Trash2, Layers } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface StyleCenterViewProps {
   presets: ThemePreset[];
@@ -19,6 +20,7 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
   onAddCustomPreset,
   onDeleteCustomPreset,
 }) => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'templates' | 'extractor'>('templates');
   const [templates, setTemplates] = useState<ThemePreset[]>(initialPresets);
 
@@ -62,10 +64,10 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 flex items-center gap-2.5">
               <Palette className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              <span>Design & Style Center</span>
+              <span>{t('stylePage.title')}</span>
             </h1>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-              Manage application color tokens, visual styles, and extract designs from reference products.
+              {t('stylePage.subtitle')}
             </p>
           </div>
 
@@ -82,7 +84,7 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>Style Templates</span>
+              <span>{t('stylePage.tabTemplates')}</span>
             </button>
 
             <button
@@ -96,7 +98,7 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Reference Extractor</span>
+              <span>{t('stylePage.tabExtractor')}</span>
             </button>
           </div>
         </div>
@@ -106,10 +108,10 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">
-                Available Templates ({templates.length})
+                {t('stylePage.availableCount', { count: templates.length })}
               </span>
               <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                Click any template card to apply as global application theme
+                {t('stylePage.clickToApply')}
               </span>
             </div>
 
@@ -135,7 +137,7 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
                           {isActive && (
                             <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
                               <Check className="w-2.5 h-2.5" />
-                              Active
+                              {t('stylePage.badgeActive')}
                             </span>
                           )}
                         </span>

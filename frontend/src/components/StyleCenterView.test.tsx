@@ -1,7 +1,13 @@
+import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { StyleCenterView } from './StyleCenterView';
 import { ThemePreset } from './ThemeSelector';
+import { I18nProvider } from '../i18n/I18nContext';
+
+const renderWithI18n = (ui: React.ReactElement, initialLocale = 'en' as const) => {
+  return render(<I18nProvider initialLocale={initialLocale}>{ui}</I18nProvider>);
+};
 
 describe('StyleCenterView Component (TDD)', () => {
   const initialPresets: ThemePreset[] = [
@@ -24,7 +30,7 @@ describe('StyleCenterView Component (TDD)', () => {
   ];
 
   it('renders tabs for Style Templates and Reference Extractor', () => {
-    render(
+    renderWithI18n(
       <StyleCenterView
         presets={initialPresets}
         activeThemeId="macos"
@@ -37,7 +43,7 @@ describe('StyleCenterView Component (TDD)', () => {
   });
 
   it('switches to Reference Extractor tab when clicked', () => {
-    render(
+    renderWithI18n(
       <StyleCenterView
         presets={initialPresets}
         activeThemeId="macos"
@@ -53,7 +59,7 @@ describe('StyleCenterView Component (TDD)', () => {
 
   it('adds newly extracted style into templates list upon saving and switches tab', () => {
     const handleSelectTheme = vi.fn();
-    render(
+    renderWithI18n(
       <StyleCenterView
         presets={initialPresets}
         activeThemeId="macos"

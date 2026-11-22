@@ -1,6 +1,7 @@
 import React from 'react';
 import { PluginItem } from '../types/plugin';
 import { Check } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface PluginCardProps {
   plugin: PluginItem;
@@ -70,6 +71,7 @@ const renderBrandIcon = (plugin: PluginItem) => {
 };
 
 export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove }) => {
+  const { t } = useI18n();
   const isInstalled = Boolean(plugin.isInstalled);
 
   return (
@@ -106,7 +108,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove 
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
               <Check className="w-3 h-3" />
-              Added
+              {t('pluginsPage.btnAdded')}
             </span>
             {onRemove && (
               <button
@@ -114,7 +116,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove 
                 onClick={() => onRemove(plugin.id)}
                 className="text-[11px] text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
               >
-                Remove
+                {t('pluginsPage.btnRemove')}
               </button>
             )}
           </div>
@@ -124,7 +126,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove 
             onClick={() => onAdd?.(plugin)}
             className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors shadow-2xs active:scale-98"
           >
-            Add
+            {t('pluginsPage.btnAdd')}
           </button>
         )}
       </div>
