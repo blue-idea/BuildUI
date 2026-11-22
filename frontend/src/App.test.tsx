@@ -41,7 +41,7 @@ describe('App Guided Mode Home & Navigation', () => {
     expect(screen.getByTestId('guide-submit-btn')).toBeDefined();
   });
 
-  it('navigates from Guided Mode Home into Builder and populates prompt', () => {
+  it('navigates from Guided Mode Home into Builder and automatically starts generating without clicking send', async () => {
     render(<App /* default home */ />);
     const input = screen.getByTestId('guide-user-input');
     fireEvent.change(input, { target: { value: 'Create a crypto dashboard' } });
@@ -49,10 +49,105 @@ describe('App Guided Mode Home & Navigation', () => {
     const enterBtn = screen.getByTestId('guide-submit-btn');
     fireEvent.click(enterBtn);
 
-    // Now in Builder!
+    // 自动进入构建区并开始生成，无需再次点击发送指令
     expect(screen.getByText(/Chat & Blueprint/i)).toBeDefined();
+    await waitFor(() => {
+      expect(screen.getByText(/Create a crypto dashboard/i)).toBeDefined();
+    });
     const chatInput = screen.getByPlaceholderText(/describe what to build/i) as HTMLTextAreaElement;
-    expect(chatInput.value).toContain('Create a crypto dashboard');
+    expect(chatInput.value).toBe('');
+  });
+
+  it('桌面端首页点击开始生成按钮，自动创建项目并直接调用生成，无需再次点击发送指令', async () => {
+    const create = vi.fn().mockResolvedValue({ appId: 88, name: 'Crypto App', path: '/crypto' });
+    const streamChat = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: vi.fn().mockResolvedValue({}),
+          ListApps: vi.fn().mockResolvedValue([]),
+          CreateApp: create,
+          SwitchApp: vi.fn().mockResolvedValue({ appId: 88, name: 'Crypto App', path: '/crypto' }),
+          GetProjectChat: vi.fn().mockResolvedValue({ chatId: 108, messages: [] }),
+          GetVersions: vi.fn().mockResolvedValue([]),
+          ListProjectFiles: vi.fn().mockResolvedValue([]),
+          StreamChat: streamChat,
+        },
+      },
+    });
+
+    try {
+      render(<App /* default home */ />);
+      const input = screen.getByTestId('guide-user-input');
+      fireEvent.change(input, { target: { value: 'Crypto Trading Platform' } });
+
+      const enterBtn = screen.getByTestId('guide-submit-btn');
+      fireEvent.click(enterBtn);
+
+      await waitFor(() => {
+        expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: expect.stringContaining('Crypto Trading Platform') }));
+      });
+      await waitFor(() => {
+        expect(streamChat).toHaveBeenCalledWith(expect.objectContaining({
+          chatId: 108,
+          prompt: expect.stringContaining('Crypto Trading Platform'),
+        }));
+      });
+      // 验证在构建区中展示了用户提交的需求内容
+      expect(screen.getByText(/Chat & Blueprint/i)).toBeDefined();
+      expect(screen.getByText(/Crypto Trading Platform/i)).toBeDefined();
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('桌面端构建页发送指令在无活跃项目时，自动创建项目开始构建，而不是跳转到工程管理页面', async () => {
+    const create = vi.fn().mockResolvedValue({ appId: 99, name: 'My Direct App', path: '/direct' });
+    const streamChat = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: vi.fn().mockResolvedValue({}),
+          ListApps: vi.fn().mockResolvedValue([]),
+          CreateApp: create,
+          SwitchApp: vi.fn().mockResolvedValue({ appId: 99, name: 'My Direct App', path: '/direct' }),
+          GetProjectChat: vi.fn().mockResolvedValue({ chatId: 202, messages: [] }),
+          GetVersions: vi.fn().mockResolvedValue([]),
+          ListProjectFiles: vi.fn().mockResolvedValue([]),
+          StreamChat: streamChat,
+        },
+      },
+    });
+
+    try {
+      // 直接初始化在构建区，当前无任何已激活项目
+      render(<App initialDockTab="builder" />);
+
+      const chatInput = screen.getByPlaceholderText(/describe what to build/i);
+      fireEvent.change(chatInput, { target: { value: 'Build an invoice generator' } });
+
+      const sendBtn = screen.getByRole('button', { name: /send prompt/i });
+      fireEvent.click(sendBtn);
+
+      // 验证没有跳转到工程管理页面
+      expect(screen.queryByTestId('projects-center-view')).toBeNull();
+
+      // 验证自动触发了项目创建与 StreamChat
+      await waitFor(() => {
+        expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: expect.stringContaining('Build an invoice generator') }));
+      });
+      await waitFor(() => {
+        expect(streamChat).toHaveBeenCalledWith(expect.objectContaining({
+          chatId: 202,
+          prompt: 'Build an invoice generator',
+        }));
+      });
+      expect(screen.getByText('Build an invoice generator')).toBeDefined();
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('switches between Home, Builder, and Style views via LeftDock icons', () => {

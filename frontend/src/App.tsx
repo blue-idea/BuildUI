@@ -10,7 +10,7 @@ import { TemplateModal, AppTemplate } from './components/TemplateModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
 import { MacOSWindowHeader } from './components/MacOSWindowHeader';
 import { LeftDock, DockTab } from './components/LeftDock';
-import { HomeGuideView } from './components/HomeGuideView';
+import { HomeGuideView, GuideCustomizationOptions } from './components/HomeGuideView';
 import { TemplateCenterView } from './components/TemplateCenterView';
 import { ComponentCenterView } from './components/ComponentCenterView';
 import { StyleCenterView } from './components/StyleCenterView';
@@ -22,6 +22,7 @@ import { ThemePreset } from './components/ThemeSelector';
 import { ThemeProvider } from './context/ThemeContext';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
 import { generateSandboxDoc } from './utils/sandboxTemplate';
+import { generateSafeAppName } from './utils/appName';
 import {
   fetchSettings,
   saveSettings,
@@ -426,7 +427,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     }
   };
 
-  const updateProject = async (operation: () => Promise<void>) => {
+  const updateProject = async (operation: () => Promise<void>): Promise<void> => {
     setIsChangingProject(true);
     setProjectError('');
     try {
@@ -438,7 +439,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     }
   };
 
-  const createDesktopProject = (name: string, templateId?: string) => updateProject(async () => {
+  const createDesktopProject = (name: string, templateId?: string): Promise<void> => updateProject(async () => {
     const api = desktopApp();
     const created = templateId
       ? await api.CreateAppFromTemplate({ appName: name, templateId })
@@ -450,13 +451,19 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     await activateProject(created.appId);
   });
 
-  const runDesktopTurn = async (prompt: string, images: string[], mode: 'build' | 'plan', approve = false) => {
-    if (!chatID.current || turn.current || isChangingProject) return;
+  const runDesktopTurn = async (
+    prompt: string,
+    images: string[],
+    mode: 'build' | 'plan',
+    approve = false,
+    explicitChatId?: number
+  ) => {
+    const id = explicitChatId ?? chatID.current;
+    if (!id || turn.current) return;
     const current = { id: `turn-${Date.now()}`, commit: '', cancelled: false };
     turn.current = current;
     setProjectError('');
     setIsGenerating(true);
-    const id = chatID.current;
     try {
       if (approve) {
         await desktopApp().ApproveBlueprint(id);
@@ -482,9 +489,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         provider: reqProvider,
         model: reqModel,
       });
-      const history = await refreshProject(activeAppId);
+      const currentAppId = activeAppId || projectID.current;
+      const history = await refreshProject(currentAppId);
       if (current.commit || (mode === 'build' && (approve || blueprint?.approved) && history.length > 1)) {
-        await startPreview(activeAppId, true);
+        await startPreview(currentAppId, true);
       }
     } catch (error) {
       if (!current.cancelled) reportError(error);
@@ -656,32 +664,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     e.target.value = '';
   };
 
-  const handleSendPrompt = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const prompt = inputPrompt.trim();
-    if (!prompt && attachments.length === 0) return;
-    if (desktop && !chatID.current) {
-      if (activeDockTab !== 'projects') setPreviousDockTab(activeDockTab);
-      setActiveDockTab('projects');
-      return;
-    }
-    if (desktop && (turn.current || isChangingProject)) return;
-
-    const currentAttachments = [...attachments];
-    const userMsg: ChatMessage = {
-      id: String(Date.now()),
-      sender: 'user',
-      content: prompt || (currentAttachments.length > 0 ? t('chat.attachedImage') : ''),
-      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInputPrompt('');
-    setAttachments([]);
-    if (desktop) {
-      void runDesktopTurn(prompt, currentAttachments.map((attachment) => attachment.dataUrl), buildMode);
-      return;
-    }
-
+  const runWebTurn = (prompt: string) => {
     if (prompt.toLowerCase().includes('recharts') || prompt.toLowerCase().includes('lucide-react')) {
       setInstallingDeps('lucide-react, recharts');
       setTimeout(() => {
@@ -740,6 +723,86 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         setSystemLogs((prev) => [...prev, `Updated components for "${prompt}"`]);
       }, 500);
     }
+  };
+
+  const handleSendPrompt = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const prompt = inputPrompt.trim();
+    if (!prompt && attachments.length === 0) return;
+    if (desktop && turn.current) return;
+    if (desktop && chatID.current && isChangingProject) return;
+
+    const currentAttachments = [...attachments];
+    setInputPrompt('');
+    setAttachments([]);
+
+    if (desktop) {
+      if (!chatID.current) {
+        // 构建页点击发送指令在无活跃项目时，自动创建新项目并激活，不再跳转工程管理页面
+        const appName = generateSafeAppName(prompt, apps.map((a) => a.name));
+        await createDesktopProject(appName);
+      }
+      if (!chatID.current) return;
+
+      const userMsg: ChatMessage = {
+        id: String(Date.now()),
+        sender: 'user',
+        content: prompt || (currentAttachments.length > 0 ? t('chat.attachedImage') : ''),
+        attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      void runDesktopTurn(prompt, currentAttachments.map((attachment) => attachment.dataUrl), buildMode, false, chatID.current);
+      return;
+    }
+
+    const userMsg: ChatMessage = {
+      id: String(Date.now()),
+      sender: 'user',
+      content: prompt || (currentAttachments.length > 0 ? t('chat.attachedImage') : ''),
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    runWebTurn(prompt);
+  };
+
+  const handleStartBuilding = async (
+    prompt: string,
+    options?: GuideCustomizationOptions,
+    initialAttachments?: AttachmentItem[]
+  ) => {
+    setActiveDockTab('builder');
+    const atts = initialAttachments && initialAttachments.length > 0 ? initialAttachments : [];
+    setInputPrompt('');
+    setAttachments([]);
+
+    if (desktop) {
+      if (turn.current) return;
+      // 首页点击开始生成按钮，自动创建新项目并直接开始构建，无需再次点击发送指令
+      const appName = generateSafeAppName(options?.userInput || prompt, apps.map((a) => a.name));
+      const templateId = options?.template && options.template !== 'blank' ? options.template : undefined;
+      await createDesktopProject(appName, templateId);
+      if (!chatID.current) return;
+
+      const userMsg: ChatMessage = {
+        id: String(Date.now()),
+        sender: 'user',
+        content: prompt || (atts.length > 0 ? t('chat.attachedImage') : ''),
+        attachments: atts.length > 0 ? atts : undefined,
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      void runDesktopTurn(prompt, atts.map((att) => att.dataUrl), 'build', false, chatID.current);
+      return;
+    }
+
+    // Web 模拟模式下自动进入构建区并开始生成
+    const userMsg: ChatMessage = {
+      id: String(Date.now()),
+      sender: 'user',
+      content: prompt || (atts.length > 0 ? t('chat.attachedImage') : ''),
+      attachments: atts.length > 0 ? atts : undefined,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    runWebTurn(prompt);
   };
 
   const handleCancelGeneration = () => {
@@ -1015,13 +1078,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             settings={settings}
             onOpenSettings={() => setIsSettingsOpen(true)}
             initialAttachments={attachments}
-            onStartBuilding={(prompt, _options, initialAttachments) => {
-              setInputPrompt(prompt);
-              if (initialAttachments && initialAttachments.length > 0) {
-                setAttachments(initialAttachments);
-              }
-              setActiveDockTab('builder');
-            }}
+            onStartBuilding={handleStartBuilding}
             onBrowseTemplates={() => setActiveDockTab('templates')}
           />
         ) : activeDockTab === 'projects' ? (
