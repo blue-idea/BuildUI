@@ -133,6 +133,7 @@ export const en: I18nDictionary = {
     startingApp: 'Starting up your app...',
     systemMessages: 'System Messages',
     reload: 'Reload preview',
+    restart: 'Restart preview',
     openExternal: 'Open in new tab',
     back: 'Back',
     forward: 'Forward',

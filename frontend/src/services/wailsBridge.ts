@@ -40,7 +40,7 @@ interface DesktopMethods {
   StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[]; provider?: string; model?: string; resume?: boolean }) => Promise<void>;
   ListProviderModels?: (provider: string, baseURL: string, apiKey: string) => Promise<string[]>;
   CancelChat: (chatId: number) => Promise<void>;
-  RunApp: (req: { appId: number }) => Promise<{ previewUrl: string; typeScriptChecked?: boolean; repairAttempts?: number }>;
+  RunApp: (req: { appId: number; restart?: boolean }) => Promise<{ previewUrl: string; typeScriptChecked?: boolean; repairAttempts?: number }>;
   StopApp?: (req: { appId: number }) => Promise<void>;
   ListProjectFiles: (appId: number) => Promise<string[]>;
   ReadProjectFile: (appId: number, path: string) => Promise<string>;

@@ -133,6 +133,7 @@ export interface I18nDictionary {
     startingApp: string;
     systemMessages: string;
     reload: string;
+    restart: string;
     openExternal: string;
     back: string;
     forward: string;

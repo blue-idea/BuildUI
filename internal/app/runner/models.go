@@ -2,7 +2,8 @@ package runner
 
 // RunAppRequest 启动应用请求
 type RunAppRequest struct {
-	AppID int64 `json:"appId"`
+	AppID   int64 `json:"appId"`
+	Restart bool  `json:"restart,omitempty"`
 }
 
 // RunAppResponse 启动应用响应

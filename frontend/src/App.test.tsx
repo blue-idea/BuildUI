@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { App } from './App';
 
@@ -27,12 +27,16 @@ it('手动启动预览时显示后端检查进度，修复完成后刷新源码�
     await waitFor(() => expect(listFiles).toHaveBeenCalledWith(41));
     fireEvent.click(screen.getByRole('button', { name: 'Start preview' }));
     await waitFor(() => expect(runApp).toHaveBeenCalledWith({ appId: 41 }));
-    handlers.get('preview:progress')?.({ appId: 41, message: 'Checking project TypeScript…' });
+    act(() => handlers.get('preview:progress')?.({ appId: 41, message: 'Checking project TypeScript…' }));
     expect(await screen.findByText('Checking project TypeScript…')).toBeDefined();
     expect(screen.queryByTitle('App live preview')).toBeNull();
-    finishPreview({ previewUrl: 'http://localhost:8080', typeScriptChecked: true, repairAttempts: 1 });
+    await act(async () => finishPreview({ previewUrl: 'http://localhost:8080', typeScriptChecked: true, repairAttempts: 1 }));
     expect((await screen.findByTitle('App live preview')).getAttribute('src')).toBe('http://localhost:8080');
     await waitFor(() => expect(listFiles).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Restart preview' }));
+    await waitFor(() => expect(runApp).toHaveBeenLastCalledWith({ appId: 41, restart: true }));
+    await act(async () => finishPreview({ previewUrl: 'http://localhost:8081', typeScriptChecked: true, repairAttempts: 0 }));
+    expect((await screen.findByTitle('App live preview')).getAttribute('src')).toBe('http://localhost:8081');
   } finally {
     vi.unstubAllGlobals();
   }
@@ -42,6 +46,7 @@ it('手动启动预览时显示后端检查进度，修复完成后刷新源码�
 it('从桌面会话恢复已保存的阶段并发送续建请求', async () => {
   const project = { appId: 41, name: 'Subscription SaaS', path: '/saas', blueprintApproved: true };
   const streamChat = vi.fn().mockResolvedValue(undefined);
+  const runApp = vi.fn().mockResolvedValue({ previewUrl: 'http://localhost:8080' });
   vi.stubGlobal('go', { main: { App: {
     GetSettings: vi.fn().mockResolvedValue({}),
     ListApps: vi.fn().mockResolvedValue([{ id: 41, name: project.name, path: project.path }]),
@@ -51,6 +56,7 @@ it('从桌面会话恢复已保存的阶段并发送续建请求', async () => {
     GetVersions: vi.fn().mockResolvedValue([]),
     ListProjectFiles: vi.fn().mockResolvedValue([]),
     StreamChat: streamChat,
+    RunApp: runApp,
   } } });
   try {
     render(<App initialDockTab="builder" />);
@@ -63,6 +69,7 @@ it('从桌面会话恢复已保存的阶段并发送续建请求', async () => {
       resume: true,
     })));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Resume build' })).toBeNull());
+    await waitFor(() => expect(runApp).toHaveBeenCalledWith({ appId: 41, restart: true }));
   } finally {
     vi.unstubAllGlobals();
   }

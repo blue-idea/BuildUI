@@ -138,6 +138,9 @@ func TestApp_RunAppChecksAndRepairsBeforeOpeningPreview(t *testing.T) {
 	if _, err := a.RunApp(req); err == nil || !strings.Contains(err.Error(), "HeroSection") {
 		t.Fatalf("刷新正在运行的工程也应报告缺失导入：%v", err)
 	}
+	if _, err := a.RunApp(runner.RunAppRequest{AppID: projectID, Restart: true}); err == nil || launcher.killed != 0 {
+		t.Fatalf("检查失败时应保留已运行的服务器：%v", err)
+	}
 	if err := a.StopApp(runner.StopAppRequest{AppID: projectID}); err != nil {
 		t.Fatal(err)
 	}
@@ -168,6 +171,16 @@ func TestApp_RunAppChecksAndRepairsBeforeOpeningPreview(t *testing.T) {
 	if data, err := os.ReadFile(entry); err != nil || !strings.Contains(string(data), "podcast = 'ready'") {
 		t.Fatalf("修复没有写入工作区：%q, %v", data, err)
 	}
+
+	// 默认刷新继续复用开发服务器，显式重新运行必须更换进程。
+	reloaded, err := a.RunApp(req)
+	if err != nil || reloaded.ProcessID != fixed.ProcessID || launcher.launches != 2 {
+		t.Fatalf("刷新不应重启开发服务器：%+v, %v", reloaded, err)
+	}
+	restarted, err := a.RunApp(runner.RunAppRequest{AppID: projectID, Restart: true})
+	if err != nil || restarted.ProcessID == fixed.ProcessID || launcher.launches != 3 || launcher.killed != fixed.ProcessID {
+		t.Fatalf("重新运行应在检查通过后停止旧进程并启动新进程：%+v, %v", restarted, err)
+	}
 }
 
 type previewTestTsc struct{}
@@ -183,7 +196,7 @@ func (previewTestTsc) RunTsc(_ context.Context, root string) (string, error) {
 	return "", nil
 }
 
-type previewTestLauncher struct{ launches int }
+type previewTestLauncher struct{ launches, killed int }
 
 func (l *previewTestLauncher) Launch(_ context.Context, _ string, onOutput func(string), _ func(error)) (int, error) {
 	l.launches++
@@ -191,4 +204,7 @@ func (l *previewTestLauncher) Launch(_ context.Context, _ string, onOutput func(
 	return l.launches, nil
 }
 
-func (*previewTestLauncher) Kill(int) error { return nil }
+func (l *previewTestLauncher) Kill(pid int) error {
+	l.killed = pid
+	return nil
+}

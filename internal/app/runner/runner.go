@@ -5,9 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"os/exec"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +27,7 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 		return 0, err
 	}
 	cmd := workspace.PnpmCommand(ctx, appPath, "run", "dev", "--host", "127.0.0.1")
+	configurePreviewProcess(cmd)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -65,15 +63,7 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 }
 
 func (d *defaultProcessLauncher) Kill(pid int) error {
-	if runtime.GOOS == "windows" {
-		return exec.Command("taskkill", "/PID", fmt.Sprint(pid), "/T", "/F").Run()
-	}
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return err
-	}
-	// 优先尝试杀灭进程树
-	return p.Kill()
+	return killPreviewProcess(pid)
 }
 
 // activeInstance 活跃的应用运行实例
@@ -85,6 +75,7 @@ type activeInstance struct {
 	readyChan  chan string
 	done       chan struct{}
 	err        error
+	stopping   bool
 }
 
 // AppRunner 负责本地开发服务器的监管、端口捕获与关停
@@ -111,8 +102,15 @@ func NewAppRunnerWithLauncher(launcher ProcessLauncher, emitter EventEmitter) *A
 
 // StartApp 启动子应用开发服务器并动态捕获预览 URL
 func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (*RunAppResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	r.mu.Lock()
 	if inst, exists := r.active[appID]; exists {
+		if inst.stopping {
+			r.mu.Unlock()
+			return nil, errs.NewPreconditionError("The preview is stopping.", nil)
+		}
 		result := &RunAppResponse{PreviewURL: inst.previewURL, ProcessID: inst.pid, Status: "running"}
 		r.mu.Unlock()
 		if result.PreviewURL == "" {
@@ -206,18 +204,29 @@ func (r *AppRunner) StopApp(ctx context.Context, appID int64) error {
 		r.mu.Unlock()
 		return nil
 	}
-	delete(r.active, appID)
-	close(inst.done)
+	if inst.stopping {
+		r.mu.Unlock()
+		return errs.NewPreconditionError("The preview is already stopping.", nil)
+	}
+	inst.stopping = true
 	pid := inst.pid
 	r.mu.Unlock()
 
+	var killErr error
 	if pid > 0 {
-		_ = r.launcher.Kill(pid)
+		killErr = r.launcher.Kill(pid)
 	}
-	if inst.cancel != nil {
-		inst.cancel()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.active[appID] == inst {
+		if killErr != nil {
+			inst.stopping = false
+			return errs.NewExternalError("Failed to stop the preview server.", killErr)
+		}
+		delete(r.active, appID)
+		close(inst.done)
 	}
-
+	inst.cancel()
 	return nil
 }
 

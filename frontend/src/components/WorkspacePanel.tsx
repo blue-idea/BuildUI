@@ -7,6 +7,7 @@ import {
   ArrowRight,
   ExternalLink,
   RotateCw,
+  Play,
   Terminal,
   ChevronDown,
   ChevronUp,
@@ -43,6 +44,8 @@ export interface WorkspacePanelProps {
   onToggleInspect?: () => void;
   onSelectComponent?: (path: string, prompt: string) => void;
   onReload?: () => void;
+  onRestart?: () => void;
+  previewActionsDisabled?: boolean;
   onOpenExternal?: () => void;
   onPublish?: () => void;
 }
@@ -67,6 +70,8 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   onToggleInspect,
   onSelectComponent,
   onReload,
+  onRestart,
+  previewActionsDisabled = false,
   onOpenExternal,
   onPublish,
 }) => {
@@ -241,12 +246,26 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
         <button
           type="button"
           onClick={onReload}
+          disabled={previewActionsDisabled}
           aria-label="Reload preview"
           title={t('workspace.reload')}
           className="p-1 text-slate-400 hover:text-slate-700 dark:text-zinc-500 dark:hover:text-zinc-200 rounded transition-colors"
         >
           <RotateCw className="w-3.5 h-3.5" />
         </button>
+        {onRestart && (
+          <button
+            type="button"
+            onClick={onRestart}
+            disabled={previewActionsDisabled}
+            aria-label={t('workspace.restart')}
+            title={t('workspace.restart')}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-slate-600 hover:bg-slate-200/60 disabled:opacity-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            <Play className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="hidden sm:inline">{t('workspace.restart')}</span>
+          </button>
+        )}
       </div>
 
       {/* 中间核心画布视图 */}
@@ -281,7 +300,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                 className="w-full h-full rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs bg-white"
               />
             ) : (
-              <button type="button" onClick={onReload} className="text-sm font-medium text-purple-600">
+              <button type="button" onClick={onReload} disabled={previewActionsDisabled} className="text-sm font-medium text-purple-600">
                 Start preview
               </button>
             )}

@@ -133,6 +133,7 @@ export const zh: I18nDictionary = {
     startingApp: '正在启动您的应用程序...',
     systemMessages: '系统运行日志',
     reload: '刷新预览',
+    restart: '重新运行',
     openExternal: '在新窗口打开',
     back: '后退',
     forward: '前进',

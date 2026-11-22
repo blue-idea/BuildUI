@@ -215,6 +215,12 @@ func (s *AppService) RunApp(ctx context.Context, req runner.RunAppRequest) (*run
 	if err := previewCtx.Err(); err != nil {
 		return nil, err
 	}
+	// 先验证源码，再停止旧进程。验证失败时保留当前开发服务器。
+	if req.Restart {
+		if err := s.runner.StopApp(previewCtx, req.AppID); err != nil {
+			return nil, err
+		}
+	}
 	response, err := s.runner.StartApp(previewCtx, req.AppID, app.Path)
 	if err != nil {
 		return nil, err

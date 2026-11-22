@@ -350,15 +350,15 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     return history ?? [];
   };
 
-  const startPreview = async (id: number) => {
+  const startPreview = async (id: number, restart = false) => {
     const pending = { appId: id };
     previewRequest.current = pending;
     const isCurrent = () => previewRequest.current === pending && projectID.current === id;
     setProjectError('');
-    setPreviewProgress('');
+    setPreviewProgress(restart ? 'Restarting preview…' : '');
     setIsStartingApp(true);
     try {
-      const result = await desktopApp().RunApp({ appId: id });
+      const result = await desktopApp().RunApp(restart ? { appId: id, restart: true } : { appId: id });
       if (!isCurrent()) return;
       setPreviewUrl(result.previewUrl);
       setPreviewKey((key) => key + 1);
@@ -522,10 +522,13 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       });
       if (id !== chatID.current || currentAppId !== projectID.current) return;
       if (mode === 'build') setBuildProgress(null);
-      const history = await refreshProject(currentAppId);
-      if (current.commit || (mode === 'build' && (approve || blueprint?.approved) && history.length > 1)) {
-        setGenerationProgress('Preparing the preview…');
-        await startPreview(currentAppId);
+      const refreshFiles = refreshProject(currentAppId);
+      if (current.commit || (mode === 'build' && (approve || resume || blueprint?.approved))) {
+        // 文件监听可能漏掉已落盘的变更。构建成功后用新进程加载完整工作区。
+        setGenerationProgress('Restarting the preview…');
+        await Promise.all([refreshFiles, startPreview(currentAppId, true)]);
+      } else {
+        await refreshFiles;
       }
     } catch (error) {
       if (!current.cancelled) reportError(error);
@@ -1576,6 +1579,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             setIsStartingApp(true);
             setTimeout(() => setIsStartingApp(false), 500);
           }}
+          onRestart={desktop && activeAppId ? () => void startPreview(activeAppId, true).catch(reportError) : undefined}
+          previewActionsDisabled={isStartingApp || (desktop && (isGenerating || isChangingProject))}
           onOpenExternal={previewUrl ? () => window.open(previewUrl, '_blank', 'noopener,noreferrer') : undefined}
           onPublish={() => setIsExportOpen(true)}
         />
