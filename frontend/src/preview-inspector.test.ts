@@ -91,7 +91,7 @@ describe('preview-inspector (TDD)', () => {
     const selectedCall = calls.find((call) => call[0]?.type === 'buildui:element-selected');
     expect(selectedCall).toBeDefined();
 
-    const payload = selectedCall[0];
+    const payload = selectedCall![0];
     expect(payload.element).toMatchObject({
       tagName: 'button',
       componentPath: 'src/components/Header.tsx',
