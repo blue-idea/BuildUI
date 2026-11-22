@@ -294,7 +294,7 @@ func (s *AppService) SwitchApp(ctx context.Context, targetAppID int64) (*ActiveA
 	}, nil
 }
 
-// DeleteApp 删除非活跃应用及其关联数据
+// DeleteApp 删除非活跃应用及其关联数据并递归清理物理工作区目录
 func (s *AppService) DeleteApp(ctx context.Context, appID int64) error {
 	if appID <= 0 {
 		return errs.NewValidationError("app id must be positive", nil)
@@ -305,7 +305,28 @@ func (s *AppService) DeleteApp(ctx context.Context, appID int64) error {
 		return errs.NewPreconditionError("cannot delete currently active application", nil)
 	}
 
-	return s.appRepo.Delete(ctx, appID)
+	// 1. 查询应用实体以获取物理工程路径
+	appEntity, err := s.appRepo.GetByID(ctx, appID)
+	if err != nil {
+		return err
+	}
+
+	// 2. 检查并平稳停止关联的运行态 Runner
+	if s.runner != nil {
+		_ = s.runner.StopApp(ctx, appID)
+	}
+
+	// 3. 从数据库中级联删除应用记录
+	if err := s.appRepo.Delete(ctx, appID); err != nil {
+		return err
+	}
+
+	// 4. 执行目录防灾安全校验并递归物理删除工程工作区
+	if appEntity.Path != "" && IsSafeProjectDirectory(appEntity.Path) {
+		_ = os.RemoveAll(appEntity.Path)
+	}
+
+	return nil
 }
 
 // GetActiveApp 获取当前活跃应用状态
@@ -362,4 +383,58 @@ func (s *AppService) initGitRepository(targetDir string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(hashBytes)), nil
+}
+
+// IsSafeProjectDirectory 检查路径是否允许作为项目目录被递归物理删除，防御误删根目录或系统重要目录
+func IsSafeProjectDirectory(dir string) bool {
+	if strings.TrimSpace(dir) == "" {
+		return false
+	}
+	cleaned := filepath.Clean(dir)
+	if cleaned == "" || cleaned == "." || cleaned == ".." {
+		return false
+	}
+
+	// 根目录检测
+	if cleaned == "/" {
+		return false
+	}
+	if vol := filepath.VolumeName(cleaned); vol != "" {
+		if cleaned == vol+"\\" || cleaned == vol+"/" || cleaned == vol {
+			return false
+		}
+	}
+
+	// 转为绝对路径以统一评估层级
+	if abs, err := filepath.Abs(cleaned); err == nil {
+		cleaned = abs
+	}
+
+	// 用户主目录防护
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		if cleaned == filepath.Clean(home) {
+			return false
+		}
+	}
+
+	// 当前工作目录及其父目录防护
+	if cwd, err := os.Getwd(); err == nil && cwd != "" {
+		cleanCwd := filepath.Clean(cwd)
+		if cleaned == cleanCwd || cleaned == filepath.Dir(cleanCwd) {
+			return false
+		}
+	}
+
+	// Unix 根直接子目录防护（如 /bin, /usr, /etc, /Users, /Applications, /var, /System）
+	parent := filepath.Dir(cleaned)
+	if parent == "/" {
+		return false
+	}
+	if vol := filepath.VolumeName(parent); vol != "" {
+		if parent == vol+"\\" || parent == vol+"/" || parent == vol {
+			return false
+		}
+	}
+
+	return true
 }
