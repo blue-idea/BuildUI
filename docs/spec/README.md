@@ -9,7 +9,7 @@
 ## 当前活跃 Version
 
 ```yaml
-current_version: v13     # → Agent 替换 {{VERSION}} 时取此值
+current_version: v14     # → Agent 替换 {{VERSION}} 时取此值
 ```
 
 ---
@@ -30,7 +30,8 @@ current_version: v13     # → Agent 替换 {{VERSION}} 时取此值
 | v10 | finished | `docs/spec/versions/v10-finished/` | 第十版本已圆满收官：风格中心与参照物提取器（Style Center & Reference Extractor） |
 | v11 | finished | `docs/spec/versions/v11-finished/` | 第十一版本已圆满收官：可视化元素点选与定向局部 AI 编辑（Visual Element Selection & Targeted Local AI Editing） |
 | v12 | finished | `docs/spec/versions/v12-finished/` | 第十二版本已圆满收官：工业级代码生成核心管线强化（蓝图门禁澄清闭环、脚手架规范硬注入、零占位符与缺失文件即时创建铁律） |
-| v13 | active | `docs/spec/versions/v13/` | 进行中：可视化元素自由选取、精准源码与代码区域定位及定向局部 AI 编辑闭环 |
+| v13 | finished | `docs/spec/versions/v13-finished/` | 第十三版本已圆满收官：可视化元素自由选取、精准源码与代码区域定位及定向局部 AI 编辑闭环 |
+| v14 | active | `docs/spec/versions/v14/` | 进行中：项目删除时物理工作区目录联动清理与系统路径安全防御 |
 
 ---
 
