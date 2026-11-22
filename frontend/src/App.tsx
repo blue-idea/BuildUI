@@ -12,6 +12,7 @@ import { MacOSWindowHeader } from './components/MacOSWindowHeader';
 import { LeftDock, DockTab } from './components/LeftDock';
 import { HomeGuideView } from './components/HomeGuideView';
 import { TemplateCenterView } from './components/TemplateCenterView';
+import { ComponentCenterView } from './components/ComponentCenterView';
 import { FileChangeCard } from './components/FileChangeCard';
 import { WorkspacePanel, WorkspaceView } from './components/WorkspacePanel';
 import { FileActionItem } from './types/fileAction';
@@ -59,6 +60,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const desktop = isWailsAvailable();
 
   const [activeDockTab, setActiveDockTab] = useState<DockTab>(initialDockTab);
+  const [previousDockTab, setPreviousDockTab] = useState<DockTab>('home');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('preview');
   const [activeAppId, setActiveAppId] = useState<number>(desktop ? 0 : 1);
   const [apps, setApps] = useState<AppItem[]>(desktop ? [] : [
@@ -932,16 +934,39 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         {/* 最左侧微坞 (LeftDock) */}
         <LeftDock
           activeTab={activeDockTab}
-          onSelectTab={setActiveDockTab}
-          onOpenTemplates={() => setActiveDockTab('templates')}
+          onSelectTab={(tab) => {
+            if (activeDockTab !== 'components') {
+              setPreviousDockTab(activeDockTab);
+            }
+            setActiveDockTab(tab);
+          }}
+          onOpenTemplates={() => {
+            if (activeDockTab !== 'templates') {
+              setPreviousDockTab(activeDockTab);
+            }
+            setActiveDockTab('templates');
+          }}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenComponents={() => setIsInspectMode((prev) => !prev)}
+          onOpenComponents={() => {
+            if (activeDockTab !== 'components') {
+              setPreviousDockTab(activeDockTab);
+            }
+            setActiveDockTab('components');
+          }}
         />
 
         {activeDockTab === 'home' ? (
           <HomeGuideView
-            onStartBuilding={(prompt) => {
+            selectedModel={selectedModel}
+            onSelectModel={setSelectedModel}
+            settings={settings}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            initialAttachments={attachments}
+            onStartBuilding={(prompt, _options, initialAttachments) => {
               setInputPrompt(prompt);
+              if (initialAttachments && initialAttachments.length > 0) {
+                setAttachments(initialAttachments);
+              }
               setActiveDockTab('builder');
             }}
             onBrowseTemplates={() => setActiveDockTab('templates')}
@@ -950,6 +975,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
           <TemplateCenterView
             templates={templates}
             onSelectTemplate={handleSelectTemplate}
+          />
+        ) : activeDockTab === 'components' ? (
+          <ComponentCenterView
+            onGoBack={() => setActiveDockTab(previousDockTab || 'builder')}
           />
         ) : activeDockTab === 'style' ? (
           <div className="flex-1 h-full overflow-y-auto bg-slate-50 dark:bg-zinc-950 p-8 flex flex-col gap-6 transition-colors">
@@ -1140,11 +1169,11 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             >
               {/* 已选附件缩略条 */}
               {attachments.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-2 p-1.5 bg-white dark:bg-zinc-850 rounded-lg border border-slate-200 dark:border-zinc-700">
+                <div className="flex flex-wrap gap-2 mb-2 p-1.5 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
                   {attachments.map((att) => (
                     <div
                       key={att.id}
-                      className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 dark:bg-zinc-750 rounded-md text-[11px] text-slate-700 dark:text-zinc-200 shadow-2xs"
+                      className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 dark:bg-zinc-700 rounded-md text-[11px] text-slate-700 dark:text-zinc-200 shadow-2xs"
                     >
                       <img src={att.dataUrl} alt={att.name} className="w-4 h-4 rounded object-cover" />
                       <span className="truncate max-w-[120px] font-mono">{att.name}</span>

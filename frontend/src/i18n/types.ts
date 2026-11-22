@@ -188,4 +188,15 @@ export interface I18nDictionary {
     generalTitle: string;
     generalDesc: string;
   };
+  pluginsPage: {
+    goBack: string;
+    title: string;
+    subtitle: string;
+    addPlugin: string;
+    catalogTitle: string;
+    catalogSubtitle: string;
+    searchPlaceholder: string;
+    emptyInstalled: string;
+    noResults: string;
+  };
 }

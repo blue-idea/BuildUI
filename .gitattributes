@@ -19,6 +19,10 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 
+# Git hooks (Must use LF for POSIX sh on Windows)
+.husky/* text eol=lf
+.husky/_/* text eol=lf
+
 # Binary files
 *.png binary
 *.jpg binary

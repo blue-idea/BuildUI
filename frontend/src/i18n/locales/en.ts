@@ -188,4 +188,15 @@ export const en: I18nDictionary = {
     generalTitle: 'General Preferences',
     generalDesc: 'Interface language and system environment preferences.',
   },
+  pluginsPage: {
+    goBack: 'Go Back',
+    title: 'Plugins',
+    subtitle: 'Connect plugins (MCP servers) to give the AI new tools.',
+    addPlugin: '+ Add Plugin',
+    catalogTitle: 'Add from catalog',
+    catalogSubtitle: 'Curated plugins that connect with minimal configuration.',
+    searchPlaceholder: 'Search catalog',
+    emptyInstalled: 'No plugins added yet.',
+    noResults: 'No plugins found matching your search.',
+  },
 };

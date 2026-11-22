@@ -188,4 +188,15 @@ export const zh: I18nDictionary = {
     generalTitle: '通用偏好',
     generalDesc: '设置界面显示语言与基础运行环境偏好。',
   },
+  pluginsPage: {
+    goBack: '返回',
+    title: 'Plugins (组件与插件库)',
+    subtitle: '连接外部插件（MCP 服务器）赋予 AI 更多生产力工具。',
+    addPlugin: '+ 添加插件',
+    catalogTitle: '从精选目录添加',
+    catalogSubtitle: '极简配置即可接入的高质量精选工具与协议服务。',
+    searchPlaceholder: '搜索插件目录...',
+    emptyInstalled: '当前尚未添加任何插件。',
+    noResults: '未找到符合条件的插件。',
+  },
 };

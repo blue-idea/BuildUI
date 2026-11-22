@@ -33,7 +33,8 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     fireEvent.click(screen.getByTestId('guide-blank-project-btn'));
     expect(onStartBuilding).toHaveBeenCalledWith(
       expect.stringContaining('Blank Canvas'),
-      expect.objectContaining({ template: 'blank' })
+      expect.objectContaining({ template: 'blank' }),
+      expect.anything()
     );
   });
 
@@ -85,21 +86,66 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     expect(screen.getByTestId('guide-selected-style-badge').textContent).toContain('Bauhaus');
   });
 
-  it('opens reference counterpart popover and sets custom reference', () => {
-    renderWithProviders(<HomeGuideView onStartBuilding={vi.fn()} />);
+  it('replaces Balanced dropdown with ModelSelector and triggers onSelectModel', () => {
+    const onSelectModel = vi.fn();
+    renderWithProviders(
+      <HomeGuideView
+        onStartBuilding={vi.fn()}
+        selectedModel="auto"
+        onSelectModel={onSelectModel}
+      />
+    );
 
-    const refBtn = screen.getByTestId('guide-ref-btn');
-    fireEvent.click(refBtn);
+    // 验证原有的 Balanced 选项已不存在
+    expect(screen.queryByText(/^balanced$/i)).toBeNull();
 
-    // 验证参照物预设选项及自定义输入
-    expect(screen.getByTestId('ref-preset-linear')).toBeDefined();
-    expect(screen.getByTestId('ref-preset-stripe')).toBeDefined();
+    // 验证渲染了 ModelSelector
+    const modelBtn = screen.getByLabelText('Model selector');
+    expect(modelBtn).toBeDefined();
 
-    const customInput = screen.getByTestId('guide-custom-ref-input');
-    fireEvent.change(customInput, { target: { value: 'Raycast Store' } });
+    // 点击打开模型选择菜单
+    fireEvent.click(modelBtn);
+    expect(screen.getByRole('listbox')).toBeDefined();
+  });
 
-    // 选择预设与自定义
-    fireEvent.click(screen.getByTestId('ref-preset-linear'));
+  it('supports attachment upload via + button and renders preview chips with remove capability', async () => {
+    const onStartBuilding = vi.fn();
+    renderWithProviders(<HomeGuideView onStartBuilding={onStartBuilding} />);
+
+    // 验证 + 按钮作为附件上传触发器
+    const uploadBtn = screen.getByTestId('guide-upload-btn');
+    expect(uploadBtn).toBeDefined();
+
+    const fileInput = screen.getByTestId('guide-upload-input') as HTMLInputElement;
+    expect(fileInput).toBeDefined();
+
+    // 模拟文件上传
+    const file = new File(['mock content'], 'sample-mockup.png', { type: 'image/png' });
+    Object.defineProperty(fileInput, 'files', {
+      value: [file],
+      writable: true,
+    });
+    fireEvent.change(fileInput);
+
+    // 模拟 FileReader 触发完成预览展示
+    // 验证附件名称展示与删除按钮
+    const chipText = await screen.findByText('sample-mockup.png');
+    expect(chipText).toBeDefined();
+
+    // 提交时附件应携带传递至构建区
+    const input = screen.getByTestId('guide-user-input');
+    fireEvent.change(input, { target: { value: 'Design based on attached mockup' } });
+
+    const submitBtn = screen.getByTestId('guide-submit-btn');
+    fireEvent.click(submitBtn);
+
+    expect(onStartBuilding).toHaveBeenCalledWith(
+      expect.stringContaining('Design based on attached mockup'),
+      expect.anything(),
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'sample-mockup.png' }),
+      ])
+    );
   });
 
   it('guarantees NO component library section is rendered', () => {
@@ -127,7 +173,8 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
       expect.stringContaining('Personal finance wealth management dashboard'),
       expect.objectContaining({
         userInput: 'Personal finance wealth management dashboard',
-      })
+      }),
+      expect.anything()
     );
   });
 });

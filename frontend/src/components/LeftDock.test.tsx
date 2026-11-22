@@ -13,10 +13,14 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe('LeftDock Navigation Bar', () => {
-  it('renders navigation icons in the exact order: home, builder, style, templates, components, settings', () => {
+  it('renders navigation icons in the exact order: home, builder, style, templates, components, settings and removes toggle and help buttons', () => {
     const onSelectTab = vi.fn();
 
     renderWithProviders(<LeftDock activeTab="home" onSelectTab={onSelectTab} />);
+
+    // 验证折叠和帮助按钮已被移除
+    expect(screen.queryByTestId('dock-toggle')).toBeNull();
+    expect(screen.queryByTestId('dock-help')).toBeNull();
 
     // 获取所有导航按钮
     const homeBtn = screen.getByTestId('dock-home');
@@ -33,30 +37,18 @@ describe('LeftDock Navigation Bar', () => {
     expect(componentsBtn).toBeDefined();
     expect(settingsBtn).toBeDefined();
 
-    // 验证在 DOM 中的前后顺序
+    // 验证在 DOM 中仅有 6 个导航按钮且严格按顺序排列
     const allDockButtons = screen.getAllByRole('button');
-    // 第 1 个是折叠切换按钮 dock-toggle，接下来必须按顺序
+    expect(allDockButtons).toHaveLength(6);
     const buttonTestIds = allDockButtons.map((btn) => btn.getAttribute('data-testid'));
-    
-    expect(buttonTestIds).toContain('dock-home');
-    expect(buttonTestIds).toContain('dock-builder');
-    expect(buttonTestIds).toContain('dock-style');
-    expect(buttonTestIds).toContain('dock-templates');
-    expect(buttonTestIds).toContain('dock-components');
-    expect(buttonTestIds).toContain('dock-settings');
-
-    const homeIndex = buttonTestIds.indexOf('dock-home');
-    const builderIndex = buttonTestIds.indexOf('dock-builder');
-    const styleIndex = buttonTestIds.indexOf('dock-style');
-    const templatesIndex = buttonTestIds.indexOf('dock-templates');
-    const componentsIndex = buttonTestIds.indexOf('dock-components');
-    const settingsIndex = buttonTestIds.indexOf('dock-settings');
-
-    expect(builderIndex).toBe(homeIndex + 1);
-    expect(styleIndex).toBe(builderIndex + 1);
-    expect(templatesIndex).toBe(styleIndex + 1);
-    expect(componentsIndex).toBe(templatesIndex + 1);
-    expect(settingsIndex).toBe(componentsIndex + 1);
+    expect(buttonTestIds).toEqual([
+      'dock-home',
+      'dock-builder',
+      'dock-style',
+      'dock-templates',
+      'dock-components',
+      'dock-settings',
+    ]);
   });
 
   it('triggers onSelectTab and action callbacks when clicking dock items', () => {

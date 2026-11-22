@@ -73,6 +73,23 @@ describe('App Guided Mode Home & Navigation', () => {
     fireEvent.click(screen.getByTestId('dock-home'));
     expect(screen.getByTestId('guide-submit-btn')).toBeDefined();
   });
+
+  it('switches to ComponentCenterView via dock-components and returns via Go Back button', () => {
+    render(<App initialDockTab="home" />);
+
+    // Click dock-components
+    fireEvent.click(screen.getByTestId('dock-components'));
+
+    // Should render ComponentCenterView
+    expect(screen.getByTestId('component-center-view')).toBeDefined();
+    expect(screen.getByRole('heading', { level: 1, name: /Plugins/i })).toBeDefined();
+
+    // Click Go Back
+    fireEvent.click(screen.getByText('Go Back'));
+
+    // Should return to Home
+    expect(screen.getByTestId('guide-submit-btn')).toBeDefined();
+  });
 });
 
 describe('App Main Split Layout & Workflow', () => {
