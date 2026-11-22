@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -17,8 +15,6 @@ import (
 	"buildui/internal/verification/tsc"
 	"buildui/internal/workspace"
 )
-
-var localSourceImport = regexp.MustCompile(`(?:\bfrom\s+|\bimport\s+)["']((?:@/|\.\.?/)[^"']+)["']`)
 
 func (s *ChatService) verifyPlannedBuild(ctx context.Context, chatID, appID int64, root string, client *llm.OpenAIClient, request llm.ChatRequest) error {
 	report := func(message string) { s.emitProgress(chatID, message) }
@@ -158,7 +154,7 @@ func (s *ChatService) repairBuildProblems(ctx context.Context, chatID int64, roo
 		for _, file := range files {
 			batch = append(batch, byFile[file]...)
 		}
-		sources := repairSourcePaths(root, files, paths)
+		sources := sourcePathsWithLocalImports(root, files, paths)
 		prompt := tsc.BuildRemediationPrompt(batch) +
 			"Start with complete tool blocks. Preserve the existing design and behavior. Use the exact exports, property names, and function signatures from the source below. Update only files required to fix these diagnostics.\nAvailable source paths: " +
 			strings.Join(paths, ", ") + sourceFilesContext(root, sources)
@@ -168,36 +164,4 @@ func (s *ChatService) repairBuildProblems(ctx context.Context, chatID int64, roo
 		}
 	}
 	return nil
-}
-
-func repairSourcePaths(root string, affected, all []string) []string {
-	available := make(map[string]string, len(all))
-	for _, name := range all {
-		available[name] = name
-		available[strings.TrimSuffix(name, path.Ext(name))] = name
-	}
-	result := slices.Clone(affected)
-	// 修复提示词同时提供报错文件和直接依赖，避免再次猜测跨步骤的 API。
-	for _, name := range affected {
-		source, err := workspace.ReadSource(root, name)
-		if err != nil {
-			continue
-		}
-		for _, match := range localSourceImport.FindAllStringSubmatch(source, -1) {
-			target := match[1]
-			if rest, alias := strings.CutPrefix(target, "@/"); alias {
-				target = path.Join("src", rest)
-			} else {
-				target = path.Join(path.Dir(name), target)
-			}
-			resolved := available[target]
-			if resolved == "" {
-				resolved = available[path.Join(target, "index")]
-			}
-			if resolved != "" {
-				result = append(result, resolved)
-			}
-		}
-	}
-	return result
 }

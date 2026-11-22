@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -16,7 +15,6 @@ import (
 	"buildui/internal/db"
 	"buildui/internal/errs"
 	"buildui/internal/llm"
-	"buildui/internal/workspace"
 )
 
 // BlueprintPrompt 规定大模型生成应用蓝图的标准格式与关键字段（设计方向、主色调、视觉资产清单含Logo/插图prompts）
@@ -33,8 +31,6 @@ const BlueprintPrompt = `Propose the blueprint for the user's requested app. Rep
   ]
 }
 Use the language of the user's request for human-readable values. Do not write code or install dependencies. Approval is required before implementation.`
-
-var sourceMention = regexp.MustCompile(`@([a-zA-Z0-9_./-]+)[:\s]`)
 
 // StreamChat 使用当前保存的模型发起一轮真实对话。
 func (s *ChatService) StreamChat(ctx context.Context, req StreamChatRequest) error {
@@ -342,27 +338,4 @@ func (s *ChatService) storeModelTurn(ctx context.Context, req StreamChatRequest,
 		ChatID: req.ChatID, Role: "assistant", Content: reply, Model: model, CommitHash: commitHash,
 	}
 	return s.messageRepo.SaveTurn(ctx, user, assistant, completeBuild)
-}
-
-func sourceContext(root, prompt string) string {
-	paths := []string{"package.json", "src/App.tsx", "src/pages/Index.tsx"}
-	for _, match := range sourceMention.FindAllStringSubmatch(prompt+" ", 5) {
-		paths = append([]string{match[1]}, paths...)
-	}
-	return sourceFilesContext(root, paths)
-}
-
-func sourceFilesContext(root string, paths []string) string {
-	var out strings.Builder
-	seen := make(map[string]bool)
-	for _, name := range paths {
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-		if source, err := workspace.ReadSource(root, name); err == nil && len(source)+out.Len() < 64*1024 {
-			out.WriteString("\nCurrent source: " + name + "\n" + source + "\n")
-		}
-	}
-	return out.String()
 }

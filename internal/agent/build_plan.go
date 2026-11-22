@@ -15,12 +15,17 @@ import (
 	"buildui/internal/db"
 	"buildui/internal/errs"
 	"buildui/internal/llm"
+	"buildui/internal/workspace"
 )
 
 const buildPlanPrompt = `Build planning protocol
-Plan how to implement the user's request and approved blueprint. Return one JSON object only, with this shape:
+Plan the latest user request. Use the approved blueprint and conversation history as background. For an edit, inspect the current source, list the files that actually render the requested behavior, and preserve unrelated features.
+For a request to remove a button, locate the visible label in the requested screen's navigation and content. Include button-styled links and desktop/mobile variants of the same control. Remove only the requested control and keep the surrounding sections and destinations. When a standalone link opens a form with its own submit button, remove the link and preserve the form unless the user specifically asks to change the form.
+Return one JSON object only, with this shape:
 {"objective":"Concise requirements for the whole build","steps":[{"title":"Short English action","goal":"Concrete scope and acceptance for this step","files":["relative/path/to/write"],"read":["related/existing/file"]}]}
 Use between 1 and %d ordered steps. Use one step for a small change. Use the fewest steps that keep each response short enough to finish. Group closely related files and prefer one to three focused files per step. Each of the files and read lists can have up to %d entries per step. Put only files that must be written into files. Only include source files whose actual contents are necessary in read. Use [] for steps that need no file changes. Do not emit code or tool calls. Sequence the steps so later steps can reuse earlier work and the final step completes the requested behavior.`
+
+var errInvalidBuildPlan = errs.NewExternalError("The model did not return a valid build plan. Try again.", nil)
 
 type BuildProgress struct {
 	Completed int `json:"completed"`
@@ -44,7 +49,7 @@ func (s *ChatService) streamPlannedBuild(ctx context.Context, req StreamChatRequ
 		return errs.NewPreconditionError("There is no unfinished build to resume.", nil)
 	}
 	if !req.Resume && (state == nil || state.Prompt != req.Prompt || !slices.Equal(state.Attachments, req.Attachments)) {
-		state, err = s.planBuild(ctx, req, contextPrompt, client, request)
+		state, err = s.planBuild(ctx, req, root, contextPrompt, client, request)
 		if err != nil {
 			return err
 		}
@@ -135,28 +140,36 @@ func restoreStepFiles(root string, state *db.BuildCheckpoint) error {
 	return nil
 }
 
-func (s *ChatService) planBuild(ctx context.Context, req StreamChatRequest, contextPrompt string, client *llm.OpenAIClient, request llm.ChatRequest) (*db.BuildCheckpoint, error) {
+func (s *ChatService) planBuild(ctx context.Context, req StreamChatRequest, root, contextPrompt string, client *llm.OpenAIClient, request llm.ChatRequest) (*db.BuildCheckpoint, error) {
+	available, err := workspace.ListSources(root)
+	if err != nil {
+		return nil, err
+	}
+	// 规划时提供页面及其直接依赖，实际执行时仍只发送该步骤指定的文件。
+	paths := sourcePathsWithLocalImports(root, requestedSourcePaths(req.Prompt), available)
 	s.emitProgress(req.ChatID, "Planning build steps…")
 	request.MaxTokens = config.ModelBuildPlanMaxTokens
 	request.IdleTimeout = config.ModelBuildStreamIdleTimeout
 	request.Messages = slices.Clone(request.Messages)
-	request.Messages[0].Content = fmt.Sprintf(buildPlanPrompt, config.ModelBuildMaxSteps, config.ModelBuildMaxFilesPerStep) + "\n" + contextPrompt
-	var reply strings.Builder
-	receive := func(chunk string) error {
-		reply.WriteString(chunk)
-		return nil
+	request.Messages[0].Content = fmt.Sprintf(buildPlanPrompt, config.ModelBuildMaxSteps, config.ModelBuildMaxFilesPerStep) + "\n" + contextPrompt + sourceFilesContext(root, paths)
+	last := &request.Messages[len(request.Messages)-1]
+	last.Content += "\n\nReturn the ordered build plan as a single JSON object with objective and steps."
+	readPlan := func() (*db.BuildCheckpoint, error) {
+		var reply strings.Builder
+		if err := streamModelResponse(ctx, client, request, func(chunk string) error {
+			reply.WriteString(chunk)
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		return decodeBuildPlan(reply.String())
 	}
-	err := streamModelResponse(ctx, client, request, receive)
-	if errors.Is(err, llm.ErrOutputLimit) {
-		reply.Reset()
-		s.emitProgress(req.ChatID, "Retrying with a shorter build plan…")
-		request.Messages[0].Content += "\nKeep the objective and each goal to one sentence. Use the fewest steps that cover the requirements."
-		err = streamModelResponse(ctx, client, request, receive)
+	state, err := readPlan()
+	if errors.Is(err, llm.ErrOutputLimit) || errors.Is(err, errInvalidBuildPlan) {
+		s.emitProgress(req.ChatID, "Retrying the build plan…")
+		last.Content += "\nThe previous response could not be read as a plan. Return an object starting with { and containing objective and steps. Keep the objective and each goal to one sentence. Do not declare the work completed."
+		state, err = readPlan()
 	}
-	if err != nil {
-		return nil, err
-	}
-	state, err := decodeBuildPlan(reply.String())
 	if err != nil {
 		return nil, err
 	}
@@ -171,11 +184,10 @@ func decodeBuildPlan(text string) (*db.BuildCheckpoint, error) {
 		Objective string         `json:"objective"`
 		Steps     []db.BuildStep `json:"steps"`
 	}
-	invalid := errs.NewExternalError("The model did not return a valid build plan. Try again.", nil)
 	first, last := strings.IndexByte(text, '{'), strings.LastIndexByte(text, '}')
 	if first < 0 || last < first || json.Unmarshal([]byte(text[first:last+1]), &plan) != nil ||
 		strings.TrimSpace(plan.Objective) == "" || len(plan.Steps) == 0 || len(plan.Steps) > config.ModelBuildMaxSteps {
-		return nil, invalid
+		return nil, errInvalidBuildPlan
 	}
 	for i := range plan.Steps {
 		step := &plan.Steps[i]
@@ -183,7 +195,7 @@ func decodeBuildPlan(text string) (*db.BuildCheckpoint, error) {
 		if step.Title == "" || strings.TrimSpace(step.Goal) == "" || step.Files == nil ||
 			len(step.Files) > config.ModelBuildMaxFilesPerStep || len(step.Read) > config.ModelBuildMaxFilesPerStep ||
 			!normalizeBuildPaths(step.Files) || !normalizeBuildPaths(step.Read) {
-			return nil, invalid
+			return nil, errInvalidBuildPlan
 		}
 	}
 	return &db.BuildCheckpoint{Objective: plan.Objective, Steps: plan.Steps}, nil

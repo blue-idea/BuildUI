@@ -123,3 +123,11 @@
   - 验收标准 `v12.REQ-004-AC-001`、`v12.REQ-004-AC-002`、`v12.REQ-004-AC-003`
   - 测试类型 Integration、Component、E2E、Visual Regression
   - 证据 [AC 验收](ac/TASK-055-AC.md) · [测试报告](reports/TASK-055-report.md)
+
+- [x] **TASK-056 · 修复博客首页订阅按钮无法通过构建区删除**
+
+  - 补充规划上下文，使模型能定位首页实际渲染的订阅按钮。
+  - 模型返回完成说明或其他无效计划时，自动重试规划一次，再由原构建管线写入文件。
+  - 需求与验收标准 `v12.REQ-004-AC-001`、`v2.REQ-002-AC-001`
+  - 测试类型 Unit、Integration、E2E、Visual Regression
+  - 证据 [AC 验收](ac/TASK-056-AC.md)

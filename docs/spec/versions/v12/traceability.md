@@ -15,6 +15,7 @@
 | TASK-053 | 前端澄清问卷答复、蓝图审批卡片展示与代码生成全链路打通 | v12.REQ-001, v12.REQ-002 | done | frontend/src/App.tsx, frontend/src/components/BlueprintCard.tsx | frontend/src/App.test.tsx | docs/spec/versions/v12/ac/TASK-053-AC.md | 2026-11-22 |
 | TASK-054 | Playwright 视觉验收与 v12 终结交付 | 全量需求 | done | frontend/e2e/v12-blueprint-generation-pipeline.spec.ts | docs/spec/versions/v12/reports/screenshots/ | docs/spec/versions/v12/v12-final-report.md | 2026-11-22 |
 | TASK-055 | 分步构建与持久化续建 | v12.REQ-004 | done | internal/agent/build_plan.go、internal/db/build_checkpoint.go、frontend/src/App.tsx | internal/agent/build_plan_test.go、frontend/src/App.test.tsx、Wails E2E | [TASK-055-AC](ac/TASK-055-AC.md) | 2026-11-22 |
+| TASK-056 | 修复博客首页订阅按钮的构建指令 | v12.REQ-004-AC-001、v2.REQ-002-AC-001 | done | internal/agent/build_plan.go、internal/agent/source_context.go | internal/agent/build_plan_test.go、Wails E2E | [TASK-056-AC](ac/TASK-056-AC.md) | 2026-11-22 |
 
 ---
 

@@ -19,6 +19,121 @@ import (
 	"buildui/internal/verification/tsc"
 )
 
+// v12.REQ-004-AC-001、v2.REQ-002-AC-001：规划失败后重新定位并编辑首页引用的组件。
+func TestPlannedHomepageEditRetriesInvalidPlan(t *testing.T) {
+	const (
+		header = "src/components/SiteHeader.tsx"
+		index  = "src/pages/Index.tsx"
+		app    = "src/App.tsx"
+		extra  = "src/pages/Dashboard.tsx"
+		prompt = "删除首页订阅按钮"
+		before = `export function SiteHeader() { return <header><a href="/login">登录</a><button>订阅</button></header>; }`
+		after  = `export function SiteHeader() { return <header><a href="/login">登录</a></header>; }`
+		page   = `import { SiteHeader } from "@/components/SiteHeader"; export default function Index() { return <SiteHeader />; }`
+	)
+	for _, retrySucceeds := range []bool{true, false} {
+		t.Run(fmt.Sprintf("retry_succeeds=%t", retrySucceeds), func(t *testing.T) {
+			ctx := context.Background()
+			root := t.TempDir()
+			sources := map[string]string{
+				header: before,
+				index:  page,
+				app:    `import Dashboard from "./pages/Dashboard"; export default Dashboard;`,
+				extra:  "// " + strings.Repeat("x", 65_150),
+			}
+			for name, source := range sources {
+				path := filepath.Join(root, name)
+				if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte(source), 0644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			database, err := db.Open(ctx, filepath.Join(t.TempDir(), "build.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer database.Close()
+			apps := db.NewAppRepository(database)
+			appID, err := apps.Create(ctx, &db.AppEntity{Name: "Blog", Path: root, NeedsAppBlueprint: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			chatID, err := db.NewChatRepository(database).Create(ctx, &db.ChatEntity{AppID: appID, Title: "Blog"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			bps := blueprint.NewBlueprintService(db.NewBlueprintRepository(database), apps, database)
+			if err := bps.SaveBlueprint(ctx, blueprint.BlueprintDTO{ChatID: chatID, AppName: "Blog", DesignDirection: "Editorial blog", PrimaryColor: "#264653"}); err != nil {
+				t.Fatal(err)
+			}
+			if err := bps.ApproveBlueprint(ctx, chatID); err != nil {
+				t.Fatal(err)
+			}
+
+			var plans, steps atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var request llm.ChatRequest
+				if json.NewDecoder(r.Body).Decode(&request) != nil || len(request.Messages) < 2 {
+					http.Error(w, "Invalid request", http.StatusBadRequest)
+					return
+				}
+				system, user := request.Messages[0].Content, request.Messages[len(request.Messages)-1].Content
+				var reply string
+				if strings.Contains(system, "Build planning protocol") {
+					attempt := plans.Add(1)
+					if attempt == 1 || !retrySucceeds {
+						reply = "Completed 1 build step."
+					} else {
+						if !strings.Contains(system, before) || !strings.Contains(system, page) || !strings.Contains(user, prompt) ||
+							!strings.Contains(system, "keep the surrounding sections and destinations") {
+							http.Error(w, "Missing homepage source or control-level edit scope", http.StatusBadRequest)
+							return
+						}
+						reply = fmt.Sprintf(`{"objective":"Remove the homepage subscription button","steps":[{"title":"Edit site header","goal":"Remove only the subscription button","files":[%q]}]}`, header)
+					}
+				} else {
+					steps.Add(1)
+					if !strings.Contains(user, before) || strings.Contains(user, page) {
+						http.Error(w, "Expected only the planned component source", http.StatusBadRequest)
+						return
+					}
+					reply = fmt.Sprintf(`<dyad-write path="%s">%s</dyad-write>`, header, after)
+				}
+				writeBuildReply(w, reply)
+			}))
+			defer server.Close()
+			if err := db.NewSettingsRepository(database).SetMany(ctx, map[string]string{"llm.base_url": server.URL, "llm.model": "blog-test"}); err != nil {
+				t.Fatal(err)
+			}
+			service := testBuildService(database)
+			err = service.StreamChat(ctx, StreamChatRequest{ChatID: chatID, Mode: "build", Prompt: prompt})
+			wantSource, wantSteps, wantMessages := before, int32(0), 0
+			if retrySucceeds {
+				if err != nil {
+					t.Fatalf("有效的重试计划应继续写入首页组件：%v", err)
+				}
+				wantSource, wantSteps, wantMessages = after, 1, 2
+			} else if err == nil || !strings.Contains(err.Error(), "did not return a valid build plan") {
+				t.Fatalf("两次无效的计划应返回规划错误：%v", err)
+			}
+			if plans.Load() != 2 || steps.Load() != wantSteps {
+				t.Fatalf("规划调用次数=%d，构建步骤调用次数=%d", plans.Load(), steps.Load())
+			}
+			if src, err := os.ReadFile(filepath.Join(root, header)); err != nil || strings.TrimSpace(string(src)) != wantSource {
+				t.Fatalf("首页订阅按钮或其他入口未按要求处理：%s, %v", src, err)
+			}
+			if history, err := db.NewMessageRepository(database).ListByChatID(ctx, chatID); err != nil || len(history) != wantMessages {
+				t.Fatalf("会话只应保存已成功执行的构建：%+v, %v", history, err)
+			}
+			if progress, err := service.GetBuildProgress(ctx, chatID); err != nil || progress != nil {
+				t.Fatalf("无效或已完成的计划不应留下检查点：%+v, %v", progress, err)
+			}
+		})
+	}
+}
+
 // v12.REQ-004-AC-001 到 AC-003 验证分步生成、中断恢复和单轮历史。
 func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 	ctx := context.Background()
@@ -107,9 +222,7 @@ func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 			http.Error(w, "Expected a build plan or a single build step", http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("Content-Type", "text/event-stream")
-		delta, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"delta": map[string]string{"content": reply}}}})
-		fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", delta)
+		writeBuildReply(w, reply)
 	}))
 	defer server.Close()
 	settings := db.NewSettingsRepository(database)
@@ -169,6 +282,12 @@ func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 }
 
 type stagedBuildTsc struct{}
+
+func writeBuildReply(w http.ResponseWriter, reply string) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	delta, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"delta": map[string]string{"content": reply}}}})
+	fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", delta)
+}
 
 func (stagedBuildTsc) RunTsc(_ context.Context, root string) (string, error) {
 	source, err := os.ReadFile(filepath.Join(root, "src", "App.tsx"))
