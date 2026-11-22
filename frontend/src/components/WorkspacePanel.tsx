@@ -20,6 +20,8 @@ import { useI18n } from '../i18n/I18nContext';
 import { FileTree } from './FileTree';
 import { CodeEditorViewer } from './CodeEditorViewer';
 import { ComponentInspector } from './ComponentInspector';
+import { locateCodeRegion } from '../utils/sourceLocator';
+import type { InspectedElement } from '../types/inspect';
 import type { DiagnosticItem } from '../services/wailsBridge';
 
 export type WorkspaceView = 'preview' | 'code' | 'publish';
@@ -81,12 +83,19 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState<string>(files[0]?.path || '');
   const [source, setSource] = useState<{ path: string; text: string; error: boolean } | null>(null);
+  const [selectedInspectElement, setSelectedInspectElement] = useState<InspectedElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const activeFile = files.find((f) => f.path === selectedFilePath) || files[0];
   const codePaths = sourcePaths ?? files.map((file) => file.path);
   const activePath = codePaths.includes(selectedFilePath) ? selectedFilePath : codePaths[0];
   const previewOrigin = previewUrl && !previewDoc ? new URL(previewUrl).origin : '';
+
+  useEffect(() => {
+    if (!isInspectMode) {
+      setSelectedInspectElement(null);
+    }
+  }, [isInspectMode]);
 
   useEffect(() => {
     if (focusedFile) setSelectedFilePath(focusedFile);
@@ -114,16 +123,49 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   useEffect(syncInspector, [previewOrigin, isInspectMode, activeView, previewKey]);
   useEffect(() => {
     if (!isInspectMode || !previewOrigin || activeView !== 'preview') return;
-    const receive = (event: MessageEvent) => {
-      if (event.origin !== previewOrigin || event.source !== iframeRef.current?.contentWindow) return;
-      const { type, path } = event.data ?? {};
-      if (type === 'buildui:source-selected' && typeof path === 'string') {
+    const receive = async (event: MessageEvent) => {
+      if (previewOrigin && event.origin !== previewOrigin) return;
+      if (iframeRef.current?.contentWindow && event.source && event.source !== iframeRef.current.contentWindow) return;
+
+      const { type, path, element } = event.data ?? {};
+
+      if (type === 'buildui:element-selected' && element) {
+        const inspectedEl = { ...element } as InspectedElement;
+        const targetPath = inspectedEl.componentPath;
+
+        let sourceCode = '';
+        if (onReadFile && targetPath) {
+          try {
+            sourceCode = await onReadFile(targetPath);
+          } catch {
+            sourceCode = '';
+          }
+        } else if (files && targetPath) {
+          const matched = files.find((f) => f.path === targetPath || f.path.endsWith(targetPath));
+          if (matched) sourceCode = matched.content;
+        }
+
+        if (sourceCode) {
+          const region = locateCodeRegion({
+            sourceCode,
+            filePath: targetPath,
+            line: inspectedEl.line,
+            column: inspectedEl.column,
+            tagName: inspectedEl.tagName,
+            textSnippet: inspectedEl.textSnippet,
+            className: inspectedEl.className,
+          });
+          inspectedEl.codeRegion = region;
+        }
+
+        setSelectedInspectElement(inspectedEl);
+      } else if (type === 'buildui:source-selected' && typeof path === 'string') {
         onSelectComponent?.(path, `@${path}: `);
       }
     };
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
-  }, [activeView, isInspectMode, onSelectComponent, previewOrigin]);
+  }, [activeView, files, isInspectMode, onReadFile, onSelectComponent, previewOrigin]);
 
   const handleSelectDiagnostic = (diag: DiagnosticItem) => {
     if (diag.file) {
@@ -275,8 +317,18 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             {/* 组件审查模式覆盖层与局部定向编辑控制器 */}
             <ComponentInspector
               isActive={isInspectMode}
+              selectedElement={selectedInspectElement}
+              onClearSelectedElement={() => setSelectedInspectElement(null)}
               onExit={() => onToggleInspect?.()}
               onSelectComponent={(p, pr) => onSelectComponent?.(p, pr)}
+              onJumpToCode={(filePath, line) => {
+                onViewChange?.('code');
+                const matchingPath = codePaths.find(
+                  (cp) => cp === filePath || cp.endsWith(filePath) || filePath.endsWith(cp)
+                );
+                setSelectedFilePath(matchingPath || filePath);
+                if (line) setHighlightedLine(line);
+              }}
             />
 
             {isLoading ? (

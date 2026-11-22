@@ -37,6 +37,25 @@ export const formatTargetedPrompt = (
   element: InspectedElement,
   instruction: string
 ): string => {
+  if (element.codeRegion && element.codeRegion.found) {
+    const { startLine, endLine, codeSnippet } = element.codeRegion;
+    return [
+      `[Target Component: ${element.componentPath}]`,
+      `[Code Region: Lines ${startLine} to ${endLine}]`,
+      `[Original Code Snippet:`,
+      '```tsx',
+      codeSnippet,
+      '```]',
+      `[Instruction: ${instruction.trim()}]`,
+      `[Requirements:`,
+      `1. Update ONLY this specific container element and its styling in ${element.componentPath}.`,
+      `2. Keep all surrounding components, imports, and state unchanged.`,
+      `3. Use Tailwind CSS exclusively.`,
+      ']',
+    ].join('\n');
+  }
+
+  // 缺少代码片段时的降级格式
   const parts = [
     `@[${element.componentPath}] Local Edit:`,
     `- Target Element: <${element.tagName}${element.className ? ` class="${element.className}"` : ''}>`,

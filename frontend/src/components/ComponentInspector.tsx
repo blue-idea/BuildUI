@@ -53,8 +53,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
 
   if (!isActive) return null;
 
-  const currentElement =
-    externalSelectedElement !== undefined ? externalSelectedElement : internalSelectedElement;
+  const currentElement = externalSelectedElement || internalSelectedElement;
 
   const handleSelectTarget = (el: InspectedElement) => {
     setInternalSelectedElement(el);

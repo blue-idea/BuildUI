@@ -221,4 +221,51 @@ describe('WorkspacePanel Code Review Layout', () => {
     expect(diagPanel.className).toContain('border-slate-200');
     expect(diagPanel.className).toContain('dark:border-zinc-800');
   });
+
+  it('在审查模式下接收沙箱 buildui:element-selected 自动解析源码定位并在点击 Jump to Code 时切换代码视图', async () => {
+    const onViewChangeMock = vi.fn();
+    const onReadFileMock = vi.fn().mockResolvedValue(`import React from 'react';\n\nexport const Navbar = () => {\n  return (\n    <nav className="p-4 bg-white">\n      <button className="px-4 py-2">Click</button>\n    </nav>\n  );\n};`);
+
+    renderWorkspace(
+      <WorkspacePanel
+        activeView="preview"
+        isInspectMode={true}
+        onViewChange={onViewChangeMock}
+        onReadFile={onReadFileMock}
+        sourcePaths={['src/components/Navbar.tsx']}
+        previewUrl="http://localhost:8080"
+      />
+    );
+
+    // 触发沙箱 postMessage
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: {
+          type: 'buildui:element-selected',
+          element: {
+            id: 'el-1',
+            tagName: 'button',
+            componentPath: 'src/components/Navbar.tsx',
+            line: 6,
+            className: 'px-4 py-2',
+            textSnippet: 'Click',
+          },
+        },
+        origin: 'http://localhost:8080',
+      })
+    );
+
+    // 验证弹出 LocalEditPopover，并展示行号
+    await waitFor(() => {
+      expect(screen.getByTestId('local-edit-popover')).toBeDefined();
+    });
+    expect(screen.getByText(/Lines 6-6|Line 6/i)).toBeDefined();
+
+    // 点击 Jump to Code 按钮
+    const jumpBtn = screen.getByRole('button', { name: /jump to code/i });
+    fireEvent.click(jumpBtn);
+
+    // 验证调用了 onViewChange('code')
+    expect(onViewChangeMock).toHaveBeenCalledWith('code');
+  });
 });
