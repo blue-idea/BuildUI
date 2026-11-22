@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	// placeholderRegex 检测各种形式的占位符注释
-	placeholderRegex = regexp.MustCompile(`(?i)(//\s*todo\b|/\*\s*todo\b|//\s*fixme\b|/\*\s*implement\b|//\s*\.\.\.\s*existing code|//\s*\.\.\.\s*implement|//\s*rest of code)`)
+	// placeholderRegex 检测各种形式的占位符注释与省略号代码
+	placeholderRegex = regexp.MustCompile(`(?i)(//\s*todo\b|/\*\s*todo\b|//\s*fixme\b|/\*\s*fixme\b|/\*\s*implement\b|//\s*\.\.\.\s*existing code|/\*\s*\.\.\.\s*existing code|//\s*\.\.\.\s*implement|/\*\s*\.\.\.\s*implement|//\s*rest of code|/\*\s*rest of code)`)
 )
 
 // FileWriter 处理工作区内的文件写入与安全校验

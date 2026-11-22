@@ -45,6 +45,36 @@ export const version = '1.0';
 		t.Fatalf("expected error for code containing ellipsis placeholder, got nil")
 	}
 
+	// 含有 // rest of code unchanged 或 /* rest of code unchanged */ 应当被拦截
+	badCode4 := `
+export function renderHeader() { return <h1>Header</h1>; }
+// rest of code unchanged
+`
+	err = writer.ValidateContent(badCode4)
+	if err == nil {
+		t.Fatalf("expected error for code containing 'rest of code unchanged', got nil")
+	}
+
+	// 含有 /* ... existing code ... */ 块注释占位符应当被拦截
+	badCode5 := `
+/* ... existing code ... */
+export const count = 42;
+`
+	err = writer.ValidateContent(badCode5)
+	if err == nil {
+		t.Fatalf("expected error for code containing '/* ... existing code ... */', got nil")
+	}
+
+	// 含有 /* FIXME */ 块注释应当被拦截
+	badCode6 := `
+/* FIXME: fix login token expiration */
+export function login() {}
+`
+	err = writer.ValidateContent(badCode6)
+	if err == nil {
+		t.Fatalf("expected error for code containing '/* FIXME */', got nil")
+	}
+
 	// 正常全功能代码应通过验证
 	goodCode := `
 import React from 'react';

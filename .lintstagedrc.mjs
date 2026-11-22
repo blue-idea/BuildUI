@@ -1,10 +1,10 @@
 export default {
   '**/*.go': [
     'gofmt -w',
-    'go vet ./...',
+    () => 'go vet ./...',
   ],
-  'frontend/src/**/*.{ts,tsx}': (filenames) => [
-    `pnpm --prefix frontend exec eslint --fix ${filenames.map((f) => `"${f}"`).join(' ')}`,
-    'pnpm --prefix frontend exec tsc -p tsconfig.json --noEmit',
+  'frontend/src/**/*.{ts,tsx}': [
+    () => 'npm --prefix frontend run lint',
+    () => 'npm --prefix frontend run build',
   ],
 };

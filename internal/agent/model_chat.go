@@ -16,8 +16,19 @@ import (
 	"buildui/internal/workspace"
 )
 
-const blueprintPrompt = `Propose the blueprint for the user's requested app. Reply with only one JSON object, without Markdown fences, using these fields:
-{"appName":"...", "designDirection":"...", "primaryColor":"#123456", "themeId":"default", "visuals":[{"id":"...", "type":"icon", "description":"...", "prompt":"..."}]}.
+// BlueprintPrompt 规定大模型生成应用蓝图的标准格式与关键字段（设计方向、主色调、视觉资产清单含Logo/插图prompts）
+const BlueprintPrompt = `Propose the blueprint for the user's requested app. Reply with only one JSON object, without Markdown fences, using these fields:
+{
+  "appName": "...",
+  "designDirection": "...",
+  "primaryColor": "#123456",
+  "themeId": "default",
+  "visuals": [
+    {"id": "brand-logo", "type": "logo", "description": "Application logo mark", "prompt": "Modern minimalist vector logo for..."},
+    {"id": "hero-illustration", "type": "illustration", "description": "Hero section illustration", "prompt": "Clean modern isometric illustration depicting..."},
+    {"id": "feature-icon", "type": "icon", "description": "Key feature icon", "prompt": "Clean Lucide-style feature icon for..."}
+  ]
+}
 Use the language of the user's request for human-readable values. Do not write code or install dependencies. Approval is required before implementation.`
 
 var sourceMention = regexp.MustCompile(`@([a-zA-Z0-9_./-]+)[:\s]`)
@@ -90,7 +101,7 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	}
 
 	assembler := NewPromptAssembler()
-	system := blueprintPrompt
+	system := BlueprintPrompt
 	switch {
 	case bp == nil || !bp.Approved:
 	case req.Mode == "plan":

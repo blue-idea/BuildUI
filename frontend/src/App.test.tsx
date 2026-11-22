@@ -159,6 +159,34 @@ describe('App Main Split Layout & Workflow', () => {
     expect(screen.getByText('Approved')).toBeDefined();
   });
 
+  it('supports full workflow: questionnaire clarification -> blueprint generation -> user approval', () => {
+    renderBuilder();
+
+    // 1. 触发澄清问卷卡片
+    const mockQBtn = screen.getByRole('button', { name: /mock questionnaire/i });
+    fireEvent.click(mockQBtn);
+
+    expect(screen.getByText(/Project Clarification Questionnaire/i)).toBeDefined();
+    expect(screen.getByText(/What is the primary target audience\?/i)).toBeDefined();
+
+    // 2. 选择问卷选项并提交
+    fireEvent.click(screen.getByText('Developers'));
+    const submitBtn = screen.getByRole('button', { name: /submit answers/i });
+    fireEvent.click(submitBtn);
+
+    // 3. 验证问卷提交后展示应用蓝图（含设计方向、主色调、视觉清单）
+    expect(screen.getByText(/Submitted questionnaire answers/i)).toBeDefined();
+    expect(screen.getByText('Pending Approval')).toBeDefined();
+    expect(screen.getByText(/Clean modern card layout with high visual contrast/i)).toBeDefined();
+    expect(screen.getByText('brand-logo')).toBeDefined();
+
+    // 4. 点击审批蓝图解锁写盘
+    const approveBtn = screen.getByRole('button', { name: /approve blueprint/i });
+    fireEvent.click(approveBtn);
+
+    expect(screen.getByText('Approved')).toBeDefined();
+  });
+
   it('opens and closes settings modal from top navigation', () => {
     renderBuilder();
 

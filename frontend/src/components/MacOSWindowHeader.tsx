@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Command, Settings, Clock, Download, FolderGit2, TestTube2, FolderKanban } from 'lucide-react';
+import { X, Command, Settings, Clock, Download, FolderGit2, TestTube2, FolderKanban, HelpCircle } from 'lucide-react';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeModeToggle } from './ThemeModeToggle';
 import { ThemeSelector, ThemePreset } from './ThemeSelector';
@@ -14,6 +14,7 @@ export interface MacOSWindowHeaderProps {
   onOpenExport?: () => void;
   onSelectDirectory?: () => void;
   onMockBlueprint?: () => void;
+  onMockQuestionnaire?: () => void;
   onCloseTab?: () => void;
   workspaceDir?: string;
   themePresets?: ThemePreset[];
@@ -30,6 +31,7 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
   onOpenExport,
   onSelectDirectory,
   onMockBlueprint,
+  onMockQuestionnaire,
   onCloseTab,
   workspaceDir = '/workspace',
   themePresets,
@@ -180,6 +182,18 @@ export const MacOSWindowHeader: React.FC<MacOSWindowHeaderProps> = ({
             className="p-1.5 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 rounded-md hover:bg-slate-200/60 dark:hover:bg-zinc-800 transition-colors"
           >
             <TestTube2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {onMockQuestionnaire && (
+          <button
+            type="button"
+            onClick={onMockQuestionnaire}
+            aria-label="Mock questionnaire"
+            title="Mock Questionnaire"
+            className="p-1.5 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-100 rounded-md hover:bg-slate-200/60 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
           </button>
         )}
 

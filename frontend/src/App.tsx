@@ -818,6 +818,22 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     });
   };
 
+  const handleMockQuestionnaire = () => {
+    setQuestionnaire([
+      {
+        id: 'q1',
+        question: 'What is the primary target audience?',
+        type: 'single_choice',
+        options: ['Developers', 'Enterprise Teams', 'End Users'],
+      },
+      {
+        id: 'q2',
+        question: 'Any specific design preferences or color palettes?',
+        type: 'text',
+      },
+    ]);
+  };
+
   const handleSelectTemplate = (templateId: string) => {
     const tmpl = templates.find((t) => t.id === templateId);
     if (!tmpl) return;
@@ -950,6 +966,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         onOpenExport={() => setIsExportOpen(true)}
         onSelectDirectory={handleSelectDirectory}
         onMockBlueprint={desktop ? undefined : handleMockBlueprint}
+        onMockQuestionnaire={desktop ? undefined : handleMockQuestionnaire}
         onCloseTab={activeApp ? handleCloseProject : undefined}
       />
 
@@ -1210,6 +1227,29 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
                       content: `Submitted questionnaire answers (${Object.keys(answers).length} answered)`,
                     },
                   ]);
+                  // 问卷完成触发蓝图生成，蓝图包含设计方向、主色调与视觉资产清单
+                  setBlueprint({
+                    chatId: chatID.current || 1,
+                    appName: activeApp?.name || 'New App',
+                    designDirection: 'Clean modern card layout with high visual contrast',
+                    primaryColor: '#3b82f6',
+                    themeId: 'dark',
+                    visuals: [
+                      {
+                        id: 'brand-logo',
+                        type: 'logo',
+                        description: 'Application brand logo mark',
+                        prompt: 'geometric vector tech logo',
+                      },
+                      {
+                        id: 'hero-illustration',
+                        type: 'illustration',
+                        description: 'Modern 3D isometric hero illustration',
+                        prompt: 'isometric tech workflow illustration',
+                      },
+                    ],
+                    approved: false,
+                  });
                 }}
               />
             )}
