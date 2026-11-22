@@ -1178,10 +1178,11 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             onCreateApp={() => {
               const newId = Date.now();
               const nextIndex = apps.length === 1 || apps.some((a) => a.id === 1) ? 2 : apps.length + 1;
+              const baseDir = (settings['workspace.dir'] || workspaceDir || '/workspace').replace(/\/+$/, '');
               const newApp: AppItem = {
                 id: newId,
                 name: `Project ${nextIndex}`,
-                path: `/workspace/project-${nextIndex}`,
+                path: `${baseDir}/project-${nextIndex}`,
                 createdAt: new Date().toISOString(),
               };
               setApps((prev) => [...prev, newApp]);
@@ -1593,9 +1594,13 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         initialSettings={settings}
+        defaultWorkspaceDir={workspaceDir}
         onSave={async (newCfg) => {
           await (desktop ? desktopApp().SaveSettings(newCfg) : saveSettings(newCfg));
           setSettings(newCfg);
+          if (newCfg['workspace.dir']) {
+            setWorkspaceDir(newCfg['workspace.dir']);
+          }
         }}
         onTestConnection={testLLMConnection}
       />
@@ -1653,10 +1658,11 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         onCreateApp={() => {
           const newId = Date.now();
           const nextIndex = apps.length === 1 || apps.some((a) => a.id === 1) ? 2 : apps.length + 1;
+          const baseDir = (settings['workspace.dir'] || workspaceDir || '/workspace').replace(/\/+$/, '');
           const newApp: AppItem = {
             id: newId,
             name: `Project ${nextIndex}`,
-            path: `/workspace/project-${nextIndex}`,
+            path: `${baseDir}/project-${nextIndex}`,
             createdAt: new Date().toISOString(),
           };
           setApps((prev) => [...prev, newApp]);

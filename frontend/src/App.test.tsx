@@ -735,4 +735,63 @@ describe('App Main Split Layout & Workflow', () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it('creates project under custom workspace.dir when configured in settings', async () => {
+    const mockSettings = {
+      'workspace.dir': '/custom/storage/path',
+    };
+    const create = vi.fn().mockResolvedValue({
+      appId: 101,
+      name: 'Custom Storage App',
+      path: '/custom/storage/path/custom-storage-app',
+    });
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: vi.fn().mockResolvedValue(mockSettings),
+          GetActiveApp: vi.fn().mockResolvedValue({
+            appId: 1,
+            name: 'Default App',
+            path: '/workspace/default-app',
+            previewUrl: 'http://localhost:5173',
+            blueprintApproved: true,
+          }),
+          ListApps: vi.fn().mockResolvedValue([]),
+          GetActiveChat: vi.fn().mockResolvedValue({ chatId: 1, messages: [] }),
+          CreateApp: create,
+        },
+      },
+    });
+
+    try {
+      render(<App initialDockTab="builder" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('dock-projects')).toBeDefined();
+      });
+
+      // 点击 dock-projects 进入工程中心
+      fireEvent.click(screen.getByTestId('dock-projects'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('projects-center-view')).toBeDefined();
+      });
+
+      // 打开新建工程表单
+      const newProjectBtn = screen.getByTestId('new-project-btn');
+      fireEvent.click(newProjectBtn);
+
+      const nameInput = screen.getByTestId('new-project-name-input');
+      fireEvent.change(nameInput, { target: { value: 'Custom Storage App' } });
+
+      const submitBtn = screen.getByTestId('submit-create-project-btn');
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Custom Storage App' }));
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

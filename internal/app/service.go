@@ -65,6 +65,25 @@ func (s *AppService) SetWorkspaceRoot(root string) {
 	s.workspaceRoot = root
 }
 
+// GetWorkspaceRoot 获取新建项目的默认根目录（优先使用 settings 中的 workspace.dir，其次使用 workspaceRoot，兜底当前目录下的 workspace）
+func (s *AppService) GetWorkspaceRoot(ctx context.Context) string {
+	if s.db != nil {
+		var customDir string
+		row := s.db.SQLDB().QueryRowContext(ctx, "SELECT value FROM settings WHERE key = 'workspace.dir';")
+		if err := row.Scan(&customDir); err == nil && strings.TrimSpace(customDir) != "" {
+			return filepath.Clean(strings.TrimSpace(customDir))
+		}
+	}
+	if s.workspaceRoot != "" {
+		return filepath.Clean(s.workspaceRoot)
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "workspace"
+	}
+	return filepath.Join(cwd, "workspace")
+}
+
 // NewAppService 创建 AppService 实例
 func NewAppService(appRepo *db.AppRepository, database *db.DB) *AppService {
 	return &AppService{
@@ -92,14 +111,7 @@ func (s *AppService) CreateApp(ctx context.Context, req CreateAppRequest) (*Crea
 
 	targetPath := req.CustomPath
 	if targetPath == "" {
-		root := s.workspaceRoot
-		if root == "" {
-			cwd, err := os.Getwd()
-			if err != nil {
-				return nil, errs.NewInternalError("failed to get current working directory", err)
-			}
-			root = filepath.Join(cwd, "workspace")
-		}
+		root := s.GetWorkspaceRoot(ctx)
 		slug := strings.ToLower(strings.ReplaceAll(name, " ", "-"))
 		if slug == "." || !filepath.IsLocal(slug) || strings.ContainsAny(slug, "\\/:*?\"<>|") {
 			return nil, errs.NewValidationError("Choose a valid project name or directory.", nil)

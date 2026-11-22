@@ -9,7 +9,7 @@
 ## 当前活跃 Version
 
 ```yaml
-current_version: v15     # → Agent 替换 {{VERSION}} 时取此值
+current_version: v16     # → Agent 替换 {{VERSION}} 时取此值
 ```
 
 ---
@@ -32,7 +32,8 @@ current_version: v15     # → Agent 替换 {{VERSION}} 时取此值
 | v12 | finished | `docs/spec/versions/v12-finished/` | 第十二版本已圆满收官：工业级代码生成核心管线强化（蓝图门禁澄清闭环、脚手架规范硬注入、零占位符与缺失文件即时创建铁律） |
 | v13 | finished | `docs/spec/versions/v13-finished/` | 第十三版本已圆满收官：可视化元素自由选取、精准源码与代码区域定位及定向局部 AI 编辑闭环 |
 | v14 | finished | `docs/spec/versions/v14-finished/` | 第十四版本已圆满收官：项目删除时物理工作区目录联动清理与系统路径安全防御 |
-| v15 | active | `docs/spec/versions/v15/` | 进行中：工作台项目预览拟真地址栏手动路由输入、回车导航与沙箱双向路由同步 |
+| v15 | finished | `docs/spec/versions/v15-finished/` | 第十五版本已圆满收官：工作台项目预览拟真地址栏手动路由输入、回车导航与沙箱双向路由同步 |
+| v16 | active | `docs/spec/versions/v16/` | 进行中：系统设置自定义默认存储路径与新建工程目录动态绑定 |
 
 ---
 
