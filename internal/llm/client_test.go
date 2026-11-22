@@ -196,3 +196,52 @@ func TestOpenAIClient_TestConnection(t *testing.T) {
 		t.Fatalf("TestConnection failed: %v", err)
 	}
 }
+
+func TestNormalizeBaseURL(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected string
+	}{
+		{"https://api.deepseek.com/chat/completions", "https://api.deepseek.com"},
+		{"https://api.deepseek.com/chat/completions/", "https://api.deepseek.com"},
+		{"https://api.deepseek.com/v1/chat/completions", "https://api.deepseek.com/v1"},
+		{"https://api.openai.com/v1/chat/completions/", "https://api.openai.com/v1"},
+		{"https://api.deepseek.com/models", "https://api.deepseek.com"},
+		{"https://api.openai.com/v1/", "https://api.openai.com/v1"},
+		{"http://localhost:11434/v1", "http://localhost:11434/v1"},
+		{"  https://api.deepseek.com/chat/completions  ", "https://api.deepseek.com"},
+	}
+
+	for _, tc := range testCases {
+		got := llm.NormalizeBaseURL(tc.input)
+		if got != tc.expected {
+			t.Errorf("NormalizeBaseURL(%q) = %q; want %q", tc.input, got, tc.expected)
+		}
+	}
+}
+
+func TestOpenAIClient_StreamChat_NormalizesEndpoint(t *testing.T) {
+	var requestedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		if r.URL.Path != "/chat/completions" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "data: [DONE]\n\n")
+	}))
+	defer server.Close()
+
+	// 模拟用户输入了带 /chat/completions 的完整 URL
+	urlWithChatCompletions := server.URL + "/chat/completions"
+	client := llm.NewOpenAIClient(urlWithChatCompletions, "test-key", "deepseek-chat")
+
+	_ = client.StreamChat(context.Background(), llm.ChatRequest{}, func(chunk string) error {
+		return nil
+	})
+
+	if requestedPath != "/chat/completions" {
+		t.Fatalf("expected request path to be '/chat/completions', got '%s'", requestedPath)
+	}
+}

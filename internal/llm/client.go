@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,9 @@ import (
 	"buildui/internal/errs"
 )
 
+// ErrOutputLimit 区分模型截断和其他流式请求错误。
+var ErrOutputLimit = errs.NewExternalError("The model reached its output limit before completing the response.", nil)
+
 // OpenAIClient 兼容 OpenAI 协议的大模型流式客户端
 type OpenAIClient struct {
 	baseURL    string
@@ -22,9 +26,27 @@ type OpenAIClient struct {
 	httpClient *http.Client
 }
 
+// NormalizeBaseURL 规范化大模型端点 URL，自动剥离末尾可能误填的 /chat/completions 或 /models 路径与多余斜杠
+func NormalizeBaseURL(rawURL string) string {
+	u := strings.TrimSpace(rawURL)
+	for {
+		u = strings.TrimRight(u, "/")
+		if strings.HasSuffix(u, "/chat/completions") {
+			u = strings.TrimSuffix(u, "/chat/completions")
+			continue
+		}
+		if strings.HasSuffix(u, "/models") {
+			u = strings.TrimSuffix(u, "/models")
+			continue
+		}
+		break
+	}
+	return u
+}
+
 // NewOpenAIClient 创建兼容 OpenAI 协议的流式客户端
 func NewOpenAIClient(baseURL, apiKey, model string) *OpenAIClient {
-	cleanBaseURL := strings.TrimRight(baseURL, "/")
+	cleanBaseURL := NormalizeBaseURL(baseURL)
 	if cleanBaseURL == "" {
 		cleanBaseURL = "https://api.openai.com/v1"
 	}
@@ -33,7 +55,10 @@ func NewOpenAIClient(baseURL, apiKey, model string) *OpenAIClient {
 		apiKey:  apiKey,
 		model:   model,
 		httpClient: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout: 0, // 流式 SSE 响应不设总超时，通过 Transport 超时与 context 取消控制
+			Transport: &http.Transport{
+				ResponseHeaderTimeout: 300 * time.Second,
+			},
 		},
 	}
 }
@@ -62,6 +87,9 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 	}
 	if req.MaxTokens > 0 {
 		bodyMap["max_tokens"] = req.MaxTokens
+	}
+	if req.DisableThinking {
+		bodyMap["thinking"] = map[string]string{"type": "disabled"}
 	}
 
 	jsonBytes, err := json.Marshal(bodyMap)
@@ -143,7 +171,7 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 			}
 			if choice.FinishReason != nil && *choice.FinishReason != "" {
 				if *choice.FinishReason == "length" {
-					return errs.NewExternalError("The model reached its output limit before completing the response.", nil)
+					return ErrOutputLimit
 				}
 				completed = true
 			}
@@ -196,7 +224,12 @@ func (c *OpenAIClient) TestConnection(ctx context.Context) error {
 			},
 			MaxTokens: 1,
 		}
-		return c.StreamChat(ctx, testReq, func(chunk string) error { return nil })
+		err := c.StreamChat(ctx, testReq, func(chunk string) error { return nil })
+		if errors.Is(err, ErrOutputLimit) {
+			// 探测只要求模型可调用，单 token 截断证明请求已被模型处理。
+			return nil
+		}
+		return err
 	}
 
 	respBytes, _ := io.ReadAll(resp.Body)

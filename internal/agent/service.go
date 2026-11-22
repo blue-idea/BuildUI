@@ -80,7 +80,7 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 			stop := context.AfterFunc(streamCtx, func() { _ = closer.Close() })
 			defer stop()
 		}
-		return s.processChunks(streamCtx, chatID, appPath, func(feed func(string) error) error {
+		result, err := s.processChunks(streamCtx, chatID, appPath, func(feed func(string) error) error {
 			buf := make([]byte, 1024)
 			for {
 				if err := streamCtx.Err(); err != nil {
@@ -103,13 +103,25 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 				}
 			}
 		}, nil)
+		if err != nil {
+			return err
+		}
+		s.finishBuild(streamCtx, chatID, appPath, result.changed)
+		return nil
 	})
 }
 
-func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, appPath string, read func(func(string) error) error, onText func(string)) error {
+type buildResult struct {
+	files       []string
+	packages    []string
+	interrupted unfinishedTool
+	changed     bool
+}
+
+func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, appPath string, read func(func(string) error) error, onText func(string)) (buildResult, error) {
 	fileWriter := NewFileWriter(appPath)
 	depManager := NewDependencyManager(appPath, nil)
-	filesWrittenCount := 0
+	var result buildResult
 
 	var visible strings.Builder
 	flushVisible := func() {
@@ -161,7 +173,8 @@ func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, app
 			if err := fileWriter.WriteFile(path, content); err != nil {
 				return err
 			}
-			filesWrittenCount++
+			result.files = append(result.files, path)
+			result.changed = true
 			return nil
 		},
 		OnAddDependency: func(packages []string) error {
@@ -171,37 +184,49 @@ func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, app
 			if err := depManager.EnsureDependencies(streamCtx, packages); err != nil {
 				return err
 			}
-			filesWrittenCount++
+			result.packages = append(result.packages, packages...)
+			result.changed = true
 			return nil
 		},
 	})
 
-	if err := read(func(chunk string) error {
+	readErr := read(func(chunk string) error {
 		err := parser.Feed(chunk)
 		flushVisible()
 		return err
-	}); err != nil {
-		parser.abort(err)
-		return err
+	})
+	result.interrupted = parser.unfinished()
+	if readErr != nil {
+		parser.abort(readErr)
+		return result, readErr
 	}
 
 	if err := streamCtx.Err(); err != nil {
 		parser.abort(err)
-		return err
+		return result, err
 	}
 
 	if err := parser.Flush(); err != nil {
-		return err
+		return result, err
 	}
 	flushVisible()
 
+	return result, nil
+}
+
+func (s *ChatService) finishBuild(ctx context.Context, chatID int64, appPath string, changed bool) {
 	commitHash := ""
-	if filesWrittenCount > 0 {
-		commitHash = s.commitWorkspaceChanges(streamCtx, chatID, appPath)
+	if changed {
+		commitHash = s.commitWorkspaceChanges(ctx, chatID, appPath)
 	}
 
 	s.emitEnd(chatID, commitHash)
-	return nil
+}
+
+func (s *ChatService) emitProgress(chatID int64, message string) {
+	if s.emitter != nil {
+		s.emitter.Emit("chat:progress", map[string]any{"chatId": chatID, "message": message})
+	}
 }
 
 func (s *ChatService) emitEnd(chatID int64, commitHash string) {

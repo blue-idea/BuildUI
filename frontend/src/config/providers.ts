@@ -52,6 +52,27 @@ export const DEFAULT_PROVIDER_PRESETS: ProviderConfig[] = [
 ];
 
 /**
+ * 规范化大模型端点 Base URL
+ * 自动剥离末尾可能误填的 /chat/completions 或 /models 路径与多余斜杠
+ */
+export function normalizeBaseUrl(rawUrl: string): string {
+  let u = (rawUrl || '').trim();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    u = u.replace(/\/+$/, '');
+    if (u.endsWith('/chat/completions')) {
+      u = u.slice(0, -'/chat/completions'.length);
+      changed = true;
+    } else if (u.endsWith('/models')) {
+      u = u.slice(0, -'/models'.length);
+      changed = true;
+    }
+  }
+  return u;
+}
+
+/**
  * 判断指定 Provider 是否已经完成有效设置
  * 规则：
  * 1. 本地 Ollama 只要配置了 URL 与 Model 即为有效（无需 Key）
@@ -167,14 +188,14 @@ export function serializeProviders(
   providers.forEach((p) => {
     const prefix = `llm.providers.${p.id}.`;
     nextSettings[prefix + 'name'] = p.name.trim();
-    nextSettings[prefix + 'base_url'] = p.url.trim();
+    nextSettings[prefix + 'base_url'] = normalizeBaseUrl(p.url);
     nextSettings[prefix + 'api_key'] = p.key.trim();
     nextSettings[prefix + 'model'] = p.model.trim();
   });
 
   // 写入旧版兼容全局字段
   nextSettings['llm.provider'] = activeProvider.id;
-  nextSettings['llm.base_url'] = activeProvider.url.trim();
+  nextSettings['llm.base_url'] = normalizeBaseUrl(activeProvider.url);
   nextSettings['llm.api_key'] = activeProvider.key.trim();
   nextSettings['llm.model'] = activeProvider.model.trim();
 

@@ -75,6 +75,7 @@ export interface ProblemsResponse {
 }
 
 export interface ChatEventHandlers {
+  onProgress?: (data: { chatId: number; message: string }) => void;
   onChunk?: (data: { chatId: number; chunk: string }) => void;
   onToolStart?: (data: { chatId: number; tool: string; path?: string }) => void;
   onToolEnd?: (data: { chatId: number; tool: string; success: boolean }) => void;
@@ -333,6 +334,9 @@ export function subscribeChatEvents(handlers: ChatEventHandlers): () => void {
 
   if (typeof window !== 'undefined' && window.runtime?.EventsOn) {
     const eventsOn = window.runtime.EventsOn;
+    if (handlers.onProgress) {
+      cleanups.push(eventsOn('chat:progress', handlers.onProgress));
+    }
     if (handlers.onChunk) {
       cleanups.push(eventsOn('chat:chunk', (data: any) => handlers.onChunk?.(data)));
     }

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 
 	"buildui/internal/blueprint"
@@ -136,42 +138,45 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	}
 	messages = append(messages, llm.ChatMessage{Role: "user", Content: req.Prompt, Images: req.Attachments})
 	client := llm.NewOpenAIClient(endpoint, apiKey, model)
-	maxTokens := config.ModelBlueprintMaxTokens
+	request := llm.ChatRequest{Model: model, Messages: messages, Temperature: 0.2, MaxTokens: config.ModelBlueprintMaxTokens}
+	supportsThinking := config.SupportsDeepSeekThinking(model)
 	if bp != nil && bp.Approved && req.Mode != "plan" {
-		maxTokens = config.ModelBuildMaxTokens
-	}
-	request := llm.ChatRequest{Model: model, Messages: messages, Temperature: 0.2, MaxTokens: maxTokens}
-	var reply strings.Builder
-	stream := func(feed func(string) error) error {
-		err := client.StreamChat(ctx, request, func(chunk string) error {
-			reply.WriteString(chunk)
-			return feed(chunk)
-		})
-		if err == nil && strings.TrimSpace(reply.String()) == "" {
-			return errs.NewExternalError("The model returned an empty response.", nil)
+		request.MaxTokens = config.ModelBuildMaxTokens
+		if supportsThinking {
+			// V4 构建优先把补全预算留给完整代码，兼顾可能保留推理的中转服务。
+			request.DisableThinking = true
+			request.MaxTokens = config.ModelDeepSeekBuildMaxTokens
 		}
-		return err
-	}
-	if bp != nil && bp.Approved && req.Mode != "plan" {
-		var display strings.Builder
-		err = s.processChunks(ctx, req.ChatID, app.Path, stream, func(text string) { display.WriteString(text) })
-		if err != nil {
-			return err
-		}
-		return s.saveTurn(ctx, req, model, strings.TrimSpace(display.String()))
+		return s.streamBuild(ctx, req, app.Path, client, request)
 	}
 
-	err = stream(func(chunk string) error {
-		if bp != nil && bp.Approved && s.emitter != nil {
+	drafting := bp == nil || !bp.Approved
+	if drafting {
+		s.emitProgress(req.ChatID, "Waiting for the model to generate a blueprint…")
+	} else {
+		s.emitProgress(req.ChatID, "Waiting for the model to respond…")
+	}
+	var reply strings.Builder
+	receive := func(chunk string) error {
+		reply.WriteString(chunk)
+		if !drafting && s.emitter != nil {
 			s.emitter.Emit("chat:chunk", map[string]any{"chatId": req.ChatID, "chunk": chunk})
 		}
 		return nil
-	})
+	}
+	err = streamModelResponse(ctx, client, request, receive)
+	if drafting && errors.Is(err, llm.ErrOutputLimit) {
+		reply.Reset()
+		s.emitProgress(req.ChatID, "The blueprint reached the model's output limit. Retrying with a shorter blueprint…")
+		request.DisableThinking = supportsThinking
+		request.Messages[len(request.Messages)-1].Content += "\nReturn concise valid blueprint JSON with one short sentence per field and at most three visuals."
+		err = streamModelResponse(ctx, client, request, receive)
+	}
 	if err != nil {
 		return err
 	}
 	display := strings.TrimSpace(reply.String())
-	if bp == nil || !bp.Approved {
+	if drafting {
 		// 兼容服务商附带的 Markdown 围栏，蓝图内容仍须是有效 JSON。
 		start, end := strings.IndexByte(display, '{'), strings.LastIndexByte(display, '}')
 		var draft blueprint.BlueprintDTO
@@ -193,6 +198,88 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	return nil
 }
 
+func streamModelResponse(ctx context.Context, client *llm.OpenAIClient, request llm.ChatRequest, receive func(string) error) error {
+	hasContent := false
+	err := client.StreamChat(ctx, request, func(chunk string) error {
+		hasContent = hasContent || strings.TrimSpace(chunk) != ""
+		return receive(chunk)
+	})
+	if err == nil && !hasContent {
+		return errs.NewExternalError("The model returned an empty response.", nil)
+	}
+	return err
+}
+
+func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, root string, client *llm.OpenAIClient, request llm.ChatRequest) error {
+	s.emitProgress(req.ChatID, "Waiting for the model to generate code…")
+	lastMessage := &request.Messages[len(request.Messages)-1]
+	prompt := lastMessage.Content
+	completed, pendingFiles := make(map[string]bool), make(map[string]bool)
+	pendingPackages := make(map[string]string)
+	pendingKinds := make(map[string]bool)
+	var display strings.Builder
+	changed := false
+
+	for continuation := 0; ; continuation++ {
+		result, err := s.processChunks(ctx, req.ChatID, root, func(feed func(string) error) error {
+			return streamModelResponse(ctx, client, request, feed)
+		}, func(text string) { display.WriteString(text) })
+		for _, name := range result.files {
+			completed[name] = true
+			delete(pendingFiles, name)
+			delete(pendingKinds, writeFileTool)
+		}
+		for _, pkg := range result.packages {
+			delete(pendingPackages, extractBarePackageName(pkg))
+			delete(pendingKinds, addDependencyTool)
+		}
+		changed = changed || result.changed
+		if err == nil && len(pendingFiles) == 0 && len(pendingPackages) == 0 && len(pendingKinds) == 0 {
+			break
+		}
+		hitOutputLimit := errors.Is(err, llm.ErrOutputLimit)
+		if err != nil && !hitOutputLimit && !errors.Is(err, errIncompleteTool) {
+			return err
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		interrupted := result.interrupted
+		switch {
+		case interrupted.path != "":
+			pendingFiles[interrupted.path] = true
+			delete(completed, interrupted.path)
+		case len(interrupted.packages) > 0:
+			for _, pkg := range interrupted.packages {
+				pendingPackages[extractBarePackageName(pkg)] = pkg
+			}
+		case interrupted.kind != "":
+			pendingKinds[interrupted.kind] = true
+		}
+		if continuation >= config.ModelBuildContinuations {
+			return errs.NewExternalError("The build could not finish after automatic continuation. Completed files were retained. Ask the model to finish the remaining work in smaller changes.", err)
+		}
+		progress := "Continuing generation to complete unfinished tools"
+		reason := "Previous response ended with unfinished tool calls."
+		if hitOutputLimit {
+			progress = "Continuing generation after the model's output limit"
+			reason = "Previous response reached the output limit."
+		}
+		s.emitProgress(req.ChatID, fmt.Sprintf("%s (%d/%d)…", progress, continuation+1, config.ModelBuildContinuations))
+		// 每次续写从完整工具标签开始，避免把被截断的正文拼接进文件或会话。
+		written := slices.Sorted(maps.Keys(completed))
+		lastMessage.Content = fmt.Sprintf("%s\n\n%s Continue the original request. Files already written in this turn: %q. Files to rewrite in full first: %q. Dependencies to finish: %q. Tools to re-emit in full if the target was lost: %q. Skip completed files unless needed for consistency. Use complete tool tags, including their closing tags. Keep each file small and prose brief.",
+			prompt, reason, written, slices.Sorted(maps.Keys(pendingFiles)), slices.Sorted(maps.Values(pendingPackages)), slices.Sorted(maps.Keys(pendingKinds))) + sourceFilesContext(root, written)
+	}
+
+	s.emitProgress(req.ChatID, "Saving generated changes…")
+	if err := s.saveTurn(ctx, req, request.Model, strings.TrimSpace(display.String())); err != nil {
+		return err
+	}
+	s.finishBuild(ctx, req.ChatID, root, changed)
+	return nil
+}
+
 func (s *ChatService) saveTurn(ctx context.Context, req StreamChatRequest, model, reply string) error {
 	if _, err := s.messageRepo.Create(ctx, &db.MessageEntity{
 		ChatID: req.ChatID, Role: "user", Content: req.Prompt,
@@ -210,6 +297,10 @@ func sourceContext(root, prompt string) string {
 	for _, match := range sourceMention.FindAllStringSubmatch(prompt+" ", 5) {
 		paths = append([]string{match[1]}, paths...)
 	}
+	return sourceFilesContext(root, paths)
+}
+
+func sourceFilesContext(root string, paths []string) string {
 	var out strings.Builder
 	seen := make(map[string]bool)
 	for _, name := range paths {

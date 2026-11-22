@@ -121,22 +121,30 @@ describe('Wails Bridge Client Service', () => {
   });
 
   it('subscribes to chat events and unregisters properly on cleanup', () => {
-    const mockEventsOn = vi.fn().mockReturnValue(() => {});
+    const cleanup = vi.fn();
+    const mockEventsOn = vi.fn().mockReturnValue(cleanup);
     (window as any).runtime = {
       EventsOn: mockEventsOn,
     };
 
     const onChunk = vi.fn();
     const onEnd = vi.fn();
+    const onProgress = vi.fn();
 
     const unsubscribe = subscribeChatEvents({
       onChunk,
       onEnd,
+      onProgress,
     });
 
     expect(mockEventsOn).toHaveBeenCalledWith('chat:chunk', expect.any(Function));
     expect(mockEventsOn).toHaveBeenCalledWith('chat:end', expect.any(Function));
 
+    const event = mockEventsOn.mock.calls.find(([name]) => name === 'chat:progress');
+    const payload = { chatId: 1, message: 'Waiting for the model to generate a blueprint…' };
+    event?.[1](payload);
+    expect(onProgress).toHaveBeenCalledWith(payload);
     unsubscribe();
+    expect(cleanup).toHaveBeenCalledTimes(3);
   });
 });

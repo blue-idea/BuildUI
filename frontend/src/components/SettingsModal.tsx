@@ -27,6 +27,7 @@ import {
   parseConfiguredProviders,
   serializeProviders,
   isProviderConfigured,
+  normalizeBaseUrl,
 } from '../config/providers';
 
 export type SettingsNavTab = 'models' | 'workspace' | 'appearance' | 'general';
@@ -238,7 +239,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await onTestConnection(editForm.url, editForm.key, editForm.model);
+      const normalizedUrl = normalizeBaseUrl(editForm.url);
+      if (normalizedUrl !== editForm.url) {
+        setEditForm((prev) => ({ ...prev, url: normalizedUrl }));
+      }
+      const res = await onTestConnection(normalizedUrl, editForm.key, editForm.model);
       if (typeof res === 'string') {
         setTestResult({ success: true, message: res });
       } else if (res === true) {
@@ -621,6 +626,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             setEditForm({ ...editForm, url: e.target.value });
                             setTestResult(null);
                           }}
+                          onBlur={() => {
+                            const cleaned = normalizeBaseUrl(editForm.url);
+                            if (cleaned !== editForm.url) {
+                              setEditForm((prev) => ({ ...prev, url: cleaned }));
+                            }
+                          }}
                           placeholder={
                             editForm.id.includes('deepseek')
                               ? 'https://api.deepseek.com/v1'
@@ -631,7 +642,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           className="mt-1 w-full rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-xs text-slate-800 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono transition-all"
                         />
                         <span className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1 block">
-                          Supports HTTP/HTTPS endpoints and local Ollama (e.g. http://localhost:11434/v1).
+                          Supports HTTP/HTTPS endpoints and local Ollama (e.g. http://localhost:11434/v1). Redundant /chat/completions suffixes are automatically trimmed.
                         </span>
                       </div>
 

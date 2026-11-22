@@ -46,12 +46,24 @@ const (
 	stateDepBody
 )
 
+const (
+	writeFileTool     = "write_file"
+	addDependencyTool = "add_dependency"
+)
+
 var (
+	errIncompleteTool    = errs.NewExternalError("The model response ended before a tool call was complete. Try again.", nil)
 	attrPathRegex        = regexp.MustCompile(`path="([^"]+)"`)
 	attrDescriptionRegex = regexp.MustCompile(`description="([^"]*)"`)
 	attrPackagesRegex    = regexp.MustCompile(`packages="([^"]+)"`)
 	codeFence            = regexp.MustCompile("^```[a-zA-Z0-9_+.-]*$")
 )
+
+type unfinishedTool struct {
+	kind     string
+	path     string
+	packages []string
+}
 
 // XMLStreamParser 增量流式 XML 状态机
 type XMLStreamParser struct {
@@ -101,44 +113,31 @@ func (p *XMLStreamParser) Feed(token string) error {
 			// 检查是否可能不是 dyad 标签，若是普通 html 标签且已闭合
 			if char == '>' {
 				if strings.HasPrefix(bufStr, "<dyad-write") {
-					pathMatch := attrPathRegex.FindStringSubmatch(bufStr)
-					descMatch := attrDescriptionRegex.FindStringSubmatch(bufStr)
-
-					p.currPath = ""
-					p.currDesc = ""
-					if len(pathMatch) > 1 {
-						p.currPath = pathMatch[1]
-					}
-					if len(descMatch) > 1 {
-						p.currDesc = descMatch[1]
-					}
+					p.currPath = toolAttribute(attrPathRegex, bufStr)
+					p.currDesc = toolAttribute(attrDescriptionRegex, bufStr)
 
 					p.buffer.Reset()
 					p.state = stateWriteBody
 					if p.callbacks.OnToolStart != nil {
 						p.callbacks.OnToolStart(ToolStartEvent{
-							Tool: "write_file",
+							Tool: writeFileTool,
 							Path: p.currPath,
 						})
 					}
 				} else if strings.HasPrefix(bufStr, "<dyad-add-dependency") {
-					pkgMatch := attrPackagesRegex.FindStringSubmatch(bufStr)
-					p.currPackages = nil
-					if len(pkgMatch) > 1 {
-						p.currPackages = strings.Fields(pkgMatch[1])
-					}
+					p.currPackages = strings.Fields(toolAttribute(attrPackagesRegex, bufStr))
 
 					if p.callbacks.OnToolStart != nil {
 						p.callbacks.OnToolStart(ToolStartEvent{
-							Tool: "add_dependency",
+							Tool: addDependencyTool,
 						})
 					}
 
 					// 如果是单标签 <dyad-add-dependency ... /> 直接完成
 					if strings.HasSuffix(strings.TrimSpace(bufStr), "/>") {
-						p.completeAddDependency()
-						p.buffer.Reset()
-						p.state = stateText
+						if err := p.completeAddDependency(); err != nil {
+							return err
+						}
 					} else {
 						p.buffer.Reset()
 						p.state = stateDepBody
@@ -176,7 +175,7 @@ func (p *XMLStreamParser) Feed(token string) error {
 
 				if p.callbacks.OnToolEnd != nil {
 					p.callbacks.OnToolEnd(ToolEndEvent{
-						Tool:    "write_file",
+						Tool:    writeFileTool,
 						Success: err == nil,
 						Error:   errToString(err),
 					})
@@ -194,9 +193,9 @@ func (p *XMLStreamParser) Feed(token string) error {
 			bufStr := p.buffer.String()
 			closeTag := "</dyad-add-dependency>"
 			if strings.HasSuffix(bufStr, closeTag) {
-				p.completeAddDependency()
-				p.buffer.Reset()
-				p.state = stateText
+				if err := p.completeAddDependency(); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -217,35 +216,61 @@ func unwrapSourceFence(filename, content string) string {
 	return content
 }
 
-func (p *XMLStreamParser) completeAddDependency() {
+func (p *XMLStreamParser) completeAddDependency() error {
 	var err error
 	if p.callbacks.OnAddDependency != nil {
 		err = p.callbacks.OnAddDependency(p.currPackages)
 	}
 	if p.callbacks.OnToolEnd != nil {
 		p.callbacks.OnToolEnd(ToolEndEvent{
-			Tool:    "add_dependency",
+			Tool:    addDependencyTool,
 			Success: err == nil,
 			Error:   errToString(err),
 		})
 	}
+	p.buffer.Reset()
+	p.state = stateText
+	return err
 }
 
 // Flush 结束流式输入并排空剩余缓冲区
 func (p *XMLStreamParser) Flush() error {
-	switch p.state {
-	case stateWriteBody, stateDepBody:
-		err := errs.NewExternalError("The model response ended before a tool call was complete. Try again.", nil)
-		p.abort(err)
-		return err
-	case stateTagOpen, stateText:
-		if p.buffer.Len() > 0 && p.callbacks.OnChunk != nil {
-			p.callbacks.OnChunk(p.buffer.String())
-		}
+	if p.unfinished().kind != "" {
+		p.abort(errIncompleteTool)
+		return errIncompleteTool
+	}
+	if p.buffer.Len() > 0 && p.callbacks.OnChunk != nil {
+		p.callbacks.OnChunk(p.buffer.String())
 	}
 	p.buffer.Reset()
 	p.state = stateText
 	return nil
+}
+
+// unfinished 在清空缓冲区前提取续写目标，工具起始标签也可能在属性中途被截断。
+func (p *XMLStreamParser) unfinished() unfinishedTool {
+	switch p.state {
+	case stateWriteBody:
+		return unfinishedTool{kind: writeFileTool, path: p.currPath}
+	case stateDepBody:
+		return unfinishedTool{kind: addDependencyTool, packages: p.currPackages}
+	case stateTagOpen:
+		tag := p.buffer.String()
+		switch {
+		case strings.HasPrefix(tag, "<dyad-write"):
+			return unfinishedTool{kind: writeFileTool, path: toolAttribute(attrPathRegex, tag)}
+		case strings.HasPrefix(tag, "<dyad-add-dependency"):
+			return unfinishedTool{kind: addDependencyTool, packages: strings.Fields(toolAttribute(attrPackagesRegex, tag))}
+		}
+	}
+	return unfinishedTool{}
+}
+
+func toolAttribute(pattern *regexp.Regexp, tag string) string {
+	if match := pattern.FindStringSubmatch(tag); len(match) > 1 {
+		return match[1]
+	}
+	return ""
 }
 
 // abort 关闭已开始的工具调用，保留调用方收到的原始错误。
@@ -253,9 +278,9 @@ func (p *XMLStreamParser) abort(err error) {
 	if p.callbacks.OnToolEnd != nil {
 		switch p.state {
 		case stateWriteBody:
-			p.callbacks.OnToolEnd(ToolEndEvent{Tool: "write_file", Success: false, Error: err.Error()})
+			p.callbacks.OnToolEnd(ToolEndEvent{Tool: writeFileTool, Success: false, Error: err.Error()})
 		case stateDepBody:
-			p.callbacks.OnToolEnd(ToolEndEvent{Tool: "add_dependency", Success: false, Error: err.Error()})
+			p.callbacks.OnToolEnd(ToolEndEvent{Tool: addDependencyTool, Success: false, Error: err.Error()})
 		}
 	}
 	p.buffer.Reset()

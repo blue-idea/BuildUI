@@ -3,6 +3,7 @@ import {
   parseConfiguredProviders,
   serializeProviders,
   isProviderConfigured,
+  normalizeBaseUrl,
   type ProviderConfig,
 } from './providers';
 
@@ -105,5 +106,42 @@ describe('Providers Configuration and Parser', () => {
     expect(serialized['llm.provider']).toBe('ollama');
     expect(serialized['llm.base_url']).toBe('http://localhost:11434/v1');
     expect(serialized['workspace.dir']).toBe('/workspace');
+  });
+
+  it('normalizes base url by stripping redundant paths like /chat/completions or /models', () => {
+    expect(normalizeBaseUrl('https://api.deepseek.com/chat/completions')).toBe(
+      'https://api.deepseek.com'
+    );
+    expect(normalizeBaseUrl('https://api.deepseek.com/chat/completions/')).toBe(
+      'https://api.deepseek.com'
+    );
+    expect(normalizeBaseUrl('https://api.deepseek.com/v1/chat/completions')).toBe(
+      'https://api.deepseek.com/v1'
+    );
+    expect(normalizeBaseUrl('https://api.openai.com/v1/models')).toBe(
+      'https://api.openai.com/v1'
+    );
+    expect(normalizeBaseUrl('http://localhost:11434/v1/')).toBe(
+      'http://localhost:11434/v1'
+    );
+    expect(normalizeBaseUrl('  https://api.deepseek.com/chat/completions  ')).toBe(
+      'https://api.deepseek.com'
+    );
+  });
+
+  it('serializes providers and automatically normalizes base URLs', () => {
+    const providers: ProviderConfig[] = [
+      {
+        id: 'deepseek',
+        name: 'DeepSeek',
+        url: 'https://api.deepseek.com/chat/completions',
+        key: 'sk-deepseek',
+        model: 'deepseek-chat',
+      },
+    ];
+
+    const serialized = serializeProviders(providers, 'deepseek');
+    expect(serialized['llm.providers.deepseek.base_url']).toBe('https://api.deepseek.com');
+    expect(serialized['llm.base_url']).toBe('https://api.deepseek.com');
   });
 });

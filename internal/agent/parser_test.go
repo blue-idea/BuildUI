@@ -1,9 +1,27 @@
 package agent
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
+
+func TestXMLStreamParserPropagatesDependencyFailure(t *testing.T) {
+	failure := errors.New("Failed to install dependencies.")
+	for _, input := range []string{
+		`<dyad-add-dependency packages="lucide-react"/>`,
+		`<dyad-add-dependency packages="lucide-react"></dyad-add-dependency>`,
+	} {
+		var events []ToolEndEvent
+		parser := NewXMLStreamParser(ParserCallbacks{
+			OnAddDependency: func([]string) error { return failure },
+			OnToolEnd:       func(event ToolEndEvent) { events = append(events, event) },
+		})
+		if err := parser.Feed(input); !errors.Is(err, failure) || len(events) != 1 || events[0].Success {
+			t.Fatalf("依赖安装失败应终止工具流并发出一次失败事件：%v, %+v", err, events)
+		}
+	}
+}
 
 // v1.REQ-003-AC-001: 增量流式 XML 状态机逐 Token 解析与事件分发
 func TestXMLStreamParser_StreamingWriteFile(t *testing.T) {

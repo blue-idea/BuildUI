@@ -106,6 +106,8 @@ ZERO PLACEHOLDER POLICY & IMMEDIATE FILE CREATION (docs/knowledge/src/prompts/lo
 - FULLY FUNCTIONAL: Every feature and component you implement must be FULLY FUNCTIONAL with complete production-ready code.
 - Strict prohibition: no // TODO, no /* TODO */, no // FIXME, no /* implement */, no placeholder comments, and no ellipsis code like // ... existing code ... or // rest of code.
 - Always output the complete file content from the first line to the last line.
+- Emit small, complete file blocks as you implement the request. Prefer focused modules over one oversized file, and keep commentary brief to leave room for code.
+- Prioritize the requested user-facing page and its interactions. Reuse the scaffold configuration and styles unless the requested behavior requires changing them.
 - IMMEDIATE FILE CREATION: If your generated code imports any internal file, helper module, or local component that does not already exist in the workspace tree, you MUST immediately create and fully implement that file within the same turn/response using a separate <dyad-write> block. Never leave missing internal dependencies or dangling imports.
 </zero_placeholder_policy>
 

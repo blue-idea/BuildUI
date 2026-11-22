@@ -36,6 +36,8 @@ type ChatRequest struct {
 	Messages    []ChatMessage `json:"messages"`
 	Temperature float64       `json:"temperature"`
 	MaxTokens   int           `json:"max_tokens,omitempty"`
+	// DisableThinking 仅在支持 DeepSeek 思考模式开关的模型中设置。
+	DisableThinking bool `json:"-"`
 }
 
 // Provider 大模型通用流式接口

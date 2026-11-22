@@ -97,7 +97,7 @@ func (s *SettingsService) TestConnection(ctx context.Context, baseURL, apiKey, m
 // ListProviderModels 动态获取指定服务商的可用模型列表（失败时优雅降级至默认预设）
 func (s *SettingsService) ListProviderModels(ctx context.Context, provider, baseURL, apiKey string) ([]string, error) {
 	provider = strings.ToLower(strings.TrimSpace(provider))
-	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	baseURL = llm.NormalizeBaseURL(baseURL)
 
 	getFallback := func() []string {
 		if list, ok := ProviderPresets[provider]; ok && len(list) > 0 {

@@ -132,6 +132,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const turn = useRef<{ id: string; commit: string; cancelled: boolean } | null>(null);
   const [isStartingApp, setIsStartingApp] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [generationProgress, setGenerationProgress] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
@@ -461,10 +462,12 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   ) => {
     const id = explicitChatId ?? chatID.current;
     if (!id || turn.current) return;
+    const currentAppId = projectID.current;
     const current = { id: `turn-${Date.now()}`, commit: '', cancelled: false };
     turn.current = current;
     setProjectError('');
     setIsGenerating(true);
+    setGenerationProgress(approve ? 'Approving the blueprint…' : 'Preparing the model request…');
     try {
       if (approve) {
         await desktopApp().ApproveBlueprint(id);
@@ -492,9 +495,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         provider: reqProvider,
         model: reqModel,
       });
-      const currentAppId = activeAppId || projectID.current;
       const history = await refreshProject(currentAppId);
       if (current.commit || (mode === 'build' && (approve || blueprint?.approved) && history.length > 1)) {
+        setGenerationProgress('Starting the preview and checking TypeScript…');
         await startPreview(currentAppId, true);
       }
     } catch (error) {
@@ -506,6 +509,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       turn.current = null;
       setIsGenerating(false);
       setActiveTool(null);
+      setGenerationProgress('');
     }
   };
 
@@ -543,6 +547,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       setMessages((previous) => previous.map((message) => message.id === id ? update(message) : message));
     };
     const unsubscribe = subscribeChatEvents({
+      onProgress: (data) => {
+        if (forTurn(data.chatId)) setGenerationProgress(data.message);
+      },
       onChunk: (data) => {
         const current = forTurn(data.chatId);
         if (current) updateAssistant(current.id, (message) => ({ ...message, content: message.content + data.chunk }));
@@ -552,13 +559,19 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         if (!current) return;
         setActiveTool(`${data.tool}${data.path ? ': ' + data.path : ''}`);
         const path = data.path;
-        if (path) updateAssistant(current.id, (message) => ({
-          ...message,
-          fileChanges: [...(message.fileChanges ?? []), {
-            id: `${current.id}-${message.fileChanges?.length ?? 0}`,
-            filename: path.split('/').pop() ?? path, path, status: 'writing',
-          }],
-        }));
+        if (path) updateAssistant(current.id, (message) => {
+          const files = message.fileChanges ?? [];
+          const retry = files.find((file) => file.path === path && file.status === 'error');
+          return {
+            ...message,
+            fileChanges: retry
+              ? files.map((file) => file.id === retry.id ? { ...file, status: 'writing' } : file)
+              : [...files, {
+                id: `${current.id}-${files.length}`,
+                filename: path.split('/').pop() ?? path, path, status: 'writing',
+              }],
+          };
+        });
       },
       onToolEnd: (data) => {
         const current = forTurn(data.chatId);
@@ -570,6 +583,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             ? { ...file, status: data.success ? 'completed' : 'error' }
             : file),
         }));
+      },
+      onError: (data) => {
+        if (forTurn(data.chatId)) reportError(data.message);
       },
       onEnd: (data) => {
         const current = forTurn(data.chatId);
@@ -1231,7 +1247,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
                 }`}
               >
                 {/* 消息气泡：用户为淡紫色气泡，助手为纯白/微深色卡片 */}
-                <div
+                {(msg.content || msg.attachments?.length) ? <div
                   className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.sender === 'user'
                       ? 'bg-[#e8e5ff] text-[#2c246b] dark:bg-indigo-950/70 dark:text-indigo-200 font-medium shadow-2xs'
@@ -1256,7 +1272,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
                       ))}
                     </div>
                   )}
-                </div>
+                </div> : null}
 
                 {/* 文件修改进度卡片群 */}
                 {msg.fileChanges && msg.fileChanges.length > 0 && (
@@ -1337,14 +1353,15 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               </div>
             )}
 
-            {/* 工具执行指示 */}
-            {activeTool && (
-              <div className="flex items-center gap-2 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/40 p-2.5 text-xs text-blue-700 dark:text-blue-300">
-                <span className="h-2 w-2 animate-ping rounded-full bg-blue-500" />
-                <span>{t('chat.executingTool')} {activeTool}...</span>
-              </div>
-            )}
           </div>
+
+          {/* 固定在输入框上方，长对话中也能看到当前生成阶段。 */}
+          {(activeTool || generationProgress || (desktop && isChangingProject)) && (
+            <div role="status" data-testid="build-progress" className="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/40 p-2.5 text-xs text-blue-700 dark:text-blue-300">
+              <span className="h-2 w-2 shrink-0 animate-ping rounded-full bg-blue-500" aria-hidden="true" />
+              <span className="min-w-0 break-all">{activeTool ? `${t('chat.executingTool')} ${activeTool}…` : generationProgress || 'Preparing the project…'}</span>
+            </div>
+          )}
 
           {/* 底部多模态富输入框 */}
           <div className="p-3 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800">

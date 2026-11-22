@@ -18,6 +18,21 @@ import (
 )
 
 func TestStreamChatUsesSavedModelAndWaitsForApproval(t *testing.T) {
+	for _, reason := range []string{"length", "stop", ""} {
+		name := reason
+		if name == "" {
+			name = "done only"
+		}
+		t.Run(name, func(t *testing.T) {
+			testStreamChatContinuation(t, reason, false)
+		})
+	}
+	t.Run("unfinished dependency", func(t *testing.T) {
+		testStreamChatContinuation(t, "stop", true)
+	})
+}
+
+func testStreamChatContinuation(t *testing.T, finishReason string, dependency bool) {
 	ctx := context.Background()
 	root := t.TempDir()
 	database, err := db.Open(ctx, filepath.Join(root, "test.db"))
@@ -28,7 +43,7 @@ func TestStreamChatUsesSavedModelAndWaitsForApproval(t *testing.T) {
 	apps := db.NewAppRepository(database)
 	chats := db.NewChatRepository(database)
 	bps := blueprint.NewBlueprintService(db.NewBlueprintRepository(database), apps, database)
-	appID, err := apps.Create(ctx, &db.AppEntity{Name: "Fitness Check-in", Path: root, NeedsAppBlueprint: true})
+	appID, err := apps.Create(ctx, &db.AppEntity{Name: "Subscription SaaS", Path: root, NeedsAppBlueprint: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,14 +51,34 @@ func TestStreamChatUsesSavedModelAndWaitsForApproval(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	requests := make(chan llm.ChatRequest, 2)
-	replies := []string{
-		`{"appName":"Fitness Check-in","designDirection":"Daily check-in","primaryColor":"#334455","visuals":[]}`,
-		`<dyad-write path="src/App.tsx">export default function App() { return null; }</dyad-write>`,
+	type providerRequest struct {
+		llm.ChatRequest
+		Thinking map[string]string `json:"thinking"`
 	}
+	replies := []string{
+		`{"appName":"Subscription SaaS","designDirection":"SaaS landing page with pricing and free trial","primaryColor":"#4f46e5","visuals":[]}`,
+		`<dyad-write path="src/Pricing.tsx">export const price = 49;</dyad-write><dyad-write path="src/App.tsx">truncated code`,
+		`<dyad-write path="src/App.tsx">import { price } from "./Pricing"; export default function App() { return price; }</dyad-write>`,
+	}
+	expectedTarget := `Files to rewrite in full first: ["src/App.tsx"]`
+	if dependency {
+		// 使用脚手架已有的依赖，验证续写而无需发起真实包安装。
+		if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"dependencies":{"lucide-react":"0.462.0"}}`), 0644); err != nil {
+			t.Fatal(err)
+		}
+		completedWrite, _, _ := strings.Cut(replies[1], "</dyad-write>")
+		replies[1] = completedWrite + `</dyad-write><dyad-add-dependency packages="lucide-react">`
+		replies[2] = `<dyad-add-dependency packages="lucide-react"></dyad-add-dependency>` + replies[2]
+		expectedTarget = `Dependencies to finish: ["lucide-react"]`
+	}
+	// 服务商第一次续写若只输出说明，应用仍需等到缺失文件真正写入后才结束。
+	if finishReason == "stop" {
+		replies = append(replies[:2], "I will finish the page.", replies[2])
+	}
+	requests := make(chan providerRequest, len(replies))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		index := len(requests)
-		var request llm.ChatRequest
+		var request providerRequest
 		if r.URL.Path != "/chat/completions" || json.NewDecoder(r.Body).Decode(&request) != nil || index >= len(replies) {
 			http.Error(w, "Unexpected request", http.StatusBadRequest)
 			return
@@ -51,18 +86,23 @@ func TestStreamChatUsesSavedModelAndWaitsForApproval(t *testing.T) {
 		requests <- request
 		w.Header().Set("Content-Type", "text/event-stream")
 		delta, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"delta": map[string]string{"content": replies[index]}}}})
-		fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", delta)
+		fmt.Fprintf(w, "data: %s\n\n", delta)
+		if index == 1 && finishReason != "" {
+			fmt.Fprintf(w, "data: {\"choices\":[{\"finish_reason\":%q}]}\n\n", finishReason)
+		}
+		fmt.Fprint(w, "data: [DONE]\n\n")
 	}))
 	defer server.Close()
-	service := NewChatService(chats, apps, bps, nil)
+	emitter := &mockEventEmitter{}
+	service := NewChatService(chats, apps, bps, emitter)
 	settings := db.NewSettingsRepository(database)
 	if err := settings.SetMany(ctx, map[string]string{
-		"llm.base_url": server.URL, "llm.model": "fixture-model",
+		"llm.base_url": server.URL, "llm.model": "deepseek-v4.1-flash-test",
 	}); err != nil {
 		t.Fatal(err)
 	}
 	service.SetModelRepositories(settings, db.NewMessageRepository(database))
-	req := StreamChatRequest{ChatID: chatID, Prompt: "Build daily fitness check-in"}
+	req := StreamChatRequest{ChatID: chatID, Prompt: "Build a SaaS website with subscription pricing and a free trial button."}
 	if err := service.StreamChat(ctx, req); err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +110,7 @@ func TestStreamChatUsesSavedModelAndWaitsForApproval(t *testing.T) {
 		t.Fatal("未向保存的模型发送蓝图请求")
 	}
 	bp, err := bps.GetBlueprint(ctx, chatID)
-	if err != nil || bp.Approved || bp.DesignDirection != "Daily check-in" {
+	if err != nil || bp.Approved || bp.DesignDirection != "SaaS landing page with pricing and free trial" {
 		t.Fatalf("未保存待审批的模型蓝图：%+v, %v", bp, err)
 	}
 	sourcePath := filepath.Join(root, "src", "App.tsx")
@@ -84,15 +124,59 @@ func TestStreamChatUsesSavedModelAndWaitsForApproval(t *testing.T) {
 	if err := service.StreamChat(ctx, req); err != nil {
 		t.Fatal(err)
 	}
-	first, second := <-requests, <-requests
-	if first.Model != "fixture-model" || second.Model != first.Model || len(second.Messages) < 4 {
+	if len(requests) != len(replies) {
+		t.Fatalf("预期蓝图、构建和续写共 %d 个请求，实际收到 %d 个", len(replies), len(requests))
+	}
+	first, second, continuation := <-requests, <-requests, <-requests
+	if first.Model != "deepseek-v4.1-flash-test" || second.Model != first.Model || len(second.Messages) < 4 {
 		t.Fatalf("未沿用保存的模型及首轮上下文：%+v, %+v", first, second)
 	}
 	if second.MaxTokens <= 0 {
 		t.Fatal("代码生成请求应显式设置输出预算")
 	}
-	if data, err := os.ReadFile(sourcePath); err != nil || !strings.Contains(string(data), "return null") {
+	if first.Thinking != nil || second.Thinking["type"] != "disabled" || continuation.Thinking["type"] != "disabled" ||
+		second.MaxTokens <= 12288 || continuation.MaxTokens != second.MaxTokens {
+		t.Fatalf("DeepSeek 构建和续写应为代码预留输出空间：蓝图=%v，构建=%v/%d，续写=%v/%d",
+			first.Thinking, second.Thinking, second.MaxTokens, continuation.Thinking, continuation.MaxTokens)
+	}
+	resumePrompt := continuation.Messages[len(continuation.Messages)-1].Content
+	if !strings.Contains(resumePrompt, "src/Pricing.tsx") || !strings.Contains(resumePrompt, expectedTarget) ||
+		!strings.Contains(resumePrompt, "export const price = 49;") ||
+		strings.Contains(resumePrompt, "truncated code") {
+		t.Fatalf("续写上下文缺少文件进度或包含截断代码：%s", resumePrompt)
+	}
+	if finishReason == "stop" {
+		next := <-requests
+		if prompt := next.Messages[len(next.Messages)-1].Content; !strings.Contains(prompt, expectedTarget) {
+			t.Fatalf("纯文本续写错误清除了待处理工具目标：%s", prompt)
+		}
+	}
+	if data, err := os.ReadFile(sourcePath); err != nil || !strings.Contains(string(data), "return price") {
 		t.Fatalf("未写入模型生成的文件：%s, %v", data, err)
+	}
+	endCount := 0
+	var stages []string
+	for _, event := range emitter.events {
+		switch event.Name {
+		case "chat:end":
+			endCount++
+		case "chat:progress":
+			stages = append(stages, event.Data.(map[string]any)["message"].(string))
+		}
+	}
+	if endCount != 2 || len(stages) < 3 {
+		t.Fatalf("预期蓝图与构建各结束一次，并推送阶段进度：%+v", emitter.events)
+	}
+	expectedProgress := "output limit"
+	if finishReason != "length" {
+		expectedProgress = "unfinished tool"
+	}
+	if !strings.Contains(strings.Join(stages, "\n"), expectedProgress) {
+		t.Fatalf("未显示当前续写原因 %q：%v", expectedProgress, stages)
+	}
+	history, err := db.NewMessageRepository(database).ListByChatID(ctx, chatID)
+	if err != nil || len(history) != 4 {
+		t.Fatalf("续写应与构建共用一轮对话：%+v, %v", history, err)
 	}
 }
 
@@ -107,7 +191,7 @@ func TestInterruptedProviderClosesPendingFileTool(t *testing.T) {
 	emitter := &mockEventEmitter{}
 	service := NewChatService(nil, nil, nil, emitter)
 	upstream := errors.New("The model reached its output limit.")
-	err := service.processChunks(context.Background(), 1, t.TempDir(), func(feed func(string) error) error {
+	_, err := service.processChunks(context.Background(), 1, t.TempDir(), func(feed func(string) error) error {
 		if err := feed(`<dyad-write path="src/App.tsx">partial`); err != nil {
 			return err
 		}
@@ -123,6 +207,29 @@ func TestInterruptedProviderClosesPendingFileTool(t *testing.T) {
 	end := emitter.events[1].Data.(map[string]interface{})
 	if end["tool"] != "write_file" || end["success"] != false {
 		t.Fatalf("未将中断标记为失败：%+v", end)
+	}
+}
+
+func TestProcessChunksRetainsUnfinishedToolAtNormalEnd(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		kind  string
+		path  string
+		pkg   string
+	}{
+		{input: `<dyad-write path="src/App.tsx" description="SaaS page`, kind: writeFileTool, path: "src/App.tsx"},
+		{input: `<dyad-add-dependency packages="lucide-react">`, kind: addDependencyTool, pkg: "lucide-react"},
+	} {
+		t.Run(tc.kind, func(t *testing.T) {
+			service := NewChatService(nil, nil, nil, nil)
+			result, err := service.processChunks(context.Background(), 1, t.TempDir(), func(feed func(string) error) error {
+				return feed(tc.input)
+			}, nil)
+			if !errors.Is(err, errIncompleteTool) || result.changed || result.interrupted.kind != tc.kind ||
+				result.interrupted.path != tc.path || strings.Join(result.interrupted.packages, " ") != tc.pkg {
+				t.Fatalf("未保留中断工具的目标，或执行了不完整工具：%+v, %v", result, err)
+			}
+		})
 	}
 }
 
@@ -288,10 +395,10 @@ func TestStreamChat_ExplicitProviderAndModel(t *testing.T) {
 	service := NewChatService(chats, apps, bps, nil)
 	settings := db.NewSettingsRepository(database)
 	_ = settings.SetMany(ctx, map[string]string{
-		"llm.active_provider":            "openai",
-		"llm.providers.openai.base_url":  openaiServer.URL,
-		"llm.providers.openai.api_key":   "sk-openai",
-		"llm.providers.openai.model":     "gpt-4o",
+		"llm.active_provider":             "openai",
+		"llm.providers.openai.base_url":   openaiServer.URL,
+		"llm.providers.openai.api_key":    "sk-openai",
+		"llm.providers.openai.model":      "gpt-4o",
 		"llm.providers.deepseek.base_url": deepseekServer.URL,
 		"llm.providers.deepseek.api_key":  "sk-deepseek",
 		"llm.providers.deepseek.model":    "deepseek-chat",
