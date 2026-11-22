@@ -100,4 +100,21 @@ describe('TemplateModal Component', () => {
 
     expect(handleClose).toHaveBeenCalled();
   });
+
+  it('adapts modal container with light/dark theme classes', () => {
+    render(
+      <TemplateModal
+        isOpen={true}
+        onClose={vi.fn()}
+        templates={mockTemplates}
+        onSelectTemplate={vi.fn()}
+      />
+    );
+    const dialogPanel = document.querySelector('.max-w-4xl');
+    expect(dialogPanel).not.toBeNull();
+    expect(dialogPanel?.className).toContain('bg-white');
+    expect(dialogPanel?.className).toContain('dark:bg-zinc-900');
+    expect(dialogPanel?.className).toContain('border-slate-200');
+    expect(dialogPanel?.className).toContain('dark:border-zinc-800');
+  });
 });

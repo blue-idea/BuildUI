@@ -83,4 +83,29 @@ describe('ExportModal Component', () => {
     fireEvent.click(closeBtn);
     expect(handleClose).toHaveBeenCalled();
   });
+
+  it('adapts color scheme with light/dark theme classes', () => {
+    render(
+      <ExportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        appName="SaaS Dashboard"
+        onExportZip={vi.fn()}
+        onRevealInFileManager={vi.fn()}
+      />
+    );
+
+    const dialog = screen.getByRole('dialog');
+    const modalContent = dialog.querySelector('.w-full.max-w-md');
+    expect(modalContent).not.toBeNull();
+    // 验证支持明暗双模响应式类，而非硬编码全黑
+    expect(modalContent?.className).toContain('bg-white');
+    expect(modalContent?.className).toContain('dark:bg-zinc-900');
+    expect(modalContent?.className).toContain('border-slate-200');
+    expect(modalContent?.className).toContain('dark:border-zinc-800');
+
+    const title = screen.getByRole('heading', { level: 2 });
+    expect(title.className).toContain('text-slate-900');
+    expect(title.className).toContain('dark:text-zinc-100');
+  });
 });

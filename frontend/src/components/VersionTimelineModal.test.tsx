@@ -110,4 +110,35 @@ describe('VersionTimelineModal', () => {
     fireEvent.click(button);
     expect(rollback).not.toHaveBeenCalled();
   });
+
+  it('adapts modal container and diff viewer with light/dark theme classes', async () => {
+    const handleSelect = vi.fn().mockResolvedValue(mockDiff);
+    render(
+      <VersionTimelineModal
+        isOpen
+        onClose={vi.fn()}
+        versions={mockVersions}
+        onSelectVersion={handleSelect}
+        onRollback={vi.fn()}
+      />
+    );
+
+    const dialogPanel = document.querySelector('.max-w-4xl');
+    expect(dialogPanel).not.toBeNull();
+    // 验证支持明暗双模响应式类，而非硬编码全黑
+    expect(dialogPanel?.className).toContain('bg-white');
+    expect(dialogPanel?.className).toContain('dark:bg-zinc-900');
+    expect(dialogPanel?.className).toContain('border-slate-200');
+    expect(dialogPanel?.className).toContain('dark:border-zinc-800');
+
+    // 选中版本展示 Diff
+    fireEvent.click(screen.getByRole('button', { name: 'Select version b2c3d4e' }));
+    await screen.findByText('src/App.tsx');
+
+    // 验证 DiffViewer 文件容器同样具备明暗双模类
+    const fileContainer = screen.getByText('src/App.tsx').closest('.rounded-xl, .rounded-lg');
+    expect(fileContainer).not.toBeNull();
+    expect(fileContainer?.className).toContain('border-slate-200');
+    expect(fileContainer?.className).toContain('dark:border-zinc-800');
+  });
 });
