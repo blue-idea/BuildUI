@@ -110,3 +110,16 @@
 
   _需求: 全量 v12 需求  
   _测试类型: Visual Regression, QA Acceptance
+
+---
+
+- [x] **TASK-055 · 分步构建与持久化续建**
+
+  - [x] 用本地 SSE 服务建立首页、定价和试用的三步用例，先验证旧构建行为无法完成此流程。
+  - [x] 实现构建计划、单步执行和 SQLite 检查点，并接入 Wails 构建区进度与续建入口。
+  - [x] 重启 Wails 验证续建，完成生成站点交互、类型检查、生产构建和视觉验收。
+
+  - 需求 `v12.REQ-004`
+  - 验收标准 `v12.REQ-004-AC-001`、`v12.REQ-004-AC-002`、`v12.REQ-004-AC-003`
+  - 测试类型 Integration、Component、E2E、Visual Regression
+  - 证据 [AC 验收](ac/TASK-055-AC.md) · [测试报告](reports/TASK-055-report.md)

@@ -14,6 +14,7 @@
 | TASK-052 | 完善蓝图前置问卷澄清与审批门禁闭环流程 | v12.REQ-001 | done | internal/agent/model_chat.go, internal/blueprint/service.go | internal/agent/prompt_test.go | docs/spec/versions/v12/ac/TASK-052-AC.md | 2026-11-22 |
 | TASK-053 | 前端澄清问卷答复、蓝图审批卡片展示与代码生成全链路打通 | v12.REQ-001, v12.REQ-002 | done | frontend/src/App.tsx, frontend/src/components/BlueprintCard.tsx | frontend/src/App.test.tsx | docs/spec/versions/v12/ac/TASK-053-AC.md | 2026-11-22 |
 | TASK-054 | Playwright 视觉验收与 v12 终结交付 | 全量需求 | done | frontend/e2e/v12-blueprint-generation-pipeline.spec.ts | docs/spec/versions/v12/reports/screenshots/ | docs/spec/versions/v12/v12-final-report.md | 2026-11-22 |
+| TASK-055 | 分步构建与持久化续建 | v12.REQ-004 | done | internal/agent/build_plan.go、internal/db/build_checkpoint.go、frontend/src/App.tsx | internal/agent/build_plan_test.go、frontend/src/App.test.tsx、Wails E2E | [TASK-055-AC](ac/TASK-055-AC.md) | 2026-11-22 |
 
 ---
 

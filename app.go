@@ -124,9 +124,10 @@ func (a *App) GetBlueprint(chatID int64) (*blueprint.BlueprintDTO, error) {
 }
 
 type ProjectChat struct {
-	ChatID    int64                   `json:"chatId"`
-	Blueprint *blueprint.BlueprintDTO `json:"blueprint"`
-	Messages  []*db.MessageEntity     `json:"messages"`
+	ChatID        int64                   `json:"chatId"`
+	Blueprint     *blueprint.BlueprintDTO `json:"blueprint"`
+	Messages      []*db.MessageEntity     `json:"messages"`
+	BuildProgress *agent.BuildProgress    `json:"buildProgress,omitempty"`
 }
 
 // GetProjectChat 加载项目最近的会话，或创建首次会话。
@@ -145,7 +146,14 @@ func (a *App) GetProjectChat(appID int64) (*ProjectChat, error) {
 		return nil, err
 	}
 	messages, err := a.messageRepo.ListByChatID(a.ctx, id)
-	return &ProjectChat{ChatID: id, Blueprint: bp, Messages: messages}, err
+	if err != nil {
+		return nil, err
+	}
+	progress, err := a.chatService.GetBuildProgress(a.ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return &ProjectChat{ChatID: id, Blueprint: bp, Messages: messages, BuildProgress: progress}, nil
 }
 
 // CreateProjectChat 创建会话并继承已审批的项目蓝图。

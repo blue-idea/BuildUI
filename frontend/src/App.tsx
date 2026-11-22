@@ -34,6 +34,7 @@ import {
   exportAppZip,
   openInFileManager,
   subscribeChatEvents,
+  type BuildProgress,
   desktopApp,
   essentialEvent,
   isWailsAvailable,
@@ -133,6 +134,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const [isStartingApp, setIsStartingApp] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [generationProgress, setGenerationProgress] = useState('');
+  const [buildProgress, setBuildProgress] = useState<BuildProgress | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isVersionsOpen, setIsVersionsOpen] = useState(false);
@@ -370,6 +372,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const loadChat = (projectChat: Awaited<ReturnType<ReturnType<typeof desktopApp>['GetProjectChat']>>) => {
     chatID.current = projectChat.chatId;
     setBlueprint(projectChat.blueprint);
+    setBuildProgress(projectChat.buildProgress ?? null);
     setMessages((projectChat.messages ?? []).map((msg) => ({
       id: String(msg.id),
       sender: msg.role,
@@ -387,6 +390,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     setWorkspaceDir('');
     setMessages([]);
     setBlueprint(null);
+    setBuildProgress(null);
     setFocusedFile('');
     setInputPrompt('');
     setAttachments([]);
@@ -408,6 +412,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     setWorkspaceDir(active.path);
     setMessages([]);
     setBlueprint(null);
+    setBuildProgress(null);
     setFocusedFile('');
     setInputPrompt('');
     setAttachments([]);
@@ -424,7 +429,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       refreshProject(id),
     ]);
     loadChat(projectChat);
-    if (active.blueprintApproved && history.length > 1 && !active.previewUrl) {
+    if (active.blueprintApproved && history.length > 1 && !active.previewUrl && !projectChat.buildProgress) {
       await startPreview(id);
     }
   };
@@ -457,10 +462,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     prompt: string,
     images: string[],
     mode: 'build' | 'plan',
-    approve = false,
-    explicitChatId?: number
+    options: { approve?: boolean; chatId?: number; resume?: boolean } = {},
   ) => {
-    const id = explicitChatId ?? chatID.current;
+    const { approve = false, chatId: id = chatID.current, resume } = options;
     if (!id || turn.current) return;
     const currentAppId = projectID.current;
     const current = { id: `turn-${Date.now()}`, commit: '', cancelled: false };
@@ -494,7 +498,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         attachments: images,
         provider: reqProvider,
         model: reqModel,
+        resume,
       });
+      if (id !== chatID.current || currentAppId !== projectID.current) return;
+      if (mode === 'build') setBuildProgress(null);
       const history = await refreshProject(currentAppId);
       if (current.commit || (mode === 'build' && (approve || blueprint?.approved) && history.length > 1)) {
         setGenerationProgress('Starting the preview and checking TypeScript…');
@@ -502,6 +509,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       }
     } catch (error) {
       if (!current.cancelled) reportError(error);
+      if (mode === 'build' && id === chatID.current) {
+        const projectChat = await desktopApp().GetProjectChat(currentAppId).catch(() => null);
+        if (projectChat?.chatId === chatID.current) setBuildProgress(projectChat.buildProgress ?? null);
+      }
     } finally {
       setMessages((previous) => previous.filter((message) => (
         message.id !== current.id || message.content || message.fileChanges?.length
@@ -770,7 +781,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
       };
       setMessages((prev) => [...prev, userMsg]);
-      void runDesktopTurn(prompt, currentAttachments.map((attachment) => attachment.dataUrl), buildMode, false, chatID.current);
+      void runDesktopTurn(prompt, currentAttachments.map((attachment) => attachment.dataUrl), buildMode, { chatId: chatID.current });
       return;
     }
 
@@ -809,7 +820,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         attachments: atts.length > 0 ? atts : undefined,
       };
       setMessages((prev) => [...prev, userMsg]);
-      void runDesktopTurn(prompt, atts.map((att) => att.dataUrl), 'build', false, chatID.current);
+      void runDesktopTurn(prompt, atts.map((att) => att.dataUrl), 'build', { chatId: chatID.current });
       return;
     }
 
@@ -849,7 +860,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     if (!blueprint) return;
     if (desktop) {
       if (approvedChatId === chatID.current) {
-        void runDesktopTurn('Implement the approved blueprint and the original user request.', [], 'build', true);
+        void runDesktopTurn('Implement the approved blueprint and the original user request.', [], 'build', { approve: true });
       }
       return;
     }
@@ -1354,6 +1365,19 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             )}
 
           </div>
+
+          {desktop && buildProgress && !isGenerating && !isChangingProject && (
+            <div className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-2.5 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+              <span>{buildProgress.completed} of {buildProgress.total} steps completed</span>
+              <button
+                type="button"
+                onClick={() => void runDesktopTurn('', [], 'build', { resume: true })}
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+              >
+                Resume build
+              </button>
+            </div>
+          )}
 
           {/* 固定在输入框上方，长对话中也能看到当前生成阶段。 */}
           {(activeTool || generationProgress || (desktop && isChangingProject)) && (

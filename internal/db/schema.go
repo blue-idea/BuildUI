@@ -71,6 +71,12 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
 );
 
+-- 7. 未完成构建的检查点，随所属对话一起删除
+CREATE TABLE IF NOT EXISTS build_checkpoints (
+    chat_id INTEGER PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE,
+    state_json TEXT NOT NULL
+);
+
 -- 辅助索引
 CREATE INDEX IF NOT EXISTS idx_chats_app_id ON chats(app_id);
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);

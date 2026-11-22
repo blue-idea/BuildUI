@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -37,8 +38,11 @@ var sourceMention = regexp.MustCompile(`@([a-zA-Z0-9_./-]+)[:\s]`)
 
 // StreamChat 使用当前保存的模型发起一轮真实对话。
 func (s *ChatService) StreamChat(ctx context.Context, req StreamChatRequest) error {
-	if req.ChatID <= 0 || (strings.TrimSpace(req.Prompt) == "" && len(req.Attachments) == 0) {
+	if req.ChatID <= 0 || (!req.Resume && strings.TrimSpace(req.Prompt) == "" && len(req.Attachments) == 0) {
 		return errs.NewValidationError("A chat and a prompt or attachment are required.", nil)
+	}
+	if req.Resume && req.Mode != "build" {
+		return errs.NewValidationError("Select Build mode to resume this build.", nil)
 	}
 	if s.settingsRepo == nil || s.messageRepo == nil {
 		return errs.NewPreconditionError("Model settings are unavailable.", nil)
@@ -101,6 +105,9 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	if err != nil && !(errors.As(err, &missing) && missing.Kind == errs.KindNotFound) {
 		return err
 	}
+	if req.Resume && (bp == nil || !bp.Approved) {
+		return errs.NewPreconditionError("Approve the blueprint before resuming a build.", nil)
+	}
 
 	assembler := NewPromptAssembler()
 	system := BlueprintPrompt
@@ -123,8 +130,9 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 			project.Visuals = append(project.Visuals, visual.Description)
 		}
 	}
-	system += "\n" + assembler.AssembleContextPrompt(project)
-	if bp != nil && bp.Approved {
+	contextPrompt := assembler.AssembleContextPrompt(project)
+	system += "\n" + contextPrompt
+	if bp != nil && bp.Approved && req.Mode != "build" {
 		system += sourceContext(app.Path, req.Prompt)
 	}
 
@@ -141,11 +149,18 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	request := llm.ChatRequest{Model: model, Messages: messages, Temperature: 0.2, MaxTokens: config.ModelBlueprintMaxTokens}
 	supportsThinking := config.SupportsDeepSeekThinking(model)
 	if bp != nil && bp.Approved && req.Mode != "plan" {
+		if _, busy := s.activeBuilds.LoadOrStore(app.ID, struct{}{}); busy {
+			return errs.NewPreconditionError("A build is already running for this project.", nil)
+		}
+		defer s.activeBuilds.Delete(app.ID)
 		request.MaxTokens = config.ModelBuildMaxTokens
 		if supportsThinking {
 			// V4 构建优先把补全预算留给完整代码，兼顾可能保留推理的中转服务。
 			request.DisableThinking = true
 			request.MaxTokens = config.ModelDeepSeekBuildMaxTokens
+		}
+		if req.Mode == "build" {
+			return s.streamPlannedBuild(ctx, req, app.Path, contextPrompt, client, request)
 		}
 		return s.streamBuild(ctx, req, app.Path, client, request)
 	}
@@ -212,19 +227,31 @@ func streamModelResponse(ctx context.Context, client *llm.OpenAIClient, request 
 
 func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, root string, client *llm.OpenAIClient, request llm.ChatRequest) error {
 	s.emitProgress(req.ChatID, "Waiting for the model to generate code…")
+	var display strings.Builder
+	changed, err := s.streamBuildStep(ctx, req.ChatID, root, client, request, nil, func(text string) { display.WriteString(text) })
+	if err != nil {
+		return err
+	}
+	return s.finalizeModelBuild(ctx, req, root, request.Model, display.String(), changed, false)
+}
+
+func (s *ChatService) streamBuildStep(ctx context.Context, chatID int64, root string, client *llm.OpenAIClient, request llm.ChatRequest, expectedFiles []string, onText func(string)) (bool, error) {
 	lastMessage := &request.Messages[len(request.Messages)-1]
 	prompt := lastMessage.Content
 	completed, pendingFiles := make(map[string]bool), make(map[string]bool)
 	pendingPackages := make(map[string]string)
 	pendingKinds := make(map[string]bool)
-	var display strings.Builder
+	for _, name := range expectedFiles {
+		pendingFiles[name] = true
+	}
 	changed := false
 
 	for continuation := 0; ; continuation++ {
-		result, err := s.processChunks(ctx, req.ChatID, root, func(feed func(string) error) error {
+		result, err := s.processChunks(ctx, chatID, root, func(feed func(string) error) error {
 			return streamModelResponse(ctx, client, request, feed)
-		}, func(text string) { display.WriteString(text) })
+		}, onText)
 		for _, name := range result.files {
+			name = filepath.ToSlash(filepath.Clean(name))
 			completed[name] = true
 			delete(pendingFiles, name)
 			delete(pendingKinds, writeFileTool)
@@ -239,16 +266,17 @@ func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, ro
 		}
 		hitOutputLimit := errors.Is(err, llm.ErrOutputLimit)
 		if err != nil && !hitOutputLimit && !errors.Is(err, errIncompleteTool) {
-			return err
+			return changed, err
 		}
 		if err := ctx.Err(); err != nil {
-			return err
+			return changed, err
 		}
 		interrupted := result.interrupted
 		switch {
 		case interrupted.path != "":
-			pendingFiles[interrupted.path] = true
-			delete(completed, interrupted.path)
+			name := filepath.ToSlash(filepath.Clean(interrupted.path))
+			pendingFiles[name] = true
+			delete(completed, name)
 		case len(interrupted.packages) > 0:
 			for _, pkg := range interrupted.packages {
 				pendingPackages[extractBarePackageName(pkg)] = pkg
@@ -257,7 +285,7 @@ func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, ro
 			pendingKinds[interrupted.kind] = true
 		}
 		if continuation >= config.ModelBuildContinuations {
-			return errs.NewExternalError("The build could not finish after automatic continuation. Completed files were retained. Ask the model to finish the remaining work in smaller changes.", err)
+			return changed, errs.NewExternalError("The build could not finish after automatic continuation. Completed files were retained. Ask the model to finish the remaining work in smaller changes.", err)
 		}
 		progress := "Continuing generation to complete unfinished tools"
 		reason := "Previous response ended with unfinished tool calls."
@@ -265,31 +293,40 @@ func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, ro
 			progress = "Continuing generation after the model's output limit"
 			reason = "Previous response reached the output limit."
 		}
-		s.emitProgress(req.ChatID, fmt.Sprintf("%s (%d/%d)…", progress, continuation+1, config.ModelBuildContinuations))
+		s.emitProgress(chatID, fmt.Sprintf("%s (%d/%d)…", progress, continuation+1, config.ModelBuildContinuations))
 		// 每次续写从完整工具标签开始，避免把被截断的正文拼接进文件或会话。
 		written := slices.Sorted(maps.Keys(completed))
 		lastMessage.Content = fmt.Sprintf("%s\n\n%s Continue the original request. Files already written in this turn: %q. Files to rewrite in full first: %q. Dependencies to finish: %q. Tools to re-emit in full if the target was lost: %q. Skip completed files unless needed for consistency. Use complete tool tags, including their closing tags. Keep each file small and prose brief.",
 			prompt, reason, written, slices.Sorted(maps.Keys(pendingFiles)), slices.Sorted(maps.Values(pendingPackages)), slices.Sorted(maps.Keys(pendingKinds))) + sourceFilesContext(root, written)
 	}
+	return changed, nil
+}
 
+func (s *ChatService) finalizeModelBuild(ctx context.Context, req StreamChatRequest, root, model, display string, changed, completeBuild bool) error {
 	s.emitProgress(req.ChatID, "Saving generated changes…")
-	if err := s.saveTurn(ctx, req, request.Model, strings.TrimSpace(display.String())); err != nil {
+	commitHash := s.commitBuild(ctx, req.ChatID, root, changed)
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	s.finishBuild(ctx, req.ChatID, root, changed)
+	if err := s.storeModelTurn(ctx, req, model, strings.TrimSpace(display), commitHash, completeBuild); err != nil {
+		return err
+	}
+	s.emitEnd(req.ChatID, commitHash)
 	return nil
 }
 
 func (s *ChatService) saveTurn(ctx context.Context, req StreamChatRequest, model, reply string) error {
-	if _, err := s.messageRepo.Create(ctx, &db.MessageEntity{
+	return s.storeModelTurn(ctx, req, model, reply, "", false)
+}
+
+func (s *ChatService) storeModelTurn(ctx context.Context, req StreamChatRequest, model, reply, commitHash string, completeBuild bool) error {
+	user := &db.MessageEntity{
 		ChatID: req.ChatID, Role: "user", Content: req.Prompt,
-	}); err != nil {
-		return err
 	}
-	_, err := s.messageRepo.Create(ctx, &db.MessageEntity{
-		ChatID: req.ChatID, Role: "assistant", Content: reply, Model: model,
-	})
-	return err
+	assistant := &db.MessageEntity{
+		ChatID: req.ChatID, Role: "assistant", Content: reply, Model: model, CommitHash: commitHash,
+	}
+	return s.messageRepo.SaveTurn(ctx, user, assistant, completeBuild)
 }
 
 func sourceContext(root, prompt string) string {

@@ -330,6 +330,14 @@ func NewMessageRepository(db *DB) *MessageRepository {
 }
 
 func (r *MessageRepository) Create(ctx context.Context, msg *MessageEntity) (int64, error) {
+	return insertMessage(ctx, r.db.SQLDB(), msg)
+}
+
+type messageExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func insertMessage(ctx context.Context, executor messageExecutor, msg *MessageEntity) (int64, error) {
 	if msg.ChatID <= 0 {
 		return 0, errs.NewValidationError("chat id must be positive", nil)
 	}
@@ -342,7 +350,7 @@ func (r *MessageRepository) Create(ctx context.Context, msg *MessageEntity) (int
 		INSERT INTO messages (chat_id, role, content, model, source_commit_hash, commit_hash, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?);
 	`
-	res, err := r.db.SQLDB().ExecContext(ctx, query,
+	res, err := executor.ExecContext(ctx, query,
 		msg.ChatID,
 		msg.Role,
 		msg.Content,
@@ -690,4 +698,3 @@ func (r *SettingsRepository) SetMany(ctx context.Context, settings map[string]st
 	}
 	return nil
 }
-

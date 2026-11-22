@@ -29,6 +29,7 @@ type ChatService struct {
 	messageRepo    *db.MessageRepository
 	emitter        EventEmitter
 	activeSessions sync.Map
+	activeBuilds   sync.Map
 }
 
 // NewChatService 创建会话服务
@@ -215,12 +216,14 @@ func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, app
 }
 
 func (s *ChatService) finishBuild(ctx context.Context, chatID int64, appPath string, changed bool) {
-	commitHash := ""
-	if changed {
-		commitHash = s.commitWorkspaceChanges(ctx, chatID, appPath)
-	}
+	s.emitEnd(chatID, s.commitBuild(ctx, chatID, appPath, changed))
+}
 
-	s.emitEnd(chatID, commitHash)
+func (s *ChatService) commitBuild(ctx context.Context, chatID int64, appPath string, changed bool) string {
+	if changed {
+		return s.commitWorkspaceChanges(ctx, chatID, appPath)
+	}
+	return ""
 }
 
 func (s *ChatService) emitProgress(chatID int64, message string) {
@@ -308,4 +311,5 @@ type StreamChatRequest struct {
 	Mode        string   `json:"mode"`
 	Provider    string   `json:"provider,omitempty"`
 	Model       string   `json:"model,omitempty"`
+	Resume      bool     `json:"resume,omitempty"`
 }

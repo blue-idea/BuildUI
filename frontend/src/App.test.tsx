@@ -2,6 +2,36 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { describe, it, expect, vi } from 'vitest';
 import { App } from './App';
 
+// v12.REQ-004-AC-002 验证重开会话后展示检查点并请求续建。
+it('从桌面会话恢复已保存的阶段并发送续建请求', async () => {
+  const project = { appId: 41, name: 'Subscription SaaS', path: '/saas', blueprintApproved: true };
+  const streamChat = vi.fn().mockResolvedValue(undefined);
+  vi.stubGlobal('go', { main: { App: {
+    GetSettings: vi.fn().mockResolvedValue({}),
+    ListApps: vi.fn().mockResolvedValue([{ id: 41, name: project.name, path: project.path }]),
+    GetActiveApp: vi.fn().mockResolvedValue(project),
+    SwitchApp: vi.fn().mockResolvedValue(project),
+    GetProjectChat: vi.fn().mockResolvedValue({ chatId: 7, messages: [], buildProgress: { completed: 1, total: 3 } }),
+    GetVersions: vi.fn().mockResolvedValue([]),
+    ListProjectFiles: vi.fn().mockResolvedValue([]),
+    StreamChat: streamChat,
+  } } });
+  try {
+    render(<App initialDockTab="builder" />);
+    const resume = await screen.findByRole('button', { name: 'Resume build' });
+    expect(screen.getByText('1 of 3 steps completed')).toBeDefined();
+    fireEvent.click(resume);
+    await waitFor(() => expect(streamChat).toHaveBeenCalledWith(expect.objectContaining({
+      chatId: 7,
+      mode: 'build',
+      resume: true,
+    })));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Resume build' })).toBeNull());
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 it('桌面工作台从后端加载空项目列表并使用真实创建入口', async () => {
   const create = vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' });
   vi.stubGlobal('go', { main: { App: {

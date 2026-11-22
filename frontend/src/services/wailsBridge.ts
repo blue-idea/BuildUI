@@ -15,10 +15,16 @@ interface ActiveProject {
   blueprintApproved: boolean;
 }
 
+export interface BuildProgress {
+  completed: number;
+  total: number;
+}
+
 interface ProjectChat {
   chatId: number;
   blueprint: BlueprintDTO | null;
   messages: Array<{ id: number; role: 'user' | 'assistant'; content: string }> | null;
+  buildProgress?: BuildProgress;
 }
 
 interface DesktopMethods {
@@ -31,7 +37,7 @@ interface DesktopMethods {
   GetProjectChat: (id: number) => Promise<ProjectChat>;
   CreateProjectChat: (id: number) => Promise<ProjectChat>;
   ApproveBlueprint: (chatId: number) => Promise<void>;
-  StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[]; provider?: string; model?: string }) => Promise<void>;
+  StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[]; provider?: string; model?: string; resume?: boolean }) => Promise<void>;
   ListProviderModels?: (provider: string, baseURL: string, apiKey: string) => Promise<string[]>;
   CancelChat: (chatId: number) => Promise<void>;
   RunApp: (req: { appId: number }) => Promise<{ previewUrl: string }>;
