@@ -53,8 +53,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({
             onClick={onToggleInspect}
             className={`rounded px-2 py-1 text-xs transition-colors ${
               isInspectMode
-                ? 'bg-indigo-600 text-white font-semibold'
-                : 'border border-indigo-900/50 bg-indigo-950/40 text-indigo-300 hover:bg-indigo-900/60 hover:text-white'
+                ? 'bg-blue-600 text-white font-semibold'
+                : 'border border-blue-900/50 bg-blue-950/40 text-blue-300 hover:bg-blue-900/60 hover:text-white'
             }`}
           >
             {isInspectMode ? 'Inspecting' : 'Inspect'}

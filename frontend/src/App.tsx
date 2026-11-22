@@ -1278,6 +1278,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               handleInspectFile(path);
             }
             setInputPrompt(prompt);
+            setActiveDockTab('builder');
             setIsInspectMode(false);
           }}
           files={desktop ? undefined : [

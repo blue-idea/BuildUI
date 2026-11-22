@@ -238,6 +238,33 @@ describe('App Main Split Layout & Workflow', () => {
     expect(chatInput.value).toBe('@src/components/Navbar.tsx: ');
   });
 
+  it('selects target element in inspector, fills local edit prompt, and injects into chat', () => {
+    renderBuilder();
+
+    // 开启审查模式
+    const inspectBtn = screen.getByRole('button', { name: /toggle component inspector/i });
+    fireEvent.click(inspectBtn);
+
+    // 点选 <button> 元素
+    const targetBtn = screen.getByTestId('inspect-target-button');
+    fireEvent.click(targetBtn);
+
+    // 弹出局部编辑控制器
+    expect(screen.getByTestId('local-edit-popover')).toBeDefined();
+
+    // 点击 Change Color 药丸
+    fireEvent.click(screen.getByRole('button', { name: /Change Color/i }));
+
+    // 提交局部编辑
+    fireEvent.click(screen.getByRole('button', { name: /Apply Edit/i }));
+
+    // 验证审查浮层关闭，Chat 输入框填入了结构化定向指令
+    expect(screen.queryByTestId('local-edit-popover')).toBeNull();
+    const chatInput = screen.getByPlaceholderText(/describe what to build/i) as HTMLTextAreaElement;
+    expect(chatInput.value).toContain('Local Edit:');
+    expect(chatInput.value).toContain('RecipeCard.tsx');
+  });
+
   it('opens export modal and triggers export as zip', () => {
     renderBuilder();
 

@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ComponentInspector } from './ComponentInspector';
 
-describe('ComponentInspector', () => {
+describe('ComponentInspector (TDD)', () => {
   it('renders inspector banner when active', () => {
     render(
       <ComponentInspector
@@ -47,7 +47,38 @@ describe('ComponentInspector', () => {
 
     expect(handleSelect).toHaveBeenCalledWith(
       'src/components/Navbar.tsx',
-      '@src/components/Navbar.tsx: '
+      expect.stringContaining('@src/components/Navbar.tsx')
+    );
+  });
+
+  it('locks targeted element upon clicking target element tag and opens LocalEditPopover', () => {
+    const handleSelect = vi.fn();
+    render(
+      <ComponentInspector
+        isActive={true}
+        onExit={vi.fn()}
+        onSelectComponent={handleSelect}
+      />
+    );
+
+    // 点击可选元素列表中的 button
+    const targetPill = screen.getByTestId('inspect-target-button');
+    expect(targetPill).toBeDefined();
+    fireEvent.click(targetPill);
+
+    // 应该弹出 LocalEditPopover
+    expect(screen.getByTestId('local-edit-popover')).toBeDefined();
+
+    // 点击 Change Color 药丸填充
+    fireEvent.click(screen.getByRole('button', { name: /Change Color/i }));
+
+    // 点击 Apply Edit 提交
+    fireEvent.click(screen.getByRole('button', { name: /Apply Edit/i }));
+
+    expect(handleSelect).toHaveBeenCalledTimes(1);
+    expect(handleSelect).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('Change background color')
     );
   });
 });

@@ -18,6 +18,7 @@ import {
 import { useI18n } from '../i18n/I18nContext';
 import { FileTree } from './FileTree';
 import { CodeEditorViewer } from './CodeEditorViewer';
+import { ComponentInspector } from './ComponentInspector';
 import type { DiagnosticItem } from '../services/wailsBridge';
 
 export type WorkspaceView = 'preview' | 'code' | 'publish';
@@ -189,7 +190,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             aria-label="Toggle component inspector"
             className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-all ${
               isInspectMode
-                ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                 : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:bg-slate-50'
             }`}
           >
@@ -250,25 +251,12 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
       <div className="flex-1 relative overflow-auto bg-slate-50/40 dark:bg-zinc-950/40">
         {activeView === 'preview' && (
           <div className="w-full h-full relative flex flex-col items-center justify-center p-6">
-            {/* 组件审查模式覆盖层 */}
-            {isInspectMode && (
-              <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between p-2 rounded-lg bg-purple-600/90 text-white text-xs shadow-md backdrop-blur">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">Inspector Mode Active:</span>
-                  <span className="text-purple-200 text-[11px]">
-                    Click any preview element to inspect source component and inject prompt
-                  </span>
-                </div>
-                {previewDoc && <button
-                  type="button"
-                  onClick={() => onSelectComponent?.('src/components/Navbar.tsx', '@src/components/Navbar.tsx: ')}
-                  aria-label="Inspect navbar element"
-                  className="px-2 py-0.5 rounded bg-white text-purple-700 font-medium hover:bg-purple-50 transition-colors text-[11px]"
-                >
-                  Mock Navbar
-                </button>}
-              </div>
-            )}
+            {/* 组件审查模式覆盖层与局部定向编辑控制器 */}
+            <ComponentInspector
+              isActive={isInspectMode}
+              onExit={() => onToggleInspect?.()}
+              onSelectComponent={(p, pr) => onSelectComponent?.(p, pr)}
+            />
 
             {isLoading ? (
               <div className="flex flex-col items-center gap-4 text-center select-none">
