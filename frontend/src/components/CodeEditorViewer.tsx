@@ -43,19 +43,19 @@ function tokenizeLine(line: string): Token[] {
     // 双引号、单引号或反引号字符串
     { type: 'string', regex: /^("([^"\\]|\\.)*"|'([^'\\]|\\.)*'|`([^`\\]|\\.)*`)/ },
     // JSX 闭合或起始标签名，例如 </div> 或 <div 或 <Component
-    { type: 'tag', regex: /^(<\/?\b[a-zA-Z0-9_\.]+\b)/ },
+    { type: 'tag', regex: /^(<\/?\b[a-zA-Z0-9_.]+\b)/ },
     // JSX 属性名，例如 className=
-    { type: 'attribute', regex: /^(\b[a-zA-Z_][a-zA-Z0-9_\-]*\b(?==))/ },
+    { type: 'attribute', regex: /^(\b[a-zA-Z_][a-zA-Z0-9_-]*\b(?==))/ },
     // 数字字面量
     { type: 'number', regex: /^(\b\d+(\.\d+)?\b|0x[0-9a-fA-F]+)/ },
     // 标点符号与运算符
-    { type: 'punctuation', regex: /^([{}()\[\].,:;=+\-*\/%&|^!<>?]+)/ },
+    { type: 'punctuation', regex: /^([{}()[\].,:;=+\-*/%&|^!<>?]+)/ },
     // 标识符（单词）
     { type: 'plain', regex: /^(\b[a-zA-Z_$][a-zA-Z0-9_$]*\b)/ },
     // 空白符
     { type: 'plain', regex: /^(\s+)/ },
     // 其他任意非空白字符
-    { type: 'plain', regex: /^([^\s\w{}()\[\].,:;=+\-*\/%&|^!<>?"'`]+)/ },
+    { type: 'plain', regex: /^([^\s\w{}()[\].,:;=+\-*/%&|^!<>?"'`]+)/ },
   ];
 
   while (remaining.length > 0) {

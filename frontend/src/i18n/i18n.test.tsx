@@ -58,7 +58,7 @@ describe('TASK-026: i18n Localization Engine and Dictionaries', () => {
     fireEvent.click(screen.getByRole('button', { name: 'SetZH' }));
 
     expect(screen.getByTestId('current-locale').textContent).toBe('zh');
-    expect(screen.getByTestId('translated-home').textContent).toBe('主页');
+    expect(screen.getByTestId('translated-home').textContent).toBe('首页');
     expect(localStorage.getItem('blot_locale')).toBe('zh');
 
     // Switch back to en
@@ -78,7 +78,7 @@ describe('TASK-026: i18n Localization Engine and Dictionaries', () => {
     );
 
     expect(screen.getByTestId('current-locale').textContent).toBe('zh');
-    expect(screen.getByTestId('translated-home').textContent).toBe('主页');
+    expect(screen.getByTestId('translated-home').textContent).toBe('首页');
   });
 
   it('LanguageSwitcher component switches locale when clicked', () => {
@@ -116,7 +116,7 @@ describe('TASK-026: i18n Localization Engine and Dictionaries', () => {
   it('renders App in full Chinese when blot_locale is zh', async () => {
     localStorage.setItem('blot_locale', 'zh');
     const { App } = await import('../App');
-    render(<App />);
+    render(<App initialDockTab="builder" />);
 
     // 顶部与操作栏验证
     expect(screen.getByText('工作区:')).toBeDefined();
@@ -138,5 +138,17 @@ describe('TASK-026: i18n Localization Engine and Dictionaries', () => {
     expect(screen.getByText('实时预览')).toBeDefined();
     expect(screen.getByText('代码检视')).toBeDefined();
     expect(screen.getByText('打包发布')).toBeDefined();
+  });
+
+  it('renders Guided Mode Home in full Chinese when blot_locale is zh', async () => {
+    localStorage.setItem('blot_locale', 'zh');
+    const { App } = await import('../App');
+    render(<App initialDockTab="home" />);
+
+    expect(screen.getByText('欢迎使用 Blot-UI..')).toBeDefined();
+    expect(screen.getByText('Web')).toBeDefined();
+    expect(screen.getByText('Desktop')).toBeDefined();
+    expect(screen.getByText('App')).toBeDefined();
+    expect(screen.getByText('空白项目')).toBeDefined();
   });
 });

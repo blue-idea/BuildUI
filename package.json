@@ -1,0 +1,15 @@
+{
+  "name": "buildui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Blot-UI Desktop Application",
+  "scripts": {
+    "prepare": "node frontend/node_modules/husky/bin.js .husky",
+    "lint": "pnpm --prefix frontend run lint",
+    "lint:fix": "pnpm --prefix frontend exec eslint --fix .",
+    "lint:staged": "node frontend/node_modules/lint-staged/bin/lint-staged.js",
+    "typecheck": "pnpm --prefix frontend exec tsc -p tsconfig.json --noEmit",
+    "test": "pnpm --prefix frontend test",
+    "build": "pnpm --prefix frontend build"
+  }
+}

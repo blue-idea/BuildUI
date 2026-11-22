@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SettingsModal } from './SettingsModal';
+import { ThemeProvider } from '../context/ThemeContext';
 
 describe('SettingsModal', () => {
   it('renders correctly when open and switches presets', async () => {
@@ -119,5 +120,83 @@ describe('SettingsModal', () => {
         })
       );
     });
+  });
+
+  it('renders left-side navigation tabs and switches to Storage & Workspace tab', async () => {
+    const handleSave = vi.fn();
+    const handleSelectDir = vi.fn().mockResolvedValue('D:\\MyWorkspace');
+
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSave={handleSave}
+        onSelectDirectory={handleSelectDir}
+        initialSettings={{
+          'workspace.dir': 'C:\\DefaultWorkspace',
+        }}
+      />
+    );
+
+    // 检查左侧 Tab 导航项存在
+    const workspaceNavTab = screen.getByTestId('settings-nav-workspace');
+    expect(workspaceNavTab).toBeDefined();
+
+    // 点击切换至存储与工作区 Tab
+    fireEvent.click(workspaceNavTab);
+
+    // 检查展示本地工作区存储路径标题和输入框
+    const dirInput = screen.getByTestId('workspace-dir-input') as HTMLInputElement;
+    expect(dirInput).toBeDefined();
+    expect(dirInput.value).toBe('C:\\DefaultWorkspace');
+
+    // 测试点击选择目录按钮
+    const browseBtn = screen.getByTestId('browse-workspace-btn');
+    fireEvent.click(browseBtn);
+
+    await waitFor(() => {
+      expect(handleSelectDir).toHaveBeenCalled();
+      expect(dirInput.value).toBe('D:\\MyWorkspace');
+    });
+
+    // 手动修改工作区路径
+    fireEvent.change(dirInput, { target: { value: 'E:\\CustomWorkspace' } });
+    expect(dirInput.value).toBe('E:\\CustomWorkspace');
+
+    // 保存并验证 workspace.dir 提交
+    const saveBtn = screen.getByRole('button', { name: 'Save Settings' });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'workspace.dir': 'E:\\CustomWorkspace',
+        })
+      );
+    });
+  });
+
+  it('renders Appearance tab and allows toggling theme', async () => {
+    render(
+      <ThemeProvider initialMode="light">
+        <SettingsModal isOpen={true} onClose={vi.fn()} />
+      </ThemeProvider>
+    );
+
+    // 切换到外观与主题 Tab
+    const appearanceTab = screen.getByTestId('settings-nav-appearance');
+    fireEvent.click(appearanceTab);
+
+    expect(screen.getAllByText('Appearance & Themes').length).toBeGreaterThan(0);
+
+    // 点击切换为暗黑模式
+    const darkBtn = screen.getByTestId('theme-mode-dark');
+    fireEvent.click(darkBtn);
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+    // 点击切换回浅色模式
+    const lightBtn = screen.getByTestId('theme-mode-light');
+    fireEvent.click(lightBtn);
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 });

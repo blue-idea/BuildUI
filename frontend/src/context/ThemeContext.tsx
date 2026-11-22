@@ -11,7 +11,7 @@ interface ThemeContextValue {
   tokens: MacOSThemeColors;
 }
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+export const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export interface ThemeProviderProps {
   children: React.ReactNode;
@@ -66,7 +66,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, initialM
 export const useMacOSTheme = (): ThemeContextValue => {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useMacOSTheme must be used within a ThemeProvider');
+    return {
+      themeMode: 'light',
+      setThemeMode: () => {},
+      toggleTheme: () => {},
+      isDark: false,
+      tokens: macosTokens.light,
+    };
   }
   return context;
 };

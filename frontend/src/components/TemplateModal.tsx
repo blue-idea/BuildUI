@@ -6,9 +6,11 @@ export interface AppTemplate {
   name: string;
   description: string;
   category: string;
+  platform?: 'web' | 'desktop' | 'app';
   tags: string[];
   icon: string;
   themeId?: string;
+  starterPrompt?: string;
 }
 
 export interface TemplateModalProps {

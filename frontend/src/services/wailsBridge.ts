@@ -162,7 +162,7 @@ export async function testLLMConnection(url: string, key: string, model: string)
       return 'Connection established successfully';
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(msg || 'Failed to connect to LLM server');
+      throw new Error(msg || 'Failed to connect to LLM server', { cause: err });
     }
   }
   // 模拟测试环境下的快速成功返回

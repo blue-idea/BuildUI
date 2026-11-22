@@ -21,11 +21,46 @@ export interface I18nDictionary {
   dock: {
     toggle: string;
     home: string;
+    builder: string;
+    style: string;
     settings: string;
     docs: string;
     templates: string;
     components: string;
     help: string;
+  };
+  homeGuide: {
+    welcome: string;
+    placeholderWeb: string;
+    placeholderDesktop: string;
+    placeholderApp: string;
+    tabWeb: string;
+    tabDesktop: string;
+    tabApp: string;
+    blankProject: string;
+    startWithDesign: string;
+    browseTemplates: string;
+    styleAutoHint: string;
+    stylePresetsTitle: string;
+    referenceTitle: string;
+    customRefPlaceholder: string;
+    enterBuilder: string;
+    copyPrompt: string;
+    copied: string;
+    previewPrompt: string;
+  };
+  templatesPage: {
+    title: string;
+    subtitle: string;
+    searchPlaceholder: string;
+    tabAll: string;
+    tabWeb: string;
+    tabDesktop: string;
+    tabApp: string;
+    useTemplate: string;
+    noResults: string;
+    clearSearch: string;
+    allCount: string;
   };
   chat: {
     newChat: string;
@@ -129,5 +164,28 @@ export interface I18nDictionary {
     templateSearch: string;
     useTemplate: string;
     commandSearch: string;
+  };
+  settingsModal: {
+    title: string;
+    closeAria: string;
+    tabModels: string;
+    tabWorkspace: string;
+    tabAppearance: string;
+    tabGeneral: string;
+    modelsDesc: string;
+    workspaceTitle: string;
+    workspaceDesc: string;
+    workspaceDirLabel: string;
+    workspaceDirPlaceholder: string;
+    browseFolder: string;
+    workspaceDirHelp: string;
+    resetDefault: string;
+    appearanceTitle: string;
+    appearanceDesc: string;
+    themeModeLabel: string;
+    themeModeLight: string;
+    themeModeDark: string;
+    generalTitle: string;
+    generalDesc: string;
   };
 }

@@ -14,7 +14,7 @@ it('桌面工作台从后端加载空项目列表并使用真实创建入口', a
     ListProjectFiles: vi.fn().mockResolvedValue([]),
   } } });
   try {
-    render(<App />);
+    render(<App /* default home */ />);
     fireEvent.click(screen.getByRole('button', { name: /open applications drawer/i }));
     expect(screen.queryAllByText('Pantry Planner')).toHaveLength(0);
     expect(screen.queryByRole('button', { name: /mock blueprint/i })).toBeNull();
@@ -31,9 +31,55 @@ it('桌面工作台从后端加载空项目列表并使用真实创建入口', a
   }
 });
 
+describe('App Guided Mode Home & Navigation', () => {
+  it('renders Guided Mode Home by default when launching App', () => {
+    render(<App /* default home */ />);
+    expect(screen.getByTestId('guide-tab-web')).toBeDefined();
+    expect(screen.getByTestId('guide-tab-desktop')).toBeDefined();
+    expect(screen.getByTestId('guide-tab-app')).toBeDefined();
+    expect(screen.getByTestId('guide-user-input')).toBeDefined();
+    expect(screen.getByTestId('guide-submit-btn')).toBeDefined();
+  });
+
+  it('navigates from Guided Mode Home into Builder and populates prompt', () => {
+    render(<App /* default home */ />);
+    const input = screen.getByTestId('guide-user-input');
+    fireEvent.change(input, { target: { value: 'Create a crypto dashboard' } });
+
+    const enterBtn = screen.getByTestId('guide-submit-btn');
+    fireEvent.click(enterBtn);
+
+    // Now in Builder!
+    expect(screen.getByText(/Chat & Blueprint/i)).toBeDefined();
+    const chatInput = screen.getByPlaceholderText(/describe what to build/i) as HTMLTextAreaElement;
+    expect(chatInput.value).toContain('Create a crypto dashboard');
+  });
+
+  it('switches between Home, Builder, and Style views via LeftDock icons', () => {
+    render(<App /* default home */ />);
+
+    // Initially in Home
+    expect(screen.getByTestId('guide-submit-btn')).toBeDefined();
+
+    // Click dock-builder
+    fireEvent.click(screen.getByTestId('dock-builder'));
+    expect(screen.getByText(/Chat & Blueprint/i)).toBeDefined();
+
+    // Click dock-style
+    fireEvent.click(screen.getByTestId('dock-style'));
+    expect(screen.getByText(/Manage application design styles/i)).toBeDefined();
+
+    // Click dock-home
+    fireEvent.click(screen.getByTestId('dock-home'));
+    expect(screen.getByTestId('guide-submit-btn')).toBeDefined();
+  });
+});
+
 describe('App Main Split Layout & Workflow', () => {
+  const renderBuilder = () => render(<App initialDockTab="builder" />);
+
   it('renders dual-pane split layout with chat and preview panels', () => {
-    render(<App />);
+    renderBuilder();
 
     // 验证全局应用头部
     expect(screen.getByText('Blot-UI')).toBeDefined();
@@ -48,7 +94,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('submits a user prompt and appends to chat stream', () => {
-    render(<App />);
+    renderBuilder();
 
     const input = screen.getByPlaceholderText(/describe what to build/i);
     const sendBtn = screen.getByRole('button', { name: /send prompt/i });
@@ -60,7 +106,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('handles blueprint approval and transitions implementation state', () => {
-    render(<App />);
+    renderBuilder();
 
     // 触发进入需要审批蓝图的模拟状态
     const mockBlueprintBtn = screen.getByRole('button', { name: /mock blueprint/i });
@@ -77,7 +123,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('opens and closes settings modal from top navigation', () => {
-    render(<App />);
+    renderBuilder();
 
     const settingsBtn = screen.getByRole('button', { name: /open settings/i });
     fireEvent.click(settingsBtn);
@@ -91,7 +137,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('supports multi-turn incremental request and stop generation', () => {
-    render(<App />);
+    renderBuilder();
 
     // 1. 初始化蓝图并审批，触发首轮生成
     const mockBlueprintBtn = screen.getByRole('button', { name: /mock blueprint/i });
@@ -119,7 +165,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('opens and closes version time machine modal from top navigation', () => {
-    render(<App />);
+    renderBuilder();
 
     const versionsBtn = screen.getByRole('button', { name: /open version time machine/i });
     fireEvent.click(versionsBtn);
@@ -133,7 +179,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('allows user to select and toggle workspace directory', () => {
-    render(<App />);
+    renderBuilder();
 
     const workspaceBtn = screen.getByRole('button', { name: /select workspace directory/i });
     expect(workspaceBtn).toBeDefined();
@@ -143,7 +189,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('opens applications drawer and supports switching apps', () => {
-    render(<App />);
+    renderBuilder();
 
     const appsBtn = screen.getByRole('button', { name: /open applications drawer/i });
     fireEvent.click(appsBtn);
@@ -158,7 +204,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('toggles component inspector and injects prompt on element click', () => {
-    render(<App />);
+    renderBuilder();
 
     const inspectBtn = screen.getByRole('button', { name: /toggle component inspector/i });
     fireEvent.click(inspectBtn);
@@ -174,7 +220,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('opens export modal and triggers export as zip', () => {
-    render(<App />);
+    renderBuilder();
 
     const exportBtn = screen.getByRole('button', { name: /open export modal/i });
     fireEvent.click(exportBtn);
@@ -191,7 +237,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('renders ThemeSelector in header and allows switching active theme', () => {
-    render(<App />);
+    renderBuilder();
 
     const themeSelectBtn = screen.getByRole('button', { name: /select theme/i });
     expect(themeSelectBtn).toBeDefined();
@@ -207,7 +253,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('renders dependency installation status card and feedback', () => {
-    render(<App />);
+    renderBuilder();
 
     // 触发模拟包含依赖安装的 Prompt 或操作
     const chatInput = screen.getByPlaceholderText(/describe what to build/i);
@@ -225,7 +271,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('opens command palette and allows executing actions', () => {
-    render(<App />);
+    renderBuilder();
 
     const cmdBtn = screen.getByRole('button', { name: /open command palette/i });
     expect(cmdBtn).toBeDefined();
@@ -240,7 +286,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('opens template modal from applications drawer and instantiates project', () => {
-    render(<App />);
+    renderBuilder();
 
     // 打开 Apps 抽屉
     const appsBtn = screen.getByRole('button', { name: /open applications drawer/i });
@@ -262,7 +308,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('supports selecting and previewing image attachments before sending', async () => {
-    render(<App />);
+    renderBuilder();
 
     const uploadInput = screen.getByLabelText(/upload attachment input/i);
     expect(uploadInput).toBeDefined();
@@ -286,7 +332,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('切换至代码检视时以左侧目录树与右侧文件内容呈现，并支持交互切换', () => {
-    render(<App />);
+    renderBuilder();
 
     // 点击切换至代码检视
     const codeTab = screen.getByTestId('tab-code');
@@ -313,7 +359,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('在代码检视面板中展示行号、轻量语法高亮与错误诊断项并支持点击直接跳转对应代码行', async () => {
-    render(<App />);
+    renderBuilder();
 
     // 切换至代码检视视图
     const codeTab = screen.getByTestId('tab-code');
@@ -341,7 +387,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('closes active project when clicking the project tab close button in header', async () => {
-    render(<App />);
+    renderBuilder();
 
     // Initially "Pantry Planner" project is open
     expect(screen.getByTestId('project-tab')).toBeDefined();
@@ -359,7 +405,7 @@ describe('App Main Split Layout & Workflow', () => {
   });
 
   it('renders model selector defaulting to Auto and allows choosing configured provider', async () => {
-    render(<App />);
+    renderBuilder();
 
     // 默认展示为 Auto 按钮
     const modelSelectorBtn = screen.getByRole('button', { name: /model selector/i });

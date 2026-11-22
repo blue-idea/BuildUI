@@ -2,15 +2,16 @@ import React from 'react';
 import {
   PanelLeftClose,
   Home,
-  Settings,
-  BookOpen,
+  Hammer,
+  Palette,
   LayoutTemplate,
   Blocks,
+  Settings,
   HelpCircle,
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 
-export type DockTab = 'home' | 'settings' | 'docs' | 'templates' | 'components' | 'help';
+export type DockTab = 'home' | 'builder' | 'style' | 'templates' | 'components' | 'settings' | 'docs' | 'help';
 
 export interface LeftDockProps {
   activeTab?: DockTab;
@@ -19,6 +20,7 @@ export interface LeftDockProps {
   onOpenTemplates?: () => void;
   onOpenSettings?: () => void;
   onOpenComponents?: () => void;
+  onOpenStyle?: () => void;
   onOpenDocs?: () => void;
   onOpenHelp?: () => void;
 }
@@ -30,6 +32,7 @@ export const LeftDock: React.FC<LeftDockProps> = ({
   onOpenTemplates,
   onOpenSettings,
   onOpenComponents,
+  onOpenStyle,
   onOpenDocs,
   onOpenHelp,
 }) => {
@@ -40,9 +43,20 @@ export const LeftDock: React.FC<LeftDockProps> = ({
     if (tab === 'templates') onOpenTemplates?.();
     if (tab === 'settings') onOpenSettings?.();
     if (tab === 'components') onOpenComponents?.();
+    if (tab === 'style') onOpenStyle?.();
     if (tab === 'docs') onOpenDocs?.();
     if (tab === 'help') onOpenHelp?.();
   };
+
+  // 左侧栏图标严格依次为：首页、构建区、风格页、模版中心、组件库、设置
+  const dockItems = [
+    { id: 'home' as const, testId: 'dock-home', icon: Home, label: t('dock.home') },
+    { id: 'builder' as const, testId: 'dock-builder', icon: Hammer, label: t('dock.builder') },
+    { id: 'style' as const, testId: 'dock-style', icon: Palette, label: t('dock.style') },
+    { id: 'templates' as const, testId: 'dock-templates', icon: LayoutTemplate, label: t('dock.templates') },
+    { id: 'components' as const, testId: 'dock-components', icon: Blocks, label: t('dock.components') },
+    { id: 'settings' as const, testId: 'dock-settings', icon: Settings, label: t('dock.settings') },
+  ];
 
   return (
     <aside className="w-[52px] shrink-0 h-full bg-slate-50 dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col items-center justify-between py-3 select-none z-20 transition-colors">
@@ -59,80 +73,27 @@ export const LeftDock: React.FC<LeftDockProps> = ({
           <PanelLeftClose className="w-4 h-4" />
         </button>
 
-        {/* Home 图标（选中态带浅紫胶囊背景） */}
-        <button
-          type="button"
-          onClick={() => handleTabClick('home')}
-          data-testid="dock-home"
-          title={t('dock.home')}
-          className={`p-2 rounded-xl transition-all ${
-            activeTab === 'home'
-              ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300 shadow-2xs'
-              : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <Home className="w-5 h-5" />
-        </button>
-
-        {/* Settings 图标 */}
-        <button
-          type="button"
-          onClick={() => handleTabClick('settings')}
-          data-testid="dock-settings"
-          title={t('dock.settings')}
-          className={`p-2 rounded-xl transition-all ${
-            activeTab === 'settings'
-              ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300'
-              : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-        </button>
-
-        {/* Docs 文档图标 */}
-        <button
-          type="button"
-          onClick={() => handleTabClick('docs')}
-          data-testid="dock-docs"
-          title={t('dock.docs')}
-          className={`p-2 rounded-xl transition-all ${
-            activeTab === 'docs'
-              ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300'
-              : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <BookOpen className="w-4 h-4" />
-        </button>
-
-        {/* Templates 模版图标 */}
-        <button
-          type="button"
-          onClick={() => handleTabClick('templates')}
-          data-testid="dock-templates"
-          title={t('dock.templates')}
-          className={`p-2 rounded-xl transition-all ${
-            activeTab === 'templates'
-              ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300'
-              : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <LayoutTemplate className="w-4 h-4" />
-        </button>
-
-        {/* Components 组件审查图标 */}
-        <button
-          type="button"
-          onClick={() => handleTabClick('components')}
-          data-testid="dock-components"
-          title={t('dock.components')}
-          className={`p-2 rounded-xl transition-all ${
-            activeTab === 'components'
-              ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300'
-              : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <Blocks className="w-4 h-4" />
-        </button>
+        {/* 导航图标列表：首页、构建区、风格页、模版中心、组件库、设置 */}
+        {dockItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => handleTabClick(item.id)}
+              data-testid={item.testId}
+              title={item.label}
+              className={`p-2 rounded-xl transition-all ${
+                isActive
+                  ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300 shadow-2xs font-medium'
+                  : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-800'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          );
+        })}
       </div>
 
       {/* 底部 Help 帮助图标 */}
