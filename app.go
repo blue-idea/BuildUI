@@ -92,6 +92,8 @@ func (a *App) startup(ctx context.Context) {
 		a.chatService = agent.NewChatService(a.chatRepo, a.appRepo, a.blueprintService, emitter)
 		a.chatService.SetVersionRepo(versionRepo)
 		a.problemsService = tsc.NewProblemsService(a.appRepo, nil)
+		a.chatService.SetBuildProblems(a.problemsService)
+		a.appService.SetPreviewVerifier(a.chatService.PreparePreview)
 		settingsRepo := db.NewSettingsRepository(database)
 		a.chatService.SetModelRepositories(settingsRepo, a.messageRepo)
 		a.settingsService = settings.NewSettingsService(settingsRepo)

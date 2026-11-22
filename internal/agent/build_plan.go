@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -18,7 +20,7 @@ import (
 const buildPlanPrompt = `Build planning protocol
 Plan how to implement the user's request and approved blueprint. Return one JSON object only, with this shape:
 {"objective":"Concise requirements for the whole build","steps":[{"title":"Short English action","goal":"Concrete scope and acceptance for this step","files":["relative/path/to/write"],"read":["related/existing/file"]}]}
-Use between 1 and %d ordered steps. For a small edit, use one step. Each of the files and read lists can have up to %d entries per step. Put only files that must be written into files, and only relevant context paths into read. Use [] for steps that need no file changes. Do not emit code or tool calls. Sequence the steps so each has a bounded scope and the final step completes the requested behavior.`
+Use between 1 and %d ordered steps. Use one step for a small change. Use the fewest steps that keep each response short enough to finish. Group closely related files and prefer one to three focused files per step. Each of the files and read lists can have up to %d entries per step. Put only files that must be written into files. Only include source files whose actual contents are necessary in read. Use [] for steps that need no file changes. Do not emit code or tool calls. Sequence the steps so later steps can reuse earlier work and the final step completes the requested behavior.`
 
 type BuildProgress struct {
 	Completed int `json:"completed"`
@@ -33,7 +35,7 @@ func (s *ChatService) GetBuildProgress(ctx context.Context, chatID int64) (*Buil
 	return &BuildProgress{Completed: state.Next, Total: len(state.Steps)}, nil
 }
 
-func (s *ChatService) streamPlannedBuild(ctx context.Context, req StreamChatRequest, root, contextPrompt string, client *llm.OpenAIClient, request llm.ChatRequest) error {
+func (s *ChatService) streamPlannedBuild(ctx context.Context, req StreamChatRequest, appID int64, root, contextPrompt string, client *llm.OpenAIClient, request llm.ChatRequest) error {
 	state, err := s.messageRepo.GetBuildCheckpoint(ctx, req.ChatID)
 	if err != nil {
 		return err
@@ -51,18 +53,47 @@ func (s *ChatService) streamPlannedBuild(ctx context.Context, req StreamChatRequ
 		}
 	}
 
+	request.IdleTimeout = config.ModelBuildStreamIdleTimeout
+	if err := restoreStepFiles(root, state); err != nil {
+		return err
+	}
 	for state.Next < len(state.Steps) {
 		step := state.Steps[state.Next]
-		s.emitProgress(req.ChatID, fmt.Sprintf("Build step %d/%d — %s", state.Next+1, len(state.Steps), step.Title))
-		stepRequest := buildStepRequest(request, root, state, step)
+		label := fmt.Sprintf("Build step %d/%d — %s", state.Next+1, len(state.Steps), step.Title)
+		s.emitProgress(req.ChatID, label+" · Waiting for model output…")
+		remaining := make([]string, 0, len(step.Files))
+		for _, name := range step.Files {
+			if !slices.Contains(state.StepFiles, name) {
+				remaining = append(remaining, name)
+			}
+		}
+		stepRequest := buildStepRequest(request, root, state, step, remaining)
 		var reply strings.Builder
-		changed, err := s.streamBuildStep(ctx, req.ChatID, root, client, stepRequest, step.Files, func(text string) { reply.WriteString(text) })
+		recordChange := func(name string) error {
+			name = filepath.ToSlash(filepath.Clean(name))
+			newFile := slices.Contains(remaining, name) && !slices.Contains(state.StepFiles, name)
+			if state.Changed && !newFile {
+				return nil
+			}
+			state.Changed = true
+			if newFile {
+				state.StepFiles = append(state.StepFiles, name)
+			}
+			// 文件已写入后再更新检查点，恢复时只请求尚未写入的文件。
+			if err := s.messageRepo.SaveBuildCheckpoint(ctx, req.ChatID, state); err != nil {
+				return err
+			}
+			if newFile {
+				s.emitProgress(req.ChatID, fmt.Sprintf("%s · %d/%d files saved", label, len(state.StepFiles), len(step.Files)))
+			}
+			return nil
+		}
+		_, err := s.streamBuildStep(ctx, req.ChatID, root, client, stepRequest, remaining, func(text string) { reply.WriteString(text) }, recordChange)
 		if err != nil {
 			return err
 		}
-		// 完整步骤才更新检查点，失败或重启后从同一步重新执行。
-		state.Changed = state.Changed || changed
 		state.Next++
+		state.StepFiles = nil
 		if text := strings.TrimSpace(reply.String()); text != "" {
 			state.Reply = strings.TrimSpace(state.Reply + "\n\n" + text)
 		}
@@ -71,6 +102,11 @@ func (s *ChatService) streamPlannedBuild(ctx context.Context, req StreamChatRequ
 		}
 	}
 
+	if state.Changed {
+		if err := s.verifyPlannedBuild(ctx, req.ChatID, appID, root, client, request); err != nil {
+			return err
+		}
+	}
 	req.Prompt = state.Prompt
 	display := state.Reply
 	if display == "" {
@@ -79,9 +115,30 @@ func (s *ChatService) streamPlannedBuild(ctx context.Context, req StreamChatRequ
 	return s.finalizeModelBuild(ctx, req, root, request.Model, display, state.Changed, true)
 }
 
+func restoreStepFiles(root string, state *db.BuildCheckpoint) error {
+	if len(state.StepFiles) == 0 || state.Next >= len(state.Steps) {
+		return nil
+	}
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	// 恢复前检查文件仍在项目内，期间删除的文件重新列入生成目标。
+	state.StepFiles = slices.DeleteFunc(state.StepFiles, func(name string) bool {
+		if !slices.Contains(state.Steps[state.Next].Files, name) {
+			return true
+		}
+		info, err := dir.Stat(name)
+		return err != nil || !info.Mode().IsRegular()
+	})
+	return nil
+}
+
 func (s *ChatService) planBuild(ctx context.Context, req StreamChatRequest, contextPrompt string, client *llm.OpenAIClient, request llm.ChatRequest) (*db.BuildCheckpoint, error) {
 	s.emitProgress(req.ChatID, "Planning build steps…")
 	request.MaxTokens = config.ModelBuildPlanMaxTokens
+	request.IdleTimeout = config.ModelBuildStreamIdleTimeout
 	request.Messages = slices.Clone(request.Messages)
 	request.Messages[0].Content = fmt.Sprintf(buildPlanPrompt, config.ModelBuildMaxSteps, config.ModelBuildMaxFilesPerStep) + "\n" + contextPrompt
 	var reply strings.Builder
@@ -143,14 +200,14 @@ func normalizeBuildPaths(paths []string) bool {
 	return true
 }
 
-func buildStepRequest(request llm.ChatRequest, root string, state *db.BuildCheckpoint, step db.BuildStep) llm.ChatRequest {
+func buildStepRequest(request llm.ChatRequest, root string, state *db.BuildCheckpoint, step db.BuildStep, remaining []string) llm.ChatRequest {
 	completed := make([]string, 0, state.Next)
 	for _, previous := range state.Steps[:state.Next] {
 		completed = append(completed, previous.Title)
 	}
 	paths := append(slices.Clone(step.Files), step.Read...)
-	prompt := fmt.Sprintf("Build objective: %s\nOriginal user request: %s\nCompleted build steps: %q\nCurrent build step %d/%d: %s\nStep goal: %s\nFiles required in this step: %q\nImplement only the current step. Emit complete tool blocks for its files and keep other steps out of this reply.",
-		state.Objective, state.Prompt, completed, state.Next+1, len(state.Steps), step.Title, step.Goal, step.Files)
+	prompt := fmt.Sprintf("Build objective: %s\nOriginal user request: %s\nCompleted build steps: %q\nCurrent build step %d/%d: %s\nStep goal: %s\nFiles required in this step: %q\nAlready saved for this step: %q\nStart with complete tool blocks for the required files, one file at a time, with no preamble. Preserve already saved files. Reuse existing source, keep the code focused on the current goal, and keep other steps out of this reply.",
+		state.Objective, state.Prompt, completed, state.Next+1, len(state.Steps), step.Title, step.Goal, remaining, state.StepFiles)
 	request.Messages = []llm.ChatMessage{
 		request.Messages[0],
 		{Role: "user", Content: prompt + sourceFilesContext(root, paths), Images: state.Attachments},

@@ -27,6 +27,7 @@ export interface WorkspacePanelProps {
   activeView?: WorkspaceView;
   onViewChange?: (view: WorkspaceView) => void;
   isLoading?: boolean;
+  loadingMessage?: string;
   previewUrl?: string;
   previewDoc?: string;
   previewKey?: number;
@@ -50,6 +51,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   activeView = 'preview',
   onViewChange,
   isLoading = false,
+  loadingMessage,
   previewUrl = 'http://localhost:5173',
   previewDoc,
   previewKey,
@@ -263,8 +265,8 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                 <div className="relative w-12 h-12 flex items-center justify-center">
                   <Loader2 className="w-10 h-10 text-purple-500 animate-spin" />
                 </div>
-                <span className="text-sm font-medium text-slate-500 dark:text-zinc-400">
-                  {t('workspace.startingApp')}
+                <span role="status" className="text-sm font-medium text-slate-500 dark:text-zinc-400">
+                  {loadingMessage || t('workspace.startingApp')}
                 </span>
               </div>
             ) : previewDoc || previewUrl ? (

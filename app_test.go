@@ -1,9 +1,20 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"buildui/internal/app"
+	"buildui/internal/app/runner"
+	"buildui/internal/blueprint"
+	"buildui/internal/db"
+	"buildui/internal/verification/tsc"
 )
 
 func TestApp_SelectDirectory(t *testing.T) {
@@ -81,3 +92,103 @@ func TestApp_ListProviderModels(t *testing.T) {
 		t.Fatalf("expected non-empty fallback models for openai")
 	}
 }
+
+func TestApp_RunAppChecksAndRepairsBeforeOpeningPreview(t *testing.T) {
+	ctx := t.Context()
+	t.Setenv("BLOT_DEV_USER_DATA_DIR", t.TempDir())
+	a := NewApp()
+	a.startup(ctx)
+	defer a.shutdown(ctx)
+	a.chatService.SetEmitter(nil)
+	a.blueprintService.SetEmitter(nil)
+
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "tsconfig.json"), []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "node_modules"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	entry := filepath.Join(root, "Index.tsx")
+	writeEntry := func(source string) {
+		t.Helper()
+		if err := os.WriteFile(entry, []byte(source), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeEntry("export const podcast = 'ready';")
+	projectID, err := a.appRepo.Create(ctx, &db.AppEntity{Name: "Podcast", Path: root, NeedsAppBlueprint: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	chat, err := a.GetProjectChat(projectID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	launcher := &previewTestLauncher{}
+	a.appService.SetRunner(runner.NewAppRunnerWithLauncher(launcher, nil))
+	a.chatService.SetBuildProblems(tsc.NewProblemsService(a.appRepo, previewTestTsc{}))
+	req := runner.RunAppRequest{AppID: projectID}
+
+	first, err := a.RunApp(req)
+	if err != nil || first.PreviewURL == "" || launcher.launches != 1 {
+		t.Fatalf("没有模型配置时也应打开通过检查的工程：%+v, %v", first, err)
+	}
+	writeEntry(`import { HeroSection } from "@/components/site/HeroSection";`)
+	if _, err := a.RunApp(req); err == nil || !strings.Contains(err.Error(), "HeroSection") {
+		t.Fatalf("刷新正在运行的工程也应报告缺失导入：%v", err)
+	}
+	if err := a.StopApp(runner.StopAppRequest{AppID: projectID}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.blueprintService.SaveBlueprint(ctx, blueprint.BlueprintDTO{ChatID: chat.ChatID, AppName: "Podcast"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.ApproveBlueprint(chat.ChatID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.RunApp(req); err == nil || !strings.Contains(err.Error(), "HeroSection") || !strings.Contains(err.Error(), "Configure the model") {
+		t.Fatalf("无法修复时应返回诊断和配置原因：%v", err)
+	}
+	if launcher.launches != 1 {
+		t.Fatal("有错误的工程不应启动新服务器")
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"<dyad-write path=\\\"Index.tsx\\\">export const podcast = 'ready';</dyad-write>\"}}]}\n\ndata: [DONE]\n\n")
+	}))
+	defer server.Close()
+	if err := db.NewSettingsRepository(a.db).SetMany(ctx, map[string]string{"llm.base_url": server.URL, "llm.model": "podcast-test"}); err != nil {
+		t.Fatal(err)
+	}
+	fixed, err := a.RunApp(req)
+	if err != nil || fixed.PreviewURL == "" || launcher.launches != 2 {
+		t.Fatalf("修复并通过复查后应启动预览：%+v, %v", fixed, err)
+	}
+	if data, err := os.ReadFile(entry); err != nil || !strings.Contains(string(data), "podcast = 'ready'") {
+		t.Fatalf("修复没有写入工作区：%q, %v", data, err)
+	}
+}
+
+type previewTestTsc struct{}
+
+func (previewTestTsc) RunTsc(_ context.Context, root string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(root, "Index.tsx"))
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(string(data), "HeroSection") {
+		return "Index.tsx(1,1): error TS2307: Cannot find module '@/components/site/HeroSection'.", fmt.Errorf("exit code 2")
+	}
+	return "", nil
+}
+
+type previewTestLauncher struct{ launches int }
+
+func (l *previewTestLauncher) Launch(_ context.Context, _ string, onOutput func(string), _ func(error)) (int, error) {
+	l.launches++
+	onOutput("  ➜  Local:   http://127.0.0.1:8080/\n")
+	return l.launches, nil
+}
+
+func (*previewTestLauncher) Kill(int) error { return nil }

@@ -206,10 +206,10 @@ func TestProblemsService_RunSelfHealingLoop(t *testing.T) {
 	service := NewProblemsService(appRepo, mockRunner)
 
 	fixHandlerCalls := 0
-	result, err := service.RunSelfHealingLoop(context.Background(), appID, nil, 3, func(ctx context.Context, prompt string) error {
+	result, err := service.RunSelfHealingLoop(context.Background(), appID, nil, 3, func(ctx context.Context, problems []DiagnosticItem) error {
 		fixHandlerCalls++
-		if !strings.Contains(prompt, "src/Button.tsx:5:3") {
-			t.Errorf("expected prompt to contain error details")
+		if len(problems) != 1 || problems[0].File != "src/Button.tsx" {
+			t.Errorf("expected affected file, got %+v", problems)
 		}
 		return nil
 	})

@@ -150,6 +150,58 @@ func TestOpenAIClient_StreamChat_DetectsIncompleteResponse(t *testing.T) {
 	}
 }
 
+func TestOpenAIClient_StreamChat_FinishesBeforeGatewayCloses(t *testing.T) {
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Last chunk\"},\"finish_reason\":\"stop\"}]}\n\n")
+		w.(http.Flusher).Flush()
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	defer server.Close()
+	defer close(release)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	var output strings.Builder
+	client := llm.NewOpenAIClient(server.URL, "", "fixture-model")
+	err := client.StreamChat(ctx, llm.ChatRequest{}, func(chunk string) error {
+		output.WriteString(chunk)
+		return nil
+	})
+	if err != nil || output.String() != "Last chunk" {
+		t.Fatalf("收到终止事件后应立即返回最后一段正文：%q, %v", output.String(), err)
+	}
+}
+
+func TestOpenAIClient_StreamChat_ProviderIdleDespiteHeartbeats(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case <-ticker.C:
+				fmt.Fprint(w, ": keep-alive\n\n")
+				w.(http.Flusher).Flush()
+			}
+		}
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	client := llm.NewOpenAIClient(server.URL, "", "fixture-model")
+	err := client.StreamChat(ctx, llm.ChatRequest{IdleTimeout: 75 * time.Millisecond}, func(string) error { return nil })
+	if !errors.Is(err, llm.ErrStreamIdle) {
+		t.Fatalf("心跳不能延长无正文请求的等待时间：%v", err)
+	}
+}
+
 func TestOpenAIClient_StreamChat_CancelContext(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")

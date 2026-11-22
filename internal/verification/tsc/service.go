@@ -2,6 +2,7 @@ package tsc
 
 import (
 	"context"
+	"strings"
 
 	"buildui/internal/db"
 	"buildui/internal/errs"
@@ -17,6 +18,9 @@ type TscRunner interface {
 type defaultTscRunner struct{}
 
 func (d *defaultTscRunner) RunTsc(ctx context.Context, appPath string) (string, error) {
+	if err := workspace.EnsureProjectDependencies(ctx, appPath, "tsc"); err != nil {
+		return "", err
+	}
 	cmd := workspace.PnpmCommand(ctx, appPath, "exec", "tsc", "--noEmit")
 	out, err := cmd.CombinedOutput()
 	// tsc 在报错时通常返回 exit code 2，我们仍需返回完整的错误输出
@@ -54,7 +58,14 @@ func (s *ProblemsService) CheckTypeScript(ctx context.Context, req CheckTypeScri
 	rawOutput, runErr := s.runner.RunTsc(ctx, app.Path)
 	allProblems := ParseDiagnostics(rawOutput)
 	if runErr != nil && len(allProblems) == 0 {
-		return nil, errs.NewExternalError("TypeScript check could not run: "+rawOutput, runErr)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		message := "TypeScript check could not run"
+		if output := strings.TrimSpace(rawOutput); output != "" {
+			message += ": " + output
+		}
+		return nil, errs.NewExternalError(message, runErr)
 	}
 	filtered := FilterDiagnostics(allProblems, req.Paths)
 
@@ -78,7 +89,7 @@ func (s *ProblemsService) RunSelfHealingLoop(
 	appID int64,
 	paths []string,
 	maxAttempts int,
-	fixHandler func(ctx context.Context, prompt string) error,
+	fixHandler func(ctx context.Context, problems []DiagnosticItem) error,
 ) (*RemediationResult, error) {
 	if maxAttempts <= 0 {
 		maxAttempts = 3
@@ -105,11 +116,9 @@ func (s *ProblemsService) RunSelfHealingLoop(
 
 		attempts++
 
-		// 构造自愈修复 Prompt
-		prompt := BuildRemediationPrompt(resp.Problems)
 		if fixHandler != nil {
-			if err := fixHandler(ctx, prompt); err != nil {
-				return nil, errs.NewInternalError("remediation handler failed during self-healing loop", err)
+			if err := fixHandler(ctx, resp.Problems); err != nil {
+				return nil, err
 			}
 		}
 	}

@@ -12,6 +12,7 @@ import (
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
 	"buildui/internal/errs"
+	"buildui/internal/verification/tsc"
 )
 
 // EventEmitter 运行时事件推送抽象
@@ -27,6 +28,7 @@ type ChatService struct {
 	versionRepo    *db.VersionRepository
 	settingsRepo   *db.SettingsRepository
 	messageRepo    *db.MessageRepository
+	buildProblems  *tsc.ProblemsService
 	emitter        EventEmitter
 	activeSessions sync.Map
 	activeBuilds   sync.Map
@@ -50,6 +52,17 @@ func (s *ChatService) SetEmitter(emitter EventEmitter) {
 // SetVersionRepo 设置版本审计数据访问仓库
 func (s *ChatService) SetVersionRepo(r *db.VersionRepository) {
 	s.versionRepo = r
+}
+
+func (s *ChatService) SetBuildProblems(problems *tsc.ProblemsService) {
+	s.buildProblems = problems
+}
+
+func (s *ChatService) lockProjectBuild(appID int64) (func(), error) {
+	if _, busy := s.activeBuilds.LoadOrStore(appID, struct{}{}); busy {
+		return nil, errs.NewPreconditionError("A build or preview check is already running for this project.", nil)
+	}
+	return func() { s.activeBuilds.Delete(appID) }, nil
 }
 
 // SetModelRepositories 连接用户配置和会话历史。
@@ -103,7 +116,7 @@ func (s *ChatService) ProcessStream(ctx context.Context, chatID int64, appPath s
 					return errs.NewInternalError("Failed to read stream.", err)
 				}
 			}
-		}, nil)
+		}, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -119,7 +132,7 @@ type buildResult struct {
 	changed     bool
 }
 
-func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, appPath string, read func(func(string) error) error, onText func(string)) (buildResult, error) {
+func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, appPath string, read func(func(string) error) error, onText func(string), onChange func(string) error) (buildResult, error) {
 	fileWriter := NewFileWriter(appPath)
 	depManager := NewDependencyManager(appPath, nil)
 	var result buildResult
@@ -176,6 +189,9 @@ func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, app
 			}
 			result.files = append(result.files, path)
 			result.changed = true
+			if onChange != nil {
+				return onChange(path)
+			}
 			return nil
 		},
 		OnAddDependency: func(packages []string) error {
@@ -187,6 +203,9 @@ func (s *ChatService) processChunks(streamCtx context.Context, chatID int64, app
 			}
 			result.packages = append(result.packages, packages...)
 			result.changed = true
+			if onChange != nil {
+				return onChange("")
+			}
 			return nil
 		},
 	})

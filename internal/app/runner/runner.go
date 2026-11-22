@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -27,10 +26,8 @@ type ProcessLauncher interface {
 type defaultProcessLauncher struct{}
 
 func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onOutput func(string), onExit func(error)) (int, error) {
-	if _, err := os.Stat(filepath.Join(appPath, "node_modules")); os.IsNotExist(err) {
-		if out, err := workspace.PnpmCommand(ctx, appPath, "install").CombinedOutput(); err != nil {
-			return 0, fmt.Errorf("failed to install project dependencies: %w: %s", err, out)
-		}
+	if err := workspace.EnsureProjectDependencies(ctx, appPath); err != nil {
+		return 0, err
 	}
 	cmd := workspace.PnpmCommand(ctx, appPath, "run", "dev", "--host", "127.0.0.1")
 

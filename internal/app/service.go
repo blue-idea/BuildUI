@@ -7,12 +7,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"buildui/internal/app/runner"
 	"buildui/internal/db"
 	"buildui/internal/errs"
 	"buildui/internal/scaffold"
+	"buildui/internal/verification/tsc"
 )
 
 // CreateAppRequest 创建新应用请求
@@ -50,10 +52,12 @@ type ActiveAppResponse struct {
 
 // AppService 负责应用管理与脚手架初始化
 type AppService struct {
-	appRepo       *db.AppRepository
-	db            *db.DB
-	runner        *runner.AppRunner
-	workspaceRoot string
+	appRepo        *db.AppRepository
+	db             *db.DB
+	runner         *runner.AppRunner
+	workspaceRoot  string
+	verifyPreview  func(context.Context, *db.AppEntity) (*tsc.RemediationResult, error)
+	activePreviews sync.Map
 }
 
 // SetWorkspaceRoot 定位新建项目的默认目录。
@@ -73,6 +77,10 @@ func NewAppService(appRepo *db.AppRepository, database *db.DB) *AppService {
 // SetRunner 设置自定义 AppRunner 实例
 func (s *AppService) SetRunner(r *runner.AppRunner) {
 	s.runner = r
+}
+
+func (s *AppService) SetPreviewVerifier(verify func(context.Context, *db.AppEntity) (*tsc.RemediationResult, error)) {
+	s.verifyPreview = verify
 }
 
 // CreateApp 展开内置脚手架并初始化 Git 仓库与 SQLite 记录
@@ -191,7 +199,31 @@ func (s *AppService) RunApp(ctx context.Context, req runner.RunAppRequest) (*run
 		s.runner = runner.NewAppRunner(nil)
 	}
 
-	return s.runner.StartApp(ctx, req.AppID, app.Path)
+	previewCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if _, busy := s.activePreviews.LoadOrStore(req.AppID, cancel); busy {
+		return nil, errs.NewPreconditionError("A preview request is already running for this project.", nil)
+	}
+	defer s.activePreviews.Delete(req.AppID)
+	var verification *tsc.RemediationResult
+	if s.verifyPreview != nil {
+		verification, err = s.verifyPreview(previewCtx, app)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := previewCtx.Err(); err != nil {
+		return nil, err
+	}
+	response, err := s.runner.StartApp(previewCtx, req.AppID, app.Path)
+	if err != nil {
+		return nil, err
+	}
+	if verification != nil {
+		response.TypeScriptChecked = true
+		response.RepairAttempts = verification.Attempts
+	}
+	return response, nil
 }
 
 // StopApp 停止应用的开发服务器
@@ -200,6 +232,10 @@ func (s *AppService) StopApp(ctx context.Context, req runner.StopAppRequest) err
 		return errs.NewValidationError("app id must be positive", nil)
 	}
 
+	// 停止或切换工程时，从启动请求中取消尚未完成的检查及模型修复。
+	if cancel, ok := s.activePreviews.Load(req.AppID); ok {
+		cancel.(context.CancelFunc)()
+	}
 	if s.runner == nil {
 		return nil
 	}
@@ -228,7 +264,7 @@ func (s *AppService) SwitchApp(ctx context.Context, targetAppID int64) (*ActiveA
 			return nil, err
 		}
 		if currentActiveID > 0 && s.runner != nil {
-			_ = s.runner.StopApp(ctx, currentActiveID)
+			_ = s.StopApp(ctx, runner.StopAppRequest{AppID: currentActiveID})
 		}
 	}
 

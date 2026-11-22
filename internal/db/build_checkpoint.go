@@ -24,6 +24,7 @@ type BuildCheckpoint struct {
 	Objective   string      `json:"objective"`
 	Steps       []BuildStep `json:"steps"`
 	Next        int         `json:"next"`
+	StepFiles   []string    `json:"stepFiles,omitempty"`
 	Changed     bool        `json:"changed"`
 	Reply       string      `json:"reply"`
 }

@@ -52,21 +52,16 @@ func (s *ChatService) StreamChat(ctx context.Context, req StreamChatRequest) err
 	})
 }
 
-func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) error {
-	chat, err := s.chatRepo.GetByID(ctx, req.ChatID)
-	if err != nil {
-		return err
-	}
-	app, err := s.appRepo.GetByID(ctx, chat.AppID)
-	if err != nil {
-		return err
+func (s *ChatService) loadModel(ctx context.Context, provider, explicitModel string) (*llm.OpenAIClient, string, error) {
+	if s.settingsRepo == nil {
+		return nil, "", errs.NewPreconditionError("Model settings are unavailable.", nil)
 	}
 	settings, err := s.settingsRepo.GetAll(ctx)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 
-	targetProvider := strings.TrimSpace(req.Provider)
+	targetProvider := strings.TrimSpace(provider)
 	if targetProvider == "" || targetProvider == "auto" {
 		targetProvider = strings.TrimSpace(settings["llm.active_provider"])
 		if targetProvider == "" {
@@ -93,12 +88,37 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	}
 
 	// 若请求显式指定了具体 Model，优先使用
-	if explicitModel := strings.TrimSpace(req.Model); explicitModel != "" {
+	if explicitModel := strings.TrimSpace(explicitModel); explicitModel != "" {
 		model = explicitModel
 	}
 
 	if model == "" || endpoint == "" {
-		return errs.NewPreconditionError("Configure the model and API URL in Settings.", nil)
+		return nil, "", errs.NewPreconditionError("Configure the model and API URL in Settings.", nil)
+	}
+	return llm.NewOpenAIClient(endpoint, apiKey, model), model, nil
+}
+
+func configureBuildModel(request *llm.ChatRequest) {
+	request.MaxTokens = config.ModelBuildMaxTokens
+	if config.SupportsDeepSeekThinking(request.Model) {
+		// V4 构建优先把补全预算留给完整代码，兼顾可能保留推理的中转服务。
+		request.DisableThinking = true
+		request.MaxTokens = config.ModelDeepSeekBuildMaxTokens
+	}
+}
+
+func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) error {
+	chat, err := s.chatRepo.GetByID(ctx, req.ChatID)
+	if err != nil {
+		return err
+	}
+	app, err := s.appRepo.GetByID(ctx, chat.AppID)
+	if err != nil {
+		return err
+	}
+	client, model, err := s.loadModel(ctx, req.Provider, req.Model)
+	if err != nil {
+		return err
 	}
 	bp, err := s.bpService.GetBlueprint(ctx, req.ChatID)
 	var missing *errs.BlotError
@@ -145,22 +165,17 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 		messages = append(messages, llm.ChatMessage{Role: msg.Role, Content: msg.Content})
 	}
 	messages = append(messages, llm.ChatMessage{Role: "user", Content: req.Prompt, Images: req.Attachments})
-	client := llm.NewOpenAIClient(endpoint, apiKey, model)
 	request := llm.ChatRequest{Model: model, Messages: messages, Temperature: 0.2, MaxTokens: config.ModelBlueprintMaxTokens}
 	supportsThinking := config.SupportsDeepSeekThinking(model)
 	if bp != nil && bp.Approved && req.Mode != "plan" {
-		if _, busy := s.activeBuilds.LoadOrStore(app.ID, struct{}{}); busy {
-			return errs.NewPreconditionError("A build is already running for this project.", nil)
+		unlock, err := s.lockProjectBuild(app.ID)
+		if err != nil {
+			return err
 		}
-		defer s.activeBuilds.Delete(app.ID)
-		request.MaxTokens = config.ModelBuildMaxTokens
-		if supportsThinking {
-			// V4 构建优先把补全预算留给完整代码，兼顾可能保留推理的中转服务。
-			request.DisableThinking = true
-			request.MaxTokens = config.ModelDeepSeekBuildMaxTokens
-		}
+		defer unlock()
+		configureBuildModel(&request)
 		if req.Mode == "build" {
-			return s.streamPlannedBuild(ctx, req, app.Path, contextPrompt, client, request)
+			return s.streamPlannedBuild(ctx, req, app.ID, app.Path, contextPrompt, client, request)
 		}
 		return s.streamBuild(ctx, req, app.Path, client, request)
 	}
@@ -228,14 +243,14 @@ func streamModelResponse(ctx context.Context, client *llm.OpenAIClient, request 
 func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, root string, client *llm.OpenAIClient, request llm.ChatRequest) error {
 	s.emitProgress(req.ChatID, "Waiting for the model to generate code…")
 	var display strings.Builder
-	changed, err := s.streamBuildStep(ctx, req.ChatID, root, client, request, nil, func(text string) { display.WriteString(text) })
+	changed, err := s.streamBuildStep(ctx, req.ChatID, root, client, request, nil, func(text string) { display.WriteString(text) }, nil)
 	if err != nil {
 		return err
 	}
 	return s.finalizeModelBuild(ctx, req, root, request.Model, display.String(), changed, false)
 }
 
-func (s *ChatService) streamBuildStep(ctx context.Context, chatID int64, root string, client *llm.OpenAIClient, request llm.ChatRequest, expectedFiles []string, onText func(string)) (bool, error) {
+func (s *ChatService) streamBuildStep(ctx context.Context, chatID int64, root string, client *llm.OpenAIClient, request llm.ChatRequest, expectedFiles []string, onText func(string), onChange func(string) error) (bool, error) {
 	lastMessage := &request.Messages[len(request.Messages)-1]
 	prompt := lastMessage.Content
 	completed, pendingFiles := make(map[string]bool), make(map[string]bool)
@@ -249,7 +264,7 @@ func (s *ChatService) streamBuildStep(ctx context.Context, chatID int64, root st
 	for continuation := 0; ; continuation++ {
 		result, err := s.processChunks(ctx, chatID, root, func(feed func(string) error) error {
 			return streamModelResponse(ctx, client, request, feed)
-		}, onText)
+		}, onText, onChange)
 		for _, name := range result.files {
 			name = filepath.ToSlash(filepath.Clean(name))
 			completed[name] = true

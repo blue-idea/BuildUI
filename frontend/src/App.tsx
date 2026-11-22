@@ -132,6 +132,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const projectID = useRef(0);
   const turn = useRef<{ id: string; commit: string; cancelled: boolean } | null>(null);
   const [isStartingApp, setIsStartingApp] = useState(false);
+  const [previewProgress, setPreviewProgress] = useState('');
+  const previewRequest = useRef<{ appId: number } | null>(null);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [generationProgress, setGenerationProgress] = useState('');
   const [buildProgress, setBuildProgress] = useState<BuildProgress | null>(null);
@@ -341,31 +343,46 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       desktopApp().GetVersions(id),
       desktopApp().ListProjectFiles(id),
     ]);
+    if (projectID.current !== id) return history ?? [];
     setVersions(history ?? []);
     setSourcePaths(paths);
     setSourceRevision((revision) => revision + 1);
     return history ?? [];
   };
 
-  const startPreview = async (id: number, verify = false) => {
+  const startPreview = async (id: number) => {
+    const pending = { appId: id };
+    previewRequest.current = pending;
+    const isCurrent = () => previewRequest.current === pending && projectID.current === id;
+    setProjectError('');
+    setPreviewProgress('');
     setIsStartingApp(true);
     try {
       const result = await desktopApp().RunApp({ appId: id });
+      if (!isCurrent()) return;
       setPreviewUrl(result.previewUrl);
       setPreviewKey((key) => key + 1);
       setSystemLogs((logs) => [...logs, `Preview is running at ${result.previewUrl}`]);
-      if (verify) {
-        const result = await desktopApp().CheckTypeScript({ appId: id, paths: [] });
-        setDiagnostics(result.problems ?? []);
-        setSystemLogs((logs) => [
-          ...logs,
-          ...(result.hasErrors
-            ? (result.problems ?? []).map((problem) => `${problem.file}:${problem.line}:${problem.column} ${problem.message}`)
-            : ['TypeScript check completed without errors.']),
-        ]);
+      if (result.typeScriptChecked) {
+        setDiagnostics([]);
+        setSystemLogs((logs) => [...logs, 'TypeScript check completed without errors.']);
       }
+      if (result.repairAttempts) {
+        void refreshProject(id).catch((error) => {
+          if (projectID.current === id) reportError(error);
+        });
+      }
+    } catch (error) {
+      if (!isCurrent()) return;
+      setPreviewUrl('');
+      setSystemLogs((logs) => [...logs, error instanceof Error ? error.message : String(error)]);
+      throw error;
     } finally {
-      setIsStartingApp(false);
+      if (previewRequest.current === pending) {
+        previewRequest.current = null;
+        setPreviewProgress('');
+        setIsStartingApp(false);
+      }
     }
   };
 
@@ -385,6 +402,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       void desktopApp().StopApp?.({ appId: activeAppId }).catch(() => {});
     }
     setActiveAppId(0);
+    previewRequest.current = null;
+    setPreviewProgress('');
+    setIsStartingApp(false);
     projectID.current = 0;
     chatID.current = 0;
     setWorkspaceDir('');
@@ -504,8 +524,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       if (mode === 'build') setBuildProgress(null);
       const history = await refreshProject(currentAppId);
       if (current.commit || (mode === 'build' && (approve || blueprint?.approved) && history.length > 1)) {
-        setGenerationProgress('Starting the preview and checking TypeScript…');
-        await startPreview(currentAppId, true);
+        setGenerationProgress('Preparing the preview…');
+        await startPreview(currentAppId);
       }
     } catch (error) {
       if (!current.cancelled) reportError(error);
@@ -613,11 +633,19 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     const stopConsole = essentialEvent<{ appId: number; message: string }>('preview:console', (event) => {
       if (event.appId === projectID.current) setSystemLogs((logs) => [...logs, event.message]);
     });
+    const stopPreviewProgress = essentialEvent<{ appId: number; message: string }>('preview:progress', (event) => {
+      if (event.appId === previewRequest.current?.appId) setPreviewProgress(event.message);
+    });
+    const stopPreviewDiagnostics = essentialEvent<{ appId: number; problems: DiagnosticItem[] }>('preview:diagnostics', (event) => {
+      if (event.appId === previewRequest.current?.appId) setDiagnostics(event.problems);
+    });
 
     return () => {
       unsubscribe();
       stopBlueprint();
       stopConsole();
+      stopPreviewProgress();
+      stopPreviewDiagnostics();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1503,6 +1531,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
           activeView={workspaceView}
           onViewChange={setWorkspaceView}
           isLoading={isStartingApp}
+          loadingMessage={previewProgress}
           previewUrl={previewUrl}
           previewDoc={desktop ? undefined : generateSandboxDoc(activeApp?.name ?? '', activeThemeId, blueprint, locale, extraSandboxItems)}
           previewKey={previewKey}

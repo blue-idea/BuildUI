@@ -1,6 +1,9 @@
 package config
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 const (
 	ModelBlueprintMaxTokens     = 4096
@@ -10,6 +13,9 @@ const (
 	ModelBuildPlanMaxTokens     = 2048
 	ModelBuildMaxSteps          = 8
 	ModelBuildMaxFilesPerStep   = 6
+	ModelBuildStreamIdleTimeout = 2 * time.Minute
+	ModelBuildRepairAttempts    = 2
+	ModelBuildRepairBatchSize   = 3
 )
 
 // SupportsDeepSeekThinking 识别官方模型名和中转服务常用的 V4 模型别名。

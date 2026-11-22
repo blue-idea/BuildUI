@@ -7,9 +7,11 @@ type RunAppRequest struct {
 
 // RunAppResponse 启动应用响应
 type RunAppResponse struct {
-	PreviewURL string `json:"previewUrl"`
-	ProcessID  int    `json:"processId"`
-	Status     string `json:"status"` // "running" | "error"
+	PreviewURL        string `json:"previewUrl"`
+	ProcessID         int    `json:"processId"`
+	Status            string `json:"status"` // "running" | "error"
+	TypeScriptChecked bool   `json:"typeScriptChecked,omitempty"`
+	RepairAttempts    int    `json:"repairAttempts,omitempty"`
 }
 
 // StopAppRequest 停止应用请求

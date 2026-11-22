@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"time"
 )
 
 // StreamChunkHandler 流式响应 Chunk 回调函数
@@ -38,6 +39,8 @@ type ChatRequest struct {
 	MaxTokens   int           `json:"max_tokens,omitempty"`
 	// DisableThinking 仅在支持 DeepSeek 思考模式开关的模型中设置。
 	DisableThinking bool `json:"-"`
+	// IdleTimeout 限制等待模型正文的时间，零值沿用传输层配置。
+	IdleTimeout time.Duration `json:"-"`
 }
 
 // Provider 大模型通用流式接口

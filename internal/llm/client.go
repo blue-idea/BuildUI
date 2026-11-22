@@ -18,6 +18,9 @@ import (
 // ErrOutputLimit 区分模型截断和其他流式请求错误。
 var ErrOutputLimit = errs.NewExternalError("The model reached its output limit before completing the response.", nil)
 
+// ErrStreamIdle 表示服务商未能在等待窗口内返回新的正文。
+var ErrStreamIdle = errs.NewExternalError("The model stopped sending output. Resume the build to continue from the saved progress.", nil)
+
 // OpenAIClient 兼容 OpenAI 协议的大模型流式客户端
 type OpenAIClient struct {
 	baseURL    string
@@ -90,6 +93,8 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 	}
 	if req.DisableThinking {
 		bodyMap["thinking"] = map[string]string{"type": "disabled"}
+		// 兼容仅转发 reasoning_effort 的 OpenAI 兼容网关。
+		bodyMap["reasoning_effort"] = "none"
 	}
 
 	jsonBytes, err := json.Marshal(bodyMap)
@@ -97,6 +102,20 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 		return errs.NewInternalError("failed to marshal chat request body", err)
 	}
 
+	var idleTimer *time.Timer
+	if req.IdleTimeout > 0 {
+		streamCtx, cancel := context.WithCancelCause(ctx)
+		defer cancel(nil)
+		ctx = streamCtx
+		idleTimer = time.AfterFunc(req.IdleTimeout, func() { cancel(ErrStreamIdle) })
+		defer idleTimer.Stop()
+	}
+	contextError := func() error {
+		if errors.Is(context.Cause(ctx), ErrStreamIdle) {
+			return ErrStreamIdle
+		}
+		return ctx.Err()
+	}
 	endpoint := fmt.Sprintf("%s/chat/completions", c.baseURL)
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(jsonBytes))
 	if err != nil {
@@ -112,7 +131,7 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return contextError()
 		}
 		return errs.NewExternalError("network failure while connecting to LLM provider", err)
 	}
@@ -120,6 +139,9 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 
 	if resp.StatusCode != http.StatusOK {
 		respBytes, _ := io.ReadAll(resp.Body)
+		if ctx.Err() != nil {
+			return contextError()
+		}
 		errMsg := string(respBytes)
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 			return errs.NewPreconditionError(fmt.Sprintf("LLM authentication failed (%d): %s", resp.StatusCode, errMsg), nil)
@@ -132,11 +154,10 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 
 	// 逐行解析 Server-Sent Events 流
 	scanner := bufio.NewScanner(resp.Body)
-	completed := false
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return contextError()
 		default:
 		}
 
@@ -152,8 +173,7 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 
 		dataContent := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
 		if dataContent == "[DONE]" {
-			completed = true
-			break
+			return nil
 		}
 
 		var chunk sseChunk
@@ -165,33 +185,34 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 		if len(chunk.Choices) > 0 {
 			choice := chunk.Choices[0]
 			if choice.Delta.Content != "" {
+				// 工具回调的本地执行时间不计入模型等待时间。
+				if idleTimer != nil && !idleTimer.Stop() {
+					<-ctx.Done()
+					return contextError()
+				}
 				if err := onChunk(choice.Delta.Content); err != nil {
 					return err
+				}
+				if idleTimer != nil {
+					idleTimer.Reset(req.IdleTimeout)
 				}
 			}
 			if choice.FinishReason != nil && *choice.FinishReason != "" {
 				if *choice.FinishReason == "length" {
 					return ErrOutputLimit
 				}
-				completed = true
+				return nil
 			}
 		}
 	}
 
+	if ctx.Err() != nil {
+		return contextError()
+	}
 	if err := scanner.Err(); err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
 		return errs.NewExternalError("error occurred while reading SSE stream", err)
 	}
-
-	if !completed {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		return errs.NewExternalError("The model stream ended before completion.", nil)
-	}
-	return nil
+	return errs.NewExternalError("The model stream ended before completion.", nil)
 }
 
 // TestConnection 测试与大模型端点的连通性与鉴权有效性

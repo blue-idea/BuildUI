@@ -16,12 +16,19 @@ import (
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
 	"buildui/internal/llm"
+	"buildui/internal/verification/tsc"
 )
 
 // v12.REQ-004-AC-001 到 AC-003 验证分步生成、中断恢复和单轮历史。
 func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "tsconfig.json"), []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "node_modules"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	dbPath := filepath.Join(t.TempDir(), "build.db")
 	database, err := db.Open(ctx, dbPath)
 	if err != nil {
@@ -48,7 +55,7 @@ func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 	}
 
 	calls := make(chan string, 10)
-	var pricingAttempts atomic.Int32
+	var pricingAttempts, repairAttempts atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request llm.ChatRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil || len(request.Messages) < 2 {
@@ -60,24 +67,41 @@ func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 		switch {
 		case strings.Contains(request.Messages[0].Content, "Build planning protocol"):
 			calls <- "plan"
-			reply = `{"objective":"Build the SaaS landing page","steps":[{"title":"Landing page","goal":"Build the page shell","files":["src/App.tsx"]},{"title":"Pricing","goal":"Add pricing cards","files":["src/Pricing.tsx"],"read":["src/App.tsx"]},{"title":"Free trial","goal":"Add trial signup and wire the page","files":["src/Trial.tsx","src/App.tsx"],"read":["src/Pricing.tsx"]}]}`
+			reply = `{"objective":"Build the SaaS landing page","steps":[{"title":"Landing page","goal":"Build the page shell","files":["src/App.tsx"]},{"title":"Pricing","goal":"Add pricing cards","files":["src/Prices.ts","src/Pricing.tsx"],"read":["src/App.tsx"]},{"title":"Free trial","goal":"Add trial signup and wire the page","files":["src/Trial.tsx","src/App.tsx"],"read":["src/Pricing.tsx"]}]}`
 		case strings.Contains(last, "Current build step 1/3"):
 			calls <- "shell"
 			reply = `<dyad-write path="src/App.tsx">export default function App() { return "SaaS shell"; }</dyad-write>`
 		case strings.Contains(last, "Current build step 2/3"):
 			calls <- "pricing"
 			if pricingAttempts.Add(1) == 1 {
-				http.Error(w, "Model unavailable", http.StatusServiceUnavailable)
+				w.Header().Set("Content-Type", "text/event-stream")
+				delta, _ := json.Marshal(map[string]any{"choices": []any{map[string]any{"delta": map[string]string{
+					"content": `<dyad-write path="src/Prices.ts">export const starter = 19;</dyad-write><dyad-write path="src/Pricing.tsx">unfinished`,
+				}}}})
+				fmt.Fprintf(w, "data: %s\n\n", delta)
 				return
 			}
-			if !strings.Contains(last, "SaaS shell") {
+			if !strings.Contains(last, "SaaS shell") ||
+				!strings.Contains(last, `Files required in this step: ["src/Pricing.tsx"]`) ||
+				!strings.Contains(last, "export const starter = 19") {
 				http.Error(w, "Missing completed stage source", http.StatusBadRequest)
 				return
 			}
-			reply = `<dyad-write path="src/Pricing.tsx">export const price = 19;</dyad-write>`
+			reply = `<dyad-write path="src/Pricing.tsx">export { starter as price } from "./Prices";</dyad-write>`
 		case strings.Contains(last, "Current build step 3/3"):
 			calls <- "trial"
 			reply = `<dyad-write path="src/Trial.tsx">export const trial = "Start free trial";</dyad-write><dyad-write path="src/App.tsx">import { price } from "./Pricing"; import { trial } from "./Trial"; export default function App() { return trial + price; }</dyad-write>`
+		case strings.Contains(last, "TypeScript compilation failed"):
+			calls <- "repair"
+			if repairAttempts.Add(1) == 1 {
+				http.Error(w, "Model unavailable during repair", http.StatusServiceUnavailable)
+				return
+			}
+			if !strings.Contains(last, "Current source: src/Trial.tsx") || !strings.Contains(last, "Current source: src/App.tsx") {
+				http.Error(w, "Missing affected source or local imports", http.StatusBadRequest)
+				return
+			}
+			reply = `<dyad-write path="src/App.tsx">import { price } from "./Pricing"; import { trial } from "./Trial"; export default function App() { return trial + String(price); }</dyad-write>`
 		default:
 			calls <- "unexpected"
 			http.Error(w, "Expected a build plan or a single build step", http.StatusBadRequest)
@@ -94,7 +118,7 @@ func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 	}
 	service := testBuildService(database)
 	req := StreamChatRequest{ChatID: chatID, Mode: "build", Prompt: "Build a SaaS website with subscription pricing and a free trial button."}
-	if err := service.StreamChat(ctx, req); err == nil || !strings.Contains(err.Error(), "Model unavailable") {
+	if err := service.StreamChat(ctx, req); err == nil || !strings.Contains(err.Error(), "ended before completion") {
 		t.Fatalf("应在完成首页后遇到可恢复的模型错误：%v", err)
 	}
 	if data, err := os.ReadFile(filepath.Join(root, "src", "App.tsx")); err != nil || !strings.Contains(string(data), "SaaS shell") {
@@ -114,7 +138,15 @@ func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	service = testBuildService(database)
-	if err := service.StreamChat(ctx, StreamChatRequest{ChatID: chatID, Mode: "build", Resume: true}); err != nil {
+	service.SetBuildProblems(tsc.NewProblemsService(db.NewAppRepository(database), stagedBuildTsc{}))
+	resume := StreamChatRequest{ChatID: chatID, Mode: "build", Resume: true}
+	if err := service.StreamChat(ctx, resume); err == nil || !strings.Contains(err.Error(), "Model unavailable during repair") {
+		t.Fatalf("应返回修复请求的原始错误：%v", err)
+	}
+	if progress, err := service.GetBuildProgress(ctx, chatID); err != nil || progress == nil || progress.Completed != 3 || progress.Total != 3 {
+		t.Fatalf("验证失败时应保留所有已写入的步骤：%+v, %v", progress, err)
+	}
+	if err := service.StreamChat(ctx, resume); err != nil {
 		t.Fatal(err)
 	}
 
@@ -122,10 +154,10 @@ func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 	for len(calls) != 0 {
 		invoked = append(invoked, <-calls)
 	}
-	if expected := []string{"plan", "shell", "pricing", "pricing", "trial"}; !reflect.DeepEqual(invoked, expected) {
+	if expected := []string{"plan", "shell", "pricing", "pricing", "trial", "repair", "repair"}; !reflect.DeepEqual(invoked, expected) {
 		t.Fatalf("恢复时应跳过计划和已完成的阶段：%v", invoked)
 	}
-	if data, err := os.ReadFile(filepath.Join(root, "src", "App.tsx")); err != nil || !strings.Contains(string(data), "return trial + price") {
+	if data, err := os.ReadFile(filepath.Join(root, "src", "App.tsx")); err != nil || !strings.Contains(string(data), "return trial + String(price)") {
 		t.Fatalf("恢复后未完成站点：%s, %v", data, err)
 	}
 	if history, err := db.NewMessageRepository(database).ListByChatID(ctx, chatID); err != nil || len(history) != 2 || history[0].Content != req.Prompt {
@@ -134,6 +166,19 @@ func TestStagedSaaSBuildResumesAfterAServiceRestart(t *testing.T) {
 	if progress, err := service.GetBuildProgress(ctx, chatID); err != nil || progress != nil {
 		t.Fatalf("构建完成后应清除检查点：%+v, %v", progress, err)
 	}
+}
+
+type stagedBuildTsc struct{}
+
+func (stagedBuildTsc) RunTsc(_ context.Context, root string) (string, error) {
+	source, err := os.ReadFile(filepath.Join(root, "src", "App.tsx"))
+	if err != nil {
+		return "", err
+	}
+	if !strings.Contains(string(source), "String(price)") {
+		return "src/App.tsx(1,45): error TS2322: Format the displayed price.", fmt.Errorf("exit code 2")
+	}
+	return "", nil
 }
 
 func testBuildService(database *db.DB) *ChatService {

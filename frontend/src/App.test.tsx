@@ -2,6 +2,42 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { describe, it, expect, vi } from 'vitest';
 import { App } from './App';
 
+it('手动启动预览时显示后端检查进度，修复完成后刷新源码列表', async () => {
+  const project = { appId: 41, name: 'Podcast', path: '/podcast', blueprintApproved: true };
+  let finishPreview!: (result: { previewUrl: string; typeScriptChecked: boolean; repairAttempts: number }) => void;
+  const runApp = vi.fn().mockImplementation(() => new Promise((resolve) => { finishPreview = resolve; }));
+  const listFiles = vi.fn().mockResolvedValue([]);
+  const handlers = new Map<string, (data: unknown) => void>();
+  vi.stubGlobal('runtime', { EventsOn: (event: string, listener: (data: unknown) => void) => {
+    handlers.set(event, listener);
+    return () => handlers.delete(event);
+  } });
+  vi.stubGlobal('go', { main: { App: {
+    GetSettings: vi.fn().mockResolvedValue({}),
+    ListApps: vi.fn().mockResolvedValue([{ id: 41, name: project.name, path: project.path }]),
+    GetActiveApp: vi.fn().mockResolvedValue(project),
+    SwitchApp: vi.fn().mockResolvedValue(project),
+    GetProjectChat: vi.fn().mockResolvedValue({ chatId: 7, messages: [] }),
+    GetVersions: vi.fn().mockResolvedValue([]),
+    ListProjectFiles: listFiles,
+    RunApp: runApp,
+  } } });
+  try {
+    render(<App initialDockTab="builder" />);
+    await waitFor(() => expect(listFiles).toHaveBeenCalledWith(41));
+    fireEvent.click(screen.getByRole('button', { name: 'Start preview' }));
+    await waitFor(() => expect(runApp).toHaveBeenCalledWith({ appId: 41 }));
+    handlers.get('preview:progress')?.({ appId: 41, message: 'Checking project TypeScript…' });
+    expect(await screen.findByText('Checking project TypeScript…')).toBeDefined();
+    expect(screen.queryByTitle('App live preview')).toBeNull();
+    finishPreview({ previewUrl: 'http://localhost:8080', typeScriptChecked: true, repairAttempts: 1 });
+    expect((await screen.findByTitle('App live preview')).getAttribute('src')).toBe('http://localhost:8080');
+    await waitFor(() => expect(listFiles).toHaveBeenCalledTimes(2));
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 // v12.REQ-004-AC-002 验证重开会话后展示检查点并请求续建。
 it('从桌面会话恢复已保存的阶段并发送续建请求', async () => {
   const project = { appId: 41, name: 'Subscription SaaS', path: '/saas', blueprintApproved: true };

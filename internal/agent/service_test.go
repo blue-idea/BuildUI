@@ -53,7 +53,8 @@ func testStreamChatContinuation(t *testing.T, finishReason string, dependency bo
 	}
 	type providerRequest struct {
 		llm.ChatRequest
-		Thinking map[string]string `json:"thinking"`
+		Thinking        map[string]string `json:"thinking"`
+		ReasoningEffort string            `json:"reasoning_effort"`
 	}
 	replies := []string{
 		`{"appName":"Subscription SaaS","designDirection":"SaaS landing page with pricing and free trial","primaryColor":"#4f46e5","visuals":[]}`,
@@ -135,6 +136,7 @@ func testStreamChatContinuation(t *testing.T, finishReason string, dependency bo
 		t.Fatal("代码生成请求应显式设置输出预算")
 	}
 	if first.Thinking != nil || second.Thinking["type"] != "disabled" || continuation.Thinking["type"] != "disabled" ||
+		first.ReasoningEffort != "" || second.ReasoningEffort != "none" || continuation.ReasoningEffort != "none" ||
 		second.MaxTokens <= 12288 || continuation.MaxTokens != second.MaxTokens {
 		t.Fatalf("DeepSeek 构建和续写应为代码预留输出空间：蓝图=%v，构建=%v/%d，续写=%v/%d",
 			first.Thinking, second.Thinking, second.MaxTokens, continuation.Thinking, continuation.MaxTokens)
@@ -196,7 +198,7 @@ func TestInterruptedProviderClosesPendingFileTool(t *testing.T) {
 			return err
 		}
 		return upstream
-	}, nil)
+	}, nil, nil)
 	if !errors.Is(err, upstream) {
 		t.Fatalf("未返回提供商错误：%v", err)
 	}
@@ -224,7 +226,7 @@ func TestProcessChunksRetainsUnfinishedToolAtNormalEnd(t *testing.T) {
 			service := NewChatService(nil, nil, nil, nil)
 			result, err := service.processChunks(context.Background(), 1, t.TempDir(), func(feed func(string) error) error {
 				return feed(tc.input)
-			}, nil)
+			}, nil, nil)
 			if !errors.Is(err, errIncompleteTool) || result.changed || result.interrupted.kind != tc.kind ||
 				result.interrupted.path != tc.path || strings.Join(result.interrupted.packages, " ") != tc.pkg {
 				t.Fatalf("未保留中断工具的目标，或执行了不完整工具：%+v, %v", result, err)
