@@ -1,7 +1,18 @@
+export interface CodeRegion {
+  filePath: string;
+  startLine: number;
+  endLine: number;
+  codeSnippet: string;
+  found: boolean;
+  message?: string;
+}
+
 export interface InspectedElement {
   id: string;
   tagName: string;
   componentPath: string;
+  line?: number;
+  column?: number;
   className?: string;
   textSnippet?: string;
   selector?: string;
@@ -11,6 +22,7 @@ export interface InspectedElement {
     width: number;
     height: number;
   };
+  codeRegion?: CodeRegion;
 }
 
 export interface QuickActionPreset {
