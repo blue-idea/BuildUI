@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -84,8 +85,14 @@ func (a *App) startup(ctx context.Context) {
 		versionRepo := db.NewVersionRepository(database)
 
 		emitter := &wailsEventEmitter{ctx: ctx}
+		settingsRepo := db.NewSettingsRepository(database)
+		defaultRoot := filepath.Join(appDataDir, "workspace")
+		if savedDir, err := settingsRepo.Get(ctx, "workspace.dir"); err == nil && strings.TrimSpace(savedDir) != "" {
+			defaultRoot = strings.TrimSpace(savedDir)
+		}
+
 		a.appService = app.NewAppService(a.appRepo, database)
-		a.appService.SetWorkspaceRoot(filepath.Join(appDataDir, "workspace"))
+		a.appService.SetWorkspaceRoot(defaultRoot)
 		a.appService.SetRunner(runner.NewAppRunner(emitter))
 		a.blueprintService = blueprint.NewBlueprintService(a.bpRepo, a.appRepo, database)
 		a.blueprintService.SetEmitter(emitter)
@@ -94,7 +101,6 @@ func (a *App) startup(ctx context.Context) {
 		a.problemsService = tsc.NewProblemsService(a.appRepo, nil)
 		a.chatService.SetBuildProblems(a.problemsService)
 		a.appService.SetPreviewVerifier(a.chatService.PreparePreview)
-		settingsRepo := db.NewSettingsRepository(database)
 		a.chatService.SetModelRepositories(settingsRepo, a.messageRepo)
 		a.settingsService = settings.NewSettingsService(settingsRepo)
 		a.versionService = version.NewVersionService(versionRepo, a.appRepo, emitter)
@@ -254,7 +260,13 @@ func (a *App) SaveSettings(cfg map[string]string) error {
 	if a.settingsService == nil {
 		return nil
 	}
-	return a.settingsService.SaveSettings(a.ctx, cfg)
+	err := a.settingsService.SaveSettings(a.ctx, cfg)
+	if err == nil && a.appService != nil {
+		if dir, ok := cfg["workspace.dir"]; ok && strings.TrimSpace(dir) != "" {
+			a.appService.SetWorkspaceRoot(strings.TrimSpace(dir))
+		}
+	}
+	return err
 }
 
 // TestLLMConnection 暴露给前端的测试 LLM 连通性 RPC 方法
@@ -417,6 +429,11 @@ func (a *App) GetAppTemplates() []template.AppTemplate {
 func (a *App) CreateAppFromTemplate(req template.CreateFromTemplateRequest) (*app.CreateAppResponse, error) {
 	if a.templateService == nil {
 		a.templateService = template.NewTemplateService()
+	}
+	if req.DestPath == "" && a.appService != nil {
+		root := a.appService.GetWorkspaceRoot(a.ctx)
+		slug := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(req.AppName), " ", "-"))
+		req.DestPath = filepath.Join(root, slug)
 	}
 	inst, err := a.templateService.InstantiateTemplate(a.ctx, req)
 	if err != nil {
