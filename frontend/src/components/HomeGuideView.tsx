@@ -11,6 +11,7 @@ import {
 import { useI18n } from '../i18n/I18nContext';
 import { ModelSelector } from './ModelSelector';
 import type { AttachmentItem } from '../App';
+import type { ThemePreset } from './ThemeSelector';
 
 export type AppCategory = 'app' | 'desktop' | 'web';
 
@@ -36,16 +37,30 @@ export interface HomeGuideViewProps {
   settings?: Record<string, string>;
   onOpenSettings?: () => void;
   initialAttachments?: AttachmentItem[];
+  styleTemplates?: ThemePreset[];
+  activeStyleId?: string;
+  onSelectStyleId?: (id: string) => void;
+  onOpenStyleCenter?: () => void;
 }
 
-// 风格预设列表（精确匹配参考图中的圆色盘设计系统）
-const STYLE_PRESETS = [
+export interface StyleOption {
+  id: string;
+  name: string;
+  desc: string;
+  swatch: React.ReactNode;
+  stylePrompt?: string;
+}
+
+// 风格预设列表（精确匹配圆色盘设计系统规范）
+const DEFAULT_STYLE_PRESETS: StyleOption[] = [
   {
     id: 'alexandria',
     name: 'Alexandria',
     desc: 'Classical Mediterranean balance with sand gold and navy',
+    stylePrompt:
+      'Design System & Visual Language Specification: Alexandria. Balanced Mediterranean classical aesthetic with deep navy blue (#1e40af) and warm golden sand (#facc15). Clean typography with rounded-xl cards.',
     swatch: (
-      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0">
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
         <span className="w-1/2 h-full bg-[#1e40af]" />
         <span className="w-1/2 h-full bg-[#facc15]" />
       </span>
@@ -55,8 +70,10 @@ const STYLE_PRESETS = [
     id: 'bauhaus',
     name: 'Bauhaus',
     desc: 'Bold primary geometry with sharp red, blue, and black contrast',
+    stylePrompt:
+      'Design System & Visual Language Specification: Bauhaus. Modernist high-contrast aesthetic with primary geometry, sharp black borders, red (#ef4444) and blue (#3b82f6) accents.',
     swatch: (
-      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex flex-col border border-black/10 shrink-0">
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex flex-col border border-black/10 shrink-0 shadow-2xs">
         <span className="w-full h-1/2 bg-[#18181b]" />
         <span className="w-full h-1/2 flex">
           <span className="w-1/2 h-full bg-[#ef4444]" />
@@ -69,8 +86,10 @@ const STYLE_PRESETS = [
     id: 'glacier',
     name: 'Glacier',
     desc: 'Cool pastel blues, frosted lavender, and airy glass gradients',
+    stylePrompt:
+      'Design System & Visual Language Specification: Glacier. Ethereal cool glass aesthetic with sky blue (#38bdf8), lavender (#c084fc), frosted backdrops, and generous whitespace.',
     swatch: (
-      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0">
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
         <span className="w-1/2 h-full bg-[#38bdf8]" />
         <span className="w-1/2 h-full bg-[#c084fc]" />
       </span>
@@ -80,8 +99,10 @@ const STYLE_PRESETS = [
     id: 'carbon',
     name: 'Carbon',
     desc: 'Technical dark slate, graphite monochrome, and emerald accents',
+    stylePrompt:
+      'Design System & Visual Language Specification: Carbon. High-density developer workstation with slate (#2563eb) and emerald (#15803d) accents on deep dark graphite surfaces.',
     swatch: (
-      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex flex-col border border-black/10 shrink-0">
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex flex-col border border-black/10 shrink-0 shadow-2xs">
         <span className="w-full h-1/2 bg-[#2563eb]" />
         <span className="w-full h-1/2 bg-[#15803d]" />
       </span>
@@ -91,8 +112,10 @@ const STYLE_PRESETS = [
     id: 'neon-tokyo',
     name: 'Neon Tokyo',
     desc: 'Cyberpunk neon gradients with electric cyan and hot magenta',
+    stylePrompt:
+      'Design System & Visual Language Specification: Neon Tokyo. Cyberpunk futuristic aesthetic with electric cyan (#06b6d4) and hot magenta (#ec4899) glowing accents against pitch-black OLED surfaces.',
     swatch: (
-      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0">
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
         <span className="w-1/2 h-full bg-[#06b6d4]" />
         <span className="w-1/2 h-full bg-[#ec4899]" />
       </span>
@@ -102,8 +125,10 @@ const STYLE_PRESETS = [
     id: 'modern-minimalist',
     name: 'Modern Minimalist',
     desc: 'Quiet monochrome grays with sharp hairline dividers',
+    stylePrompt:
+      'Design System & Visual Language Specification: Modern Minimalist. Quiet monochrome grays (#f4f4f5 / #71717a) with hairline borders, understated micro-interactions, and spacious layouts.',
     swatch: (
-      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0">
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
         <span className="w-1/2 h-full bg-[#f4f4f5]" />
         <span className="w-1/2 h-full bg-[#71717a]" />
       </span>
@@ -120,6 +145,10 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   settings,
   onOpenSettings,
   initialAttachments = [],
+  styleTemplates,
+  activeStyleId,
+  onSelectStyleId,
+  onOpenStyleCenter,
 }) => {
   const { t, locale } = useI18n();
 
@@ -129,9 +158,15 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   // 2. 核心提示词输入
   const [userInput, setUserInput] = useState('');
 
-  // 3. 风格选择（参考 Stitch 预设风格）
-  const [selectedStyle, setSelectedStyle] = useState('auto');
+  // 3. 风格选择（优先从风格页模版列表获取，支持受控与非受控）
+  const [internalSelectedStyle, setInternalSelectedStyle] = useState('auto');
+  const selectedStyle = activeStyleId ?? internalSelectedStyle;
   const [isStylePopoverOpen, setIsStylePopoverOpen] = useState(false);
+
+  const handleSelectStyle = (id: string) => {
+    setInternalSelectedStyle(id);
+    onSelectStyleId?.(id);
+  };
 
   // 4. 模版选择
   const [selectedTemplate, setSelectedTemplate] = useState('blank');
@@ -175,14 +210,35 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
       };
       reader.readAsDataURL(file);
     });
-    // 重置 input 允许重复上传相同文件
     e.target.value = '';
   };
 
-  // 风格预设
-  const stylePresets = STYLE_PRESETS;
+  // 有效风格列表：若外部传入 styleTemplates 则以此为准，否则使用默认预设
+  const effectivePresets = useMemo<StyleOption[]>(() => {
+    if (styleTemplates && styleTemplates.length > 0) {
+      return styleTemplates.map((item) => ({
+        id: item.id,
+        name: item.name,
+        desc: item.description || '',
+        stylePrompt: item.stylePrompt,
+        swatch: (
+          <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
+            <span
+              className="w-1/2 h-full"
+              style={{ backgroundColor: item.primary || '#3b82f6' }}
+            />
+            <span
+              className="w-1/2 h-full"
+              style={{ backgroundColor: item.background || '#0f172a' }}
+            />
+          </span>
+        ),
+      }));
+    }
+    return DEFAULT_STYLE_PRESETS;
+  }, [styleTemplates]);
 
-  // 组合生成的构建提示词（精简且无组件库负担）
+  // 组合生成的构建提示词（精简且无组件库负担，包含风格 Prompt 注入）
   const assembledPrompt = useMemo(() => {
     const platformLabel =
       category === 'app'
@@ -191,13 +247,14 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
         ? 'Desktop Client Application (Windowed macOS / Windows UI)'
         : 'Web Application (Responsive Browser)';
 
-    const styleName = STYLE_PRESETS.find((s) => s.id === selectedStyle)?.name ?? 'Auto-adaptive';
+    const activePreset = effectivePresets.find((s) => s.id === selectedStyle);
+    const styleName = activePreset?.name ?? 'Auto-adaptive';
 
     const coreGoal =
       userInput.trim() ||
       `Design an elegant, user-friendly ${category.toUpperCase()} application with modern layouts and polished interactions.`;
 
-    return `Create a high-quality ${platformLabel}:
+    let prompt = `Create a high-quality ${platformLabel}:
 • Core Goal: ${coreGoal}
 • Platform: ${platformLabel}
 • Design System & Palette: ${styleName}
@@ -206,7 +263,14 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   - Clean modular React 19 + Tailwind CSS
   - Responsive design adapting dynamically to both Light and Dark themes
   - Accessible controls, polished micro-interactions, and crisp typography`;
-  }, [category, userInput, selectedStyle, selectedTemplate]);
+
+    // 将风格模版中的 stylePrompt 注入到项目生成提示词中
+    if (activePreset?.stylePrompt && selectedStyle !== 'auto') {
+      prompt += `\n\n[Design System Style Prompt]\n${activePreset.stylePrompt}`;
+    }
+
+    return prompt;
+  }, [category, userInput, selectedStyle, selectedTemplate, effectivePresets]);
 
   // 根据当前类别切换默认 placeholder
   const inputPlaceholder = useMemo(() => {
@@ -246,7 +310,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
     );
   };
 
-  const activeStyleObj = stylePresets.find((s) => s.id === selectedStyle);
+  const activeStyleObj = effectivePresets.find((s) => s.id === selectedStyle);
 
   return (
     <div className="flex-1 h-full overflow-y-auto bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 flex flex-col justify-center px-6 py-12 transition-colors select-none">
@@ -260,7 +324,13 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setIsStylePopoverOpen(true)}
+              onClick={() => {
+                if (onOpenStyleCenter) {
+                  onOpenStyleCenter();
+                } else {
+                  setIsStylePopoverOpen(true);
+                }
+              }}
               className="text-xs font-medium px-3.5 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:border-slate-300 dark:hover:border-zinc-700 shadow-2xs transition-all flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5 text-slate-400" />
@@ -290,9 +360,9 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
           </div>
         </div>
 
-        {/* 核心 AI 输入卡片（精简极简设计，参照 Stitch 设计图） */}
+        {/* 核心 AI 输入卡片 */}
         <div className="relative w-full rounded-3xl bg-slate-200/50 dark:bg-zinc-900/90 border border-slate-300/60 dark:border-zinc-800 p-4 sm:p-5 shadow-sm transition-all focus-within:border-blue-400 dark:focus-within:border-blue-500/80 focus-within:bg-white dark:focus-within:bg-zinc-900 focus-within:shadow-md">
-          {/* 已选附件缩略条（复用构建页样式） */}
+          {/* 已选附件缩略条 */}
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3 p-2 bg-white/80 dark:bg-zinc-800/80 rounded-2xl border border-slate-200 dark:border-zinc-700/80">
               {attachments.map((att) => (
@@ -417,21 +487,21 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
 
             {/* 右侧：🎨 调色板设计系统图标 + 模型选择器 + 提交按钮 */}
             <div className="flex items-center gap-2 relative">
-              {/* 风格 Popover 触发按钮 */}
-              <div className="relative">
+              {/* 风格 Popover 容器与触发按钮 */}
+              <div ref={stylePopoverRef} className="relative">
                 <button
                   type="button"
                   data-testid="guide-style-btn"
                   title={t('homeGuide.stylePresetsTitle')}
                   onClick={() => setIsStylePopoverOpen((prev) => !prev)}
                   className={`flex items-center gap-1.5 p-2 rounded-full transition-all ${
-                    activeStyleObj
+                    activeStyleObj && selectedStyle !== 'auto'
                       ? 'bg-slate-300/50 dark:bg-zinc-800 text-blue-600 dark:text-blue-400'
                       : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-300/40 dark:hover:bg-zinc-800'
                   }`}
                 >
                   <Palette className="w-4 h-4" />
-                  {activeStyleObj && (
+                  {activeStyleObj && selectedStyle !== 'auto' && (
                     <span
                       data-testid="guide-selected-style-badge"
                       className="hidden md:inline-flex text-[11px] font-medium pr-1 text-slate-700 dark:text-zinc-300"
@@ -441,10 +511,9 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                   )}
                 </button>
 
-                {/* 风格 Popover 弹层（严格参照图片中的 Stitch 浮层样式） */}
+                {/* 风格 Popover 弹层 */}
                 {isStylePopoverOpen && (
                   <div
-                    ref={stylePopoverRef}
                     className="absolute bottom-11 right-0 z-30 w-80 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-100 select-none text-left"
                   >
                     <p className="text-xs text-slate-500 dark:text-zinc-400 leading-snug">
@@ -454,10 +523,15 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        setSelectedStyle('auto');
-                        setIsStylePopoverOpen(false);
+                        if (onOpenStyleCenter) {
+                          onOpenStyleCenter();
+                          setIsStylePopoverOpen(false);
+                        } else {
+                          handleSelectStyle('auto');
+                          setIsStylePopoverOpen(false);
+                        }
                       }}
-                      className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                      className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
                     >
                       <Plus className="w-4 h-4 text-slate-400" />
                       <span className="font-medium">{t('homeGuide.startWithDesign')}</span>
@@ -469,7 +543,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                       </span>
 
                       <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
-                        {stylePresets.map((preset) => {
+                        {effectivePresets.map((preset) => {
                           const isSelected = selectedStyle === preset.id;
                           return (
                             <button
@@ -477,20 +551,29 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                               type="button"
                               data-testid={`preset-${preset.id}`}
                               onClick={() => {
-                                setSelectedStyle(preset.id);
+                                handleSelectStyle(preset.id);
                                 setIsStylePopoverOpen(false);
                               }}
-                              className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors ${
+                              className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors cursor-pointer ${
                                 isSelected
                                   ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-medium'
                                   : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-800 dark:text-zinc-200'
                               }`}
                             >
-                              <div className="flex items-center gap-2.5">
+                              <div className="flex items-center gap-2.5 min-w-0">
                                 {preset.swatch}
-                                <span className="font-medium">{preset.name}</span>
+                                <div className="flex flex-col text-left truncate">
+                                  <span className="font-medium truncate">{preset.name}</span>
+                                  {preset.desc && (
+                                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate max-w-[190px]">
+                                      {preset.desc}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />}
+                              {isSelected && (
+                                <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 ml-1.5" />
+                              )}
                             </button>
                           );
                         })}
@@ -500,7 +583,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                 )}
               </div>
 
-              {/* 模型选择下拉组件（复用构建页相关代码，替换 Balanced ▾） */}
+              {/* 模型选择下拉组件 */}
               <ModelSelector
                 value={selectedModel}
                 onChange={onSelectModel}
@@ -510,7 +593,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                 onOpenSettings={onOpenSettings}
               />
 
-              {/* 提交按钮：圆形 ArrowUp，点击进入构建区开始生成 */}
+              {/* 提交按钮：圆形 ArrowUp */}
               <button
                 type="button"
                 data-testid="guide-submit-btn"

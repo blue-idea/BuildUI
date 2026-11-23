@@ -1,8 +1,10 @@
 export interface ColorPalette {
   primary: string;
+  accent?: string;
   background: string;
   surface: string;
   text: string;
+  textMuted?: string;
   border: string;
 }
 
@@ -11,9 +13,10 @@ export interface ExtractedStyle {
   name: string;
   referenceSource: string; // 如 'Linear', 'Stripe', 'Screenshot'
   palette: ColorPalette;
-  borderRadius: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  borderRadius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
   typography: string;
   tags: string[];
+  stylePrompt?: string;
   designPrompt: string;
   createdAt: string;
 }

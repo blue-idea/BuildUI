@@ -794,4 +794,54 @@ describe('App Main Split Layout & Workflow', () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it('首页设计系统预设动态包含风格页可用模版并在生成时注入风格prompt', async () => {
+    const customTemplate = {
+      id: 'style-custom-cyber',
+      name: 'Custom Cyber Glow',
+      description: 'Extracted cyberpunk futuristic palette',
+      primary: '#00f0ff',
+      background: '#05050a',
+      surface: '#0f0f1a',
+      text: '#ffffff',
+      border: '#00f0ff33',
+      stylePrompt: 'Design System & Visual Language Specification: Custom Cyber Glow. High energy neon cyan accents.',
+    };
+    localStorage.setItem('blot_style_templates', JSON.stringify([customTemplate]));
+
+    try {
+      render(<App initialDockTab="home" />);
+
+      // 打开首页风格设计系统浮层
+      const guideStyleBtn = screen.getByTestId('guide-style-btn');
+      fireEvent.click(guideStyleBtn);
+
+      // 验证浮层中动态展示了自定义模版以及标杆网站模版（如 Linear）
+      await waitFor(() => {
+        expect(screen.getByTestId('preset-style-custom-cyber')).toBeDefined();
+        expect(screen.getByTestId('preset-benchmark-linear')).toBeDefined();
+      });
+
+      // 选择自定义模版
+      fireEvent.click(screen.getByTestId('preset-style-custom-cyber'));
+
+      // 输入提示词并点击开始构建
+      const promptInput = screen.getByTestId('guide-user-input');
+      fireEvent.change(promptInput, { target: { value: 'Build a futuristic crypto dashboard' } });
+
+      const startBtn = screen.getByTestId('guide-submit-btn');
+      fireEvent.click(startBtn);
+
+      // 进入构建区后，验证 Chat 中注入了包含 Design System Style Prompt 的提示词
+      await waitFor(() => {
+        const chatInput = screen.getByPlaceholderText(/describe what to build/i) as HTMLTextAreaElement;
+        expect(chatInput).toBeDefined();
+      });
+      // 检查最新消息列表中包含该 prompt
+      expect(screen.getByText(/Design System Style Prompt/i)).toBeDefined();
+      expect(screen.getAllByText(/Custom Cyber Glow/i).length).toBeGreaterThanOrEqual(1);
+    } finally {
+      localStorage.removeItem('blot_style_templates');
+    }
+  });
 });
