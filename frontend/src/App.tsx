@@ -19,6 +19,7 @@ import { FileChangeCard } from './components/FileChangeCard';
 import { WorkspacePanel, WorkspaceView } from './components/WorkspacePanel';
 import { FileActionItem } from './types/fileAction';
 import { ThemePreset } from './components/ThemeSelector';
+import { getBenchmarkThemePresets } from './utils/styleExtractor';
 import { ThemeProvider } from './context/ThemeContext';
 import { I18nProvider, useI18n } from './i18n/I18nContext';
 import { generateSandboxDoc } from './utils/sandboxTemplate';
@@ -59,6 +60,32 @@ interface ChatMessage {
 export interface AppProps {
   initialDockTab?: DockTab;
 }
+
+const STYLE_TEMPLATES_STORAGE_KEY = 'blot_style_templates';
+
+const loadPersistedStyleTemplates = (): ThemePreset[] => {
+  try {
+    const raw = localStorage.getItem(STYLE_TEMPLATES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.error('Failed to parse persisted style templates:', err);
+  }
+  return [];
+};
+
+const savePersistedStyleTemplates = (templates: ThemePreset[]) => {
+  try {
+    const customTemplates = templates.filter(
+      (t) => t.id.startsWith('style-') || t.id.startsWith('custom-')
+    );
+    localStorage.setItem(STYLE_TEMPLATES_STORAGE_KEY, JSON.stringify(customTemplates));
+  } catch (err) {
+    console.error('Failed to save persisted style templates:', err);
+  }
+};
 
 const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const { locale, t } = useI18n();
@@ -171,39 +198,71 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     },
   ]);
 
-  const [themePresets, setThemePresets] = useState<ThemePreset[]>([
-    {
-      id: 'dark-slate',
-      name: 'Midnight Slate',
-      primary: '#3b82f6',
-      background: '#020617',
-    },
-    {
-      id: 'cyberpunk-neon',
-      name: 'Cyberpunk Neon',
-      primary: '#00ffcc',
-      background: '#0a0a12',
-    },
-    {
-      id: 'forest-emerald',
-      name: 'Forest Emerald',
-      primary: '#10b981',
-      background: '#051b14',
-    },
-    {
-      id: 'sunset-glow',
-      name: 'Sunset Glow',
-      primary: '#f97316',
-      background: '#1a0f0a',
-    },
-    {
-      id: 'clean-light',
-      name: 'Minimalist Light',
-      primary: '#2563eb',
-      background: '#ffffff',
-    },
-  ]);
+  const [themePresets, setThemePresets] = useState<ThemePreset[]>(() => {
+    const persisted = loadPersistedStyleTemplates();
+    const builtins: ThemePreset[] = [
+      {
+        id: 'dark-slate',
+        name: 'Midnight Slate',
+        primary: '#3b82f6',
+        background: '#020617',
+        stylePrompt:
+          'Design System & Visual Language Specification: Midnight Slate. Primary blue (#3b82f6) on deep dark slate (#020617). High readability with refined borders and clean spacing.',
+      },
+      {
+        id: 'cyberpunk-neon',
+        name: 'Cyberpunk Neon',
+        primary: '#00ffcc',
+        background: '#0a0a12',
+        stylePrompt:
+          'Design System & Visual Language Specification: Cyberpunk Neon. High energy electric cyan (#00ffcc) on deep pitch black (#0a0a12). Sharp modern edges and glowing highlights.',
+      },
+      {
+        id: 'forest-emerald',
+        name: 'Forest Emerald',
+        primary: '#10b981',
+        background: '#051b14',
+        stylePrompt:
+          'Design System & Visual Language Specification: Forest Emerald. Calming organic emerald green (#10b981) on deep evergreen obsidian (#051b14). Natural harmonious feel.',
+      },
+      {
+        id: 'sunset-glow',
+        name: 'Sunset Glow',
+        primary: '#f97316',
+        background: '#1a0f0a',
+        stylePrompt:
+          'Design System & Visual Language Specification: Sunset Glow. Warm radiant orange (#f97316) on rich twilight dusk (#1a0f0a). High warmth and inviting mood.',
+      },
+      {
+        id: 'clean-light',
+        name: 'Minimalist Light',
+        primary: '#2563eb',
+        background: '#ffffff',
+        stylePrompt:
+          'Design System & Visual Language Specification: Minimalist Light. Clean corporate blue (#2563eb) on pristine crisp white (#ffffff). Generous whitespace and light borders.',
+      },
+      ...getBenchmarkThemePresets(),
+    ];
+    const persistedIds = new Set(persisted.map((p) => p.id));
+    return [...persisted, ...builtins.filter((b) => !persistedIds.has(b.id))];
+  });
   const [activeThemeId, setActiveThemeId] = useState<string>('dark-slate');
+
+  const handleAddCustomPreset = (newPreset: ThemePreset) => {
+    setThemePresets((prev) => {
+      const updated = [newPreset, ...prev.filter((p) => p.id !== newPreset.id)];
+      savePersistedStyleTemplates(updated);
+      return updated;
+    });
+  };
+
+  const handleDeleteCustomPreset = (presetId: string) => {
+    setThemePresets((prev) => {
+      const updated = prev.filter((p) => p.id !== presetId);
+      savePersistedStyleTemplates(updated);
+      return updated;
+    });
+  };
 
   const [installedDependencies, setInstalledDependencies] = useState<string[]>(desktop ? [] : ['lucide-react']);
   const [installingDeps, setInstallingDeps] = useState<string | null>(null);
@@ -1139,8 +1198,20 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             settings={settings}
             onOpenSettings={() => setIsSettingsOpen(true)}
             initialAttachments={attachments}
-            onStartBuilding={handleStartBuilding}
+            onStartBuilding={(prompt, options, atts) => {
+              if (options.style && options.style !== 'auto') {
+                setActiveThemeId(options.style);
+              }
+              handleStartBuilding(prompt, options, atts);
+            }}
             onBrowseTemplates={() => setActiveDockTab('templates')}
+            styleTemplates={themePresets}
+            activeStyleId={activeThemeId}
+            onSelectStyleId={handleSelectTheme}
+            onOpenStyleCenter={() => {
+              setPreviousDockTab('home');
+              setActiveDockTab('style');
+            }}
           />
         ) : activeDockTab === 'projects' ? (
           <ProjectsCenterView
@@ -1221,12 +1292,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             presets={themePresets}
             activeThemeId={activeThemeId}
             onSelectTheme={handleSelectTheme}
-            onAddCustomPreset={(newPreset) => {
-              setThemePresets((prev) => [newPreset, ...prev]);
-            }}
-            onDeleteCustomPreset={(presetId) => {
-              setThemePresets((prev) => prev.filter((p) => p.id !== presetId));
-            }}
+            onAddCustomPreset={handleAddCustomPreset}
+            onDeleteCustomPreset={handleDeleteCustomPreset}
           />
         ) : (
           <>

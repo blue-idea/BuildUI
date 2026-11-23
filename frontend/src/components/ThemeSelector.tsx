@@ -9,6 +9,10 @@ export interface ThemePreset {
   surface?: string;
   text?: string;
   border?: string;
+  stylePrompt?: string;
+  tags?: string[];
+  borderRadius?: string;
+  typography?: string;
 }
 
 export interface ThemeSelectorProps {
@@ -58,20 +62,20 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
                   onSelectTheme(preset.id);
                   setIsOpen(false);
                 }}
-                className={`flex w-full items-center justify-between rounded-xl px-2 py-1.5 text-xs text-left transition-colors ${
+                className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 text-xs transition-colors ${
                   isSelected
-                    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-medium'
+                    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-semibold'
                     : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className="h-2.5 w-2.5 rounded-full"
+                    className="h-2.5 w-2.5 rounded-full border border-black/10 shrink-0"
                     style={{ backgroundColor: preset.primary }}
                   />
                   <span>{preset.name}</span>
                 </div>
-                {isSelected && <span className="text-[11px] text-blue-600 dark:text-blue-400 font-bold">✓</span>}
+                {isSelected && <span className="text-blue-600 dark:text-blue-400 font-bold">✓</span>}
               </button>
             );
           })}
@@ -80,5 +84,3 @@ export const ThemeSelector: React.FC<ThemeSelectorProps> = ({
     </div>
   );
 };
-
-export default ThemeSelector;

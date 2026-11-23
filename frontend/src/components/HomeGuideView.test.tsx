@@ -86,6 +86,90 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     expect(screen.getByTestId('guide-selected-style-badge').textContent).toContain('Bauhaus');
   });
 
+  it('dynamically renders style templates passed from style page and injects stylePrompt into assembled prompt', () => {
+    const onStartBuilding = vi.fn();
+    const customTemplates = [
+      {
+        id: 'style-linear-mock',
+        name: 'Linear Dark Tech',
+        description: 'Obsidian minimalist dark mode with purple glow',
+        primary: '#5e6ad2',
+        background: '#08090a',
+        stylePrompt: 'Design System & Visual Language Specification: Obsidian dark minimalism with #5e6ad2 accent.',
+      },
+      {
+        id: 'style-stripe-mock',
+        name: 'Stripe Fintech Glow',
+        description: 'Clean modern fintech with cyan and blur gradients',
+        primary: '#635bff',
+        background: '#ffffff',
+        stylePrompt: 'Design System & Visual Language Specification: Ultra-clean fintech typography and #635bff highlights.',
+      },
+    ];
+
+    renderWithProviders(
+      <HomeGuideView
+        onStartBuilding={onStartBuilding}
+        styleTemplates={customTemplates}
+      />
+    );
+
+    const styleBtn = screen.getByTestId('guide-style-btn');
+    fireEvent.click(styleBtn);
+
+    // 确保动态风格模版项展示
+    expect(screen.getByTestId('preset-style-linear-mock')).toBeDefined();
+    expect(screen.getByText('Linear Dark Tech')).toBeDefined();
+    expect(screen.getByTestId('preset-style-stripe-mock')).toBeDefined();
+    expect(screen.getByText('Stripe Fintech Glow')).toBeDefined();
+
+    // 选择 Linear Dark Tech
+    fireEvent.click(screen.getByTestId('preset-style-linear-mock'));
+    expect(screen.getByTestId('guide-selected-style-badge').textContent).toContain('Linear Dark Tech');
+
+    // 输入需求并点击开始构建
+    const input = screen.getByTestId('guide-user-input');
+    fireEvent.change(input, { target: { value: 'Build an issue tracking workspace' } });
+
+    const submitBtn = screen.getByTestId('guide-submit-btn');
+    fireEvent.click(submitBtn);
+
+    // 验证 prompt 中注入了 [Design System Style Prompt] 及对应内容
+    expect(onStartBuilding).toHaveBeenCalledTimes(1);
+    const calledPrompt = onStartBuilding.mock.calls[0][0];
+    const calledOptions = onStartBuilding.mock.calls[0][1];
+
+    expect(calledPrompt).toContain('[Design System Style Prompt]');
+    expect(calledPrompt).toContain('Obsidian dark minimalism with #5e6ad2 accent');
+    expect(calledOptions.style).toBe('style-linear-mock');
+  });
+
+  it('notifies onSelectStyleId when a dynamic template is chosen', () => {
+    const onSelectStyleId = vi.fn();
+    const customTemplates = [
+      {
+        id: 'style-test-1',
+        name: 'Cyber Minimal',
+        primary: '#00ffcc',
+        background: '#0a0a0f',
+        stylePrompt: 'Neon accents and dark slate panels',
+      },
+    ];
+
+    renderWithProviders(
+      <HomeGuideView
+        onStartBuilding={vi.fn()}
+        styleTemplates={customTemplates}
+        onSelectStyleId={onSelectStyleId}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('guide-style-btn'));
+    fireEvent.click(screen.getByTestId('preset-style-test-1'));
+
+    expect(onSelectStyleId).toHaveBeenCalledWith('style-test-1');
+  });
+
   it('replaces Balanced dropdown with ModelSelector and triggers onSelectModel', () => {
     const onSelectModel = vi.fn();
     renderWithProviders(
@@ -128,7 +212,6 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     fireEvent.change(fileInput);
 
     // 模拟 FileReader 触发完成预览展示
-    // 验证附件名称展示与删除按钮
     const chipText = await screen.findByText('sample-mockup.png');
     expect(chipText).toBeDefined();
 

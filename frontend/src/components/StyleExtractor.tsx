@@ -1,65 +1,67 @@
 import React, { useState, useRef } from 'react';
 import { ExtractedStyle } from '../types/style';
 import { extractStyleFromReference } from '../utils/styleExtractor';
-import { Sparkles, Copy, Check, Upload, Save } from 'lucide-react';
+import { Sparkles, Upload, Copy, Check, Save } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 
 export interface StyleExtractorProps {
-  onSaveTemplate?: (style: ExtractedStyle) => void;
+  onSaveTemplate: (extracted: ExtractedStyle) => void;
 }
 
 export const StyleExtractor: React.FC<StyleExtractorProps> = ({ onSaveTemplate }) => {
   const { t } = useI18n();
-  const [referenceText, setReferenceText] = useState('');
+  const [referenceInput, setReferenceInput] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [extractedResult, setExtractedResult] = useState<ExtractedStyle | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 处理图片上传
+  // 处理图片附件上传与本地预览
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = () => {
-        setImagePreview(reader.result as string);
+      reader.onload = (uploadEvent) => {
+        setImagePreview(uploadEvent.target?.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // 执行风格提取
+  // 触发风格提取计算
   const handleExtract = () => {
-    const result = extractStyleFromReference(referenceText, Boolean(imagePreview));
+    if (!referenceInput.trim() && !imagePreview) return;
+    const result = extractStyleFromReference(referenceInput, Boolean(imagePreview));
     setExtractedResult(result);
     setIsSaved(false);
+    setIsCopied(false);
   };
 
-  // 复制 Prompt
+  // 复制生成的 AI 提示词
   const handleCopyPrompt = () => {
-    if (extractedResult?.designPrompt) {
-      navigator.clipboard.writeText(extractedResult.designPrompt);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
+    const promptText = extractedResult?.stylePrompt || extractedResult?.designPrompt;
+    if (!promptText) return;
+    navigator.clipboard.writeText(promptText);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   // 保存为风格模版
   const handleSave = () => {
-    if (extractedResult) {
-      onSaveTemplate?.(extractedResult);
-      setIsSaved(true);
-    }
+    if (!extractedResult || isSaved) return;
+    onSaveTemplate(extractedResult);
+    setIsSaved(true);
   };
 
   return (
-    <div className="flex flex-col gap-8 w-full max-w-4xl mx-auto py-2">
-      {/* 参照物输入区域 */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs flex flex-col gap-6">
+    <div data-testid="style-extractor-component" className="space-y-6">
+      {/* 参照物输入表单卡片 */}
+      <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs flex flex-col gap-4">
         <div>
-          <h3 className="text-base font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-blue-600" />
+          <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span>{t('stylePage.refInputTitle')}</span>
           </h3>
           <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
@@ -67,16 +69,16 @@ export const StyleExtractor: React.FC<StyleExtractorProps> = ({ onSaveTemplate }
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 文本输入 */}
+        <div className="space-y-4">
+          {/* 品牌/参照物文本输入 */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
               {t('stylePage.labelBrand')}
             </label>
             <input
               type="text"
-              value={referenceText}
-              onChange={(e) => setReferenceText(e.target.value)}
+              value={referenceInput}
+              onChange={(e) => setReferenceInput(e.target.value)}
               placeholder={t('stylePage.brandPlaceholder')}
               className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500 transition-all"
             />
@@ -310,7 +312,7 @@ export const StyleExtractor: React.FC<StyleExtractorProps> = ({ onSaveTemplate }
               {t('stylePage.promptTitle')}
             </h4>
             <pre className="p-4 rounded-xl bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-[11px] font-mono leading-relaxed text-slate-700 dark:text-zinc-300 overflow-x-auto whitespace-pre-wrap">
-              {extractedResult.designPrompt}
+              {extractedResult.stylePrompt || extractedResult.designPrompt}
             </pre>
           </div>
         </div>
