@@ -276,5 +276,10 @@ export interface I18nDictionary {
     btnExtracting: string;
     errorTitle: string;
     btnGoSettings: string;
+    appTypeLabel: string;
+    appTypeWeb: string;
+    appTypeApp: string;
+    appTypeDesktop: string;
+    filterAll: string;
   };
 }

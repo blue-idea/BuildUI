@@ -55,9 +55,10 @@ interface DesktopMethods {
   ExportAppZip: (appId: number, targetDir: string) => Promise<string>;
   OpenInFileManager: (path: string) => Promise<void>;
   CheckTypeScript: (req: { appId: number; paths: string[] }) => Promise<ProblemsResponse>;
-  ExtractStyle?: (req: { reference?: string; imageBase64?: string; provider?: string; model?: string }) => Promise<{
+  ExtractStyle?: (req: { reference?: string; imageBase64?: string; provider?: string; model?: string; appType?: string }) => Promise<{
     id: string;
     name: string;
+    appType?: string;
     referenceSource: string;
     palette: {
       primary: string;

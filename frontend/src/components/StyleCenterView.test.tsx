@@ -27,7 +27,65 @@ describe('StyleCenterView Component (TDD)', () => {
       surface: '#18181b',
       text: '#fafafa',
     },
+    {
+      id: 'ios-fintech',
+      name: 'iOS Fintech App',
+      appType: 'app',
+      primary: '#10b981',
+      background: '#051b14',
+      surface: '#0f2f24',
+      text: '#ffffff',
+    },
   ];
+
+  it('renders application type badges on template cards with default fallback', () => {
+    renderWithI18n(
+      <StyleCenterView
+        presets={initialPresets}
+        activeThemeId="macos"
+        onSelectTheme={vi.fn()}
+      />
+    );
+
+    // macos 自动默认为 Desktop 或显式 Desktop
+    expect(screen.getByTestId('template-app-type-badge-macos')).toBeDefined();
+    // dark-minimal 默认回退为 Web
+    expect(screen.getByTestId('template-app-type-badge-dark-minimal')).toBeDefined();
+    // ios-fintech 显式为 app
+    expect(screen.getByTestId('template-app-type-badge-ios-fintech')).toBeDefined();
+  });
+
+  it('filters template cards when clicking platform filter pills (All, Web, App, Desktop)', () => {
+    renderWithI18n(
+      <StyleCenterView
+        presets={initialPresets}
+        activeThemeId="macos"
+        onSelectTheme={vi.fn()}
+      />
+    );
+
+    // 默认展示全部
+    expect(screen.getByText('macOS Tahoe Blue')).toBeDefined();
+    expect(screen.getByText('Dark Minimalist')).toBeDefined();
+    expect(screen.getByText('iOS Fintech App')).toBeDefined();
+
+    // 点击筛选 Mobile App
+    fireEvent.click(screen.getByTestId('style-filter-app'));
+    expect(screen.getByText('iOS Fintech App')).toBeDefined();
+    expect(screen.queryByText('macOS Tahoe Blue')).toBeNull();
+    expect(screen.queryByText('Dark Minimalist')).toBeNull();
+
+    // 点击筛选 Desktop
+    fireEvent.click(screen.getByTestId('style-filter-desktop'));
+    expect(screen.getByText('macOS Tahoe Blue')).toBeDefined();
+    expect(screen.queryByText('iOS Fintech App')).toBeNull();
+
+    // 点击切回 All
+    fireEvent.click(screen.getByTestId('style-filter-all'));
+    expect(screen.getByText('macOS Tahoe Blue')).toBeDefined();
+    expect(screen.getByText('Dark Minimalist')).toBeDefined();
+    expect(screen.getByText('iOS Fintech App')).toBeDefined();
+  });
 
   it('renders tabs for Style Templates and Reference Extractor', () => {
     renderWithI18n(

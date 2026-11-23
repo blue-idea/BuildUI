@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import type { StyleAppType } from '../types/style';
 
 export interface ThemePreset {
   id: string;
   name: string;
+  appType?: StyleAppType;
   description?: string;
   primary: string;
   background: string;

@@ -202,3 +202,77 @@ func TestExtractStyle_MultimodalSuccess(t *testing.T) {
 		t.Errorf("expected user message to contain image data URL, got: %v", userMsg.Images)
 	}
 }
+
+func TestExtractStyle_AppType(t *testing.T) {
+	svc := NewThemeService(nil)
+	ctx := context.Background()
+
+	mockRepo := &mockSettingsRepo{
+		data: map[string]string{
+			"llm.providers.openai.base_url": "https://api.openai.com/v1",
+			"llm.providers.openai.api_key":  "sk-test",
+			"llm.providers.openai.model":    "gpt-4o",
+			"llm.active_provider":           "openai",
+		},
+	}
+	svc.SetSettingsRepo(mockRepo)
+
+	// 1. 测试未指定 appType 时默认作为 "web"
+	mockLLMDefault := &mockProvider{
+		responseChunks: []string{`{"name": "Web Style", "palette": {"primary": "#3b82f6"}}`},
+	}
+	svc.SetClientFactory(func(endpoint, apiKey, model string) llm.Provider {
+		return mockLLMDefault
+	})
+
+	resDefault, err := svc.ExtractStyle(ctx, ExtractStyleRequest{Reference: "Web Dashboard"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resDefault.AppType != "web" {
+		t.Errorf("expected default AppType 'web', got '%s'", resDefault.AppType)
+	}
+	if !strings.Contains(mockLLMDefault.capturedRequest.Messages[0].Content, "Modern Web Application") {
+		t.Errorf("expected web prompt, got %s", mockLLMDefault.capturedRequest.Messages[0].Content)
+	}
+
+	// 2. 测试指定 appType 为 "app" (移动端)
+	mockLLMApp := &mockProvider{
+		responseChunks: []string{`{"name": "Mobile Style", "palette": {"primary": "#10b981"}}`},
+	}
+	svc.SetClientFactory(func(endpoint, apiKey, model string) llm.Provider {
+		return mockLLMApp
+	})
+
+	resApp, err := svc.ExtractStyle(ctx, ExtractStyleRequest{Reference: "Mobile Fitness", AppType: "app"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resApp.AppType != "app" {
+		t.Errorf("expected AppType 'app', got '%s'", resApp.AppType)
+	}
+	appSysPrompt := mockLLMApp.capturedRequest.Messages[0].Content
+	if !strings.Contains(appSysPrompt, "Mobile Application") || !strings.Contains(appSysPrompt, "TabBar") {
+		t.Errorf("expected app prompt with TabBar/mobile directives, got: %s", appSysPrompt)
+	}
+
+	// 3. 测试指定 appType 为 "desktop" (桌面端)
+	mockLLMDesktop := &mockProvider{
+		responseChunks: []string{`{"name": "Desktop Style", "palette": {"primary": "#6366f1"}}`},
+	}
+	svc.SetClientFactory(func(endpoint, apiKey, model string) llm.Provider {
+		return mockLLMDesktop
+	})
+
+	resDesktop, err := svc.ExtractStyle(ctx, ExtractStyleRequest{Reference: "macOS Tahoe App", AppType: "desktop"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resDesktop.AppType != "desktop" {
+		t.Errorf("expected AppType 'desktop', got '%s'", resDesktop.AppType)
+	}
+	desktopSysPrompt := mockLLMDesktop.capturedRequest.Messages[0].Content
+	if !strings.Contains(desktopSysPrompt, "Desktop Native Application") || !strings.Contains(desktopSysPrompt, "traffic lights") {
+		t.Errorf("expected desktop prompt with native directives, got: %s", desktopSysPrompt)
+	}
+}

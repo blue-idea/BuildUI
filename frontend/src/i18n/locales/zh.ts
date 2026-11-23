@@ -276,5 +276,10 @@ export const zh: I18nDictionary = {
     btnExtracting: '正在通过大模型提取风格规范...',
     errorTitle: '风格提取失败',
     btnGoSettings: '前往设置配置模型',
+    appTypeLabel: '应用形态',
+    appTypeWeb: 'Web 应用',
+    appTypeApp: '移动端 App',
+    appTypeDesktop: '桌面客户端',
+    filterAll: '全部形态',
   },
 };

@@ -18,6 +18,7 @@ type ExtractStyleRequest struct {
 	ImageBase64 string `json:"imageBase64,omitempty"`
 	Provider    string `json:"provider,omitempty"`
 	Model       string `json:"model,omitempty"`
+	AppType     string `json:"appType,omitempty"` // "web" | "app" | "desktop"，默认为 "web"
 }
 
 // ColorPaletteDTO 调色板数据传输对象
@@ -35,6 +36,7 @@ type ColorPaletteDTO struct {
 type ExtractedStyleDTO struct {
 	ID              string          `json:"id"`
 	Name            string          `json:"name"`
+	AppType         string          `json:"appType"`
 	ReferenceSource string          `json:"referenceSource"`
 	Palette         ColorPaletteDTO `json:"palette"`
 	BorderRadius    string          `json:"borderRadius"`
@@ -45,8 +47,31 @@ type ExtractedStyleDTO struct {
 	CreatedAt       string          `json:"createdAt"`
 }
 
-// StyleSystemPrompt 专职设计系统架构师 System Prompt
-const StyleSystemPrompt = `You are an elite Design System Architect and Senior UI/UX Engineer.
+// buildStyleSystemPrompt 根据目标应用类型定制专属设计规范 System Prompt
+func buildStyleSystemPrompt(appType string) string {
+	var platformTarget, platformDirectives string
+	switch appType {
+	case "app":
+		platformTarget = "Mobile Application (iOS Human Interface Guidelines & Android Material 3)"
+		platformDirectives = `- Touch Targets: Strictly minimum 44x44px for buttons, chips, and tappable list items.
+- Corners & Geometry: Emphasize 'rounded-2xl' or 'rounded-3xl' for natural mobile thumb reach.
+- Navigation & Structure: Prominent bottom TabBar navigation, compact top navigation bar, safe-area top/bottom insets.
+- Typography: Mobile-optimized typography stack with generous line heights and high legibility.`
+	case "desktop":
+		platformTarget = "Desktop Native Application (macOS Tahoe & Windows Fluent Workstation)"
+		platformDirectives = `- Workstation Structure: 3-column split workstation, collapsible left sidebar/dock, integrated titlebar with native window controls / traffic lights.
+- Materials & Elevation: Flat obsidian surfaces with soft backdrop blur (backdrop-blur-md) and crisp 1px hairline dividers.
+- Density & Precision: High information density suitable for mouse & keyboard productivity, with keyboard shortcut hints.
+- Typography: Crisp system fonts (SF Pro / Segoe UI / Inter) with tight letter tracking.`
+	default:
+		platformTarget = "Modern Web Application (Responsive Browser SaaS, Portals & Dashboards)"
+		platformDirectives = `- Layout Structure: Responsive desktop & tablet grid, accessible top navigation header, adaptive multi-column content.
+- Cards & Containers: Systemic 'rounded-xl' cards with subtle ambient drop shadows.
+- States & Interactions: Explicit hover/active cursor states, interactive table rows, micro-transitions.
+- Tailwind Directives: Standard utility classes adhering to desktop and responsive browser viewports.`
+	}
+
+	return fmt.Sprintf(`You are an elite Design System Architect and Senior UI/UX Engineer specialized in %s.
 Analyze the provided visual reference (brand name, URL, design aesthetic description, or screenshot image).
 Extract and formalize its visual design system and return ONLY a valid JSON object matching this exact schema:
 {
@@ -63,9 +88,12 @@ Extract and formalize its visual design system and return ONLY a valid JSON obje
   "borderRadius": "sm" | "md" | "lg" | "xl" | "2xl" | "full",
   "typography": "font family stack, e.g. 'Inter, system-ui, sans-serif'",
   "tags": ["Tag1", "Tag2"],
-  "stylePrompt": "A comprehensive industrial-grade design system prompt containing: 1. Visual Language & Identity 2. Color Palette Tokens 3. Layout & Component Directives (cards, buttons, borders, blur) 4. Tailwind Implementation Directives."
+  "stylePrompt": "A comprehensive industrial-grade design system prompt containing: 1. Visual Language & Identity 2. Color Palette Tokens 3. Layout & Component Directives 4. Tailwind Implementation Directives."
 }
-Strict Rule: Return ONLY the raw JSON object. Do not output markdown fences or conversational text outside JSON.`
+[Platform Specific Design Directives]
+%s
+Strict Rule: Return ONLY the raw JSON object. Do not output markdown fences or conversational text outside JSON.`, platformTarget, platformDirectives)
+}
 
 // cleanJSONResponse 从大模型响应字符串中清洗剥离 markdown 标记并截取 JSON 内容
 func cleanJSONResponse(raw string) string {
@@ -143,6 +171,11 @@ func (s *ThemeService) ExtractStyle(ctx context.Context, req ExtractStyleRequest
 		return nil, errs.NewValidationError("reference or image must be provided", nil)
 	}
 
+	normAppType := strings.ToLower(strings.TrimSpace(req.AppType))
+	if normAppType != "app" && normAppType != "desktop" {
+		normAppType = "web"
+	}
+
 	client, modelName, err := s.loadModel(ctx, req.Provider, req.Model)
 	if err != nil {
 		return nil, err
@@ -163,10 +196,12 @@ func (s *ThemeService) ExtractStyle(ctx context.Context, req ExtractStyleRequest
 		userMsg.Images = []string{img}
 	}
 
+	sysPrompt := buildStyleSystemPrompt(normAppType)
+
 	chatReq := llm.ChatRequest{
 		Model: modelName,
 		Messages: []llm.ChatMessage{
-			{Role: "system", Content: StyleSystemPrompt},
+			{Role: "system", Content: sysPrompt},
 			userMsg,
 		},
 		Temperature: 0.2, // 保持较高确定性
@@ -221,7 +256,11 @@ func (s *ThemeService) ExtractStyle(ctx context.Context, req ExtractStyleRequest
 		parsed.Palette.Border = "#e2e8f0"
 	}
 	if parsed.BorderRadius == "" {
-		parsed.BorderRadius = "xl"
+		if normAppType == "app" {
+			parsed.BorderRadius = "2xl"
+		} else {
+			parsed.BorderRadius = "xl"
+		}
 	}
 	if parsed.Typography == "" {
 		parsed.Typography = "Inter, system-ui, sans-serif"
@@ -243,6 +282,7 @@ func (s *ThemeService) ExtractStyle(ctx context.Context, req ExtractStyleRequest
 	return &ExtractedStyleDTO{
 		ID:              id,
 		Name:            parsed.Name,
+		AppType:         normAppType,
 		ReferenceSource: source,
 		Palette:         parsed.Palette,
 		BorderRadius:    parsed.BorderRadius,

@@ -81,4 +81,26 @@ describe('styleExtractor Utility (TDD)', () => {
     expect(prompt).toContain('rounded-xl');
     expect(prompt).toContain('[Tailwind Implementation Directives]');
   });
+
+  it('customizes design prompt and tags according to appType (web, app, desktop)', () => {
+    // App
+    const mobileStyle = extractStyleFromReference('Notion', false, 'app');
+    expect(mobileStyle.appType).toBe('app');
+    expect(mobileStyle.tags).toContain('Mobile App');
+    expect(mobileStyle.stylePrompt).toContain('[Platform Architecture Directives: Mobile App]');
+    expect(mobileStyle.stylePrompt).toContain('Touch Target: Strictly minimum 44x44px');
+
+    // Desktop
+    const desktopStyle = extractStyleFromReference('Linear', false, 'desktop');
+    expect(desktopStyle.appType).toBe('desktop');
+    expect(desktopStyle.tags).toContain('Desktop Native');
+    expect(desktopStyle.stylePrompt).toContain('[Platform Architecture Directives: Desktop Workstation]');
+    expect(desktopStyle.stylePrompt).toContain('3-column split workstation');
+
+    // Web default
+    const webStyle = extractStyleFromReference('Stripe');
+    expect(webStyle.appType).toBe('web');
+    expect(webStyle.tags).toContain('Web SaaS');
+    expect(webStyle.stylePrompt).toContain('[Platform Architecture Directives: Web]');
+  });
 });

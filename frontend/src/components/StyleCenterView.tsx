@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ThemePreset } from './ThemeSelector';
 import { StyleExtractor } from './StyleExtractor';
 import { ExtractedStyle } from '../types/style';
-import { Palette, Sparkles, Check, Trash2, Layers } from 'lucide-react';
+import { Palette, Sparkles, Check, Trash2, Layers, Globe, Smartphone, Monitor } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 
 export interface StyleCenterViewProps {
@@ -30,6 +30,7 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
 }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'templates' | 'extractor'>('templates');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'web' | 'app' | 'desktop'>('all');
   const [templates, setTemplates] = useState<ThemePreset[]>(initialPresets);
 
   useEffect(() => {
@@ -41,6 +42,7 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
     const newPreset: ThemePreset = {
       id: extracted.id,
       name: extracted.name,
+      appType: extracted.appType || 'web',
       description: `Extracted from ${extracted.referenceSource}`,
       primary: extracted.palette.primary,
       background: extracted.palette.background,
@@ -122,69 +124,162 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
         {/* Tab 内容展示 */}
         {activeTab === 'templates' ? (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">
-                {t('stylePage.availableCount', { count: templates.length })}
-              </span>
-              <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-                {t('stylePage.clickToApply')}
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-600 dark:text-zinc-400">
+                  {t('stylePage.availableCount', { count: templates.filter((p) => selectedFilter === 'all' || (p.appType || (p.id === 'macos' ? 'desktop' : 'web')) === selectedFilter).length })}
+                </span>
+                <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+                  {t('stylePage.clickToApply')}
+                </span>
+              </div>
+
+              {/* 应用形态分类筛选胶囊 */}
+              <div className="inline-flex items-center p-1 rounded-2xl bg-slate-200/60 dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 self-start sm:self-auto select-none">
+                <button
+                  type="button"
+                  data-testid="style-filter-all"
+                  onClick={() => setSelectedFilter('all')}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    selectedFilter === 'all'
+                      ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 shadow-xs'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  {t('stylePage.filterAll')}
+                </button>
+                <button
+                  type="button"
+                  data-testid="style-filter-web"
+                  onClick={() => setSelectedFilter('web')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    selectedFilter === 'web'
+                      ? 'bg-white dark:bg-zinc-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <Globe className="w-3 h-3" />
+                  <span>{t('stylePage.appTypeWeb')}</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="style-filter-app"
+                  onClick={() => setSelectedFilter('app')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    selectedFilter === 'app'
+                      ? 'bg-white dark:bg-zinc-800 text-purple-600 dark:text-purple-400 shadow-xs'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <Smartphone className="w-3 h-3" />
+                  <span>{t('stylePage.appTypeApp')}</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="style-filter-desktop"
+                  onClick={() => setSelectedFilter('desktop')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    selectedFilter === 'desktop'
+                      ? 'bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <Monitor className="w-3 h-3" />
+                  <span>{t('stylePage.appTypeDesktop')}</span>
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {templates.map((preset) => {
-                const isActive = activeThemeId === preset.id;
-                const isCustom = preset.id.startsWith('style-');
+              {templates
+                .filter((preset) => {
+                  if (selectedFilter === 'all') return true;
+                  const presetAppType = preset.appType || (preset.id === 'macos' ? 'desktop' : 'web');
+                  return presetAppType === selectedFilter;
+                })
+                .map((preset) => {
+                  const isActive = activeThemeId === preset.id;
+                  const isCustom = preset.id.startsWith('style-');
+                  const presetAppType = preset.appType || (preset.id === 'macos' ? 'desktop' : 'web');
 
-                return (
-                  <div
-                    key={preset.id}
-                    onClick={() => onSelectTheme(preset.id)}
-                    className={`relative p-5 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between gap-4 group ${
-                      isActive
-                        ? 'border-blue-500/80 bg-white dark:bg-zinc-900 shadow-md ring-2 ring-blue-500/20'
-                        : 'border-slate-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/60 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                  return (
+                    <div
+                      key={preset.id}
+                      onClick={() => onSelectTheme(preset.id)}
+                      className={`relative p-5 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between gap-4 group ${
+                        isActive
+                          ? 'border-blue-500/80 bg-white dark:bg-zinc-900 shadow-md ring-2 ring-blue-500/20'
+                          : 'border-slate-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/60 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-3 h-3 rounded-full shadow-xs shrink-0"
+                              style={{ backgroundColor: preset.primary }}
+                            />
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                              {preset.name}
+                            </h3>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            {isActive && (
+                              <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200/50 dark:border-blue-800/50">
+                                <Check className="w-3 h-3" />
+                                <span>{t('stylePage.badgeActive')}</span>
+                              </span>
+                            )}
+
+                            {isCustom && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteTemplate(preset.id, e)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100"
+                                title={t('stylePage.btnDeleteTemplate')}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 应用形态 Badge */}
+                        <div className="mt-2">
                           <span
-                            className="w-3 h-3 rounded-full shadow-xs shrink-0"
-                            style={{ backgroundColor: preset.primary }}
-                          />
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                            {preset.name}
-                          </h3>
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          {isActive && (
-                            <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200/50 dark:border-blue-800/50">
-                              <Check className="w-3 h-3" />
-                              <span>{t('stylePage.badgeActive')}</span>
+                            data-testid={`template-app-type-badge-${preset.id}`}
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                              presetAppType === 'app'
+                                ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border-purple-200/60 dark:border-purple-800/60'
+                                : presetAppType === 'desktop'
+                                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/60'
+                                : 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200/60 dark:border-blue-800/60'
+                            }`}
+                          >
+                            {presetAppType === 'app' ? (
+                              <Smartphone className="w-2.5 h-2.5" />
+                            ) : presetAppType === 'desktop' ? (
+                              <Monitor className="w-2.5 h-2.5" />
+                            ) : (
+                              <Globe className="w-2.5 h-2.5" />
+                            )}
+                            <span>
+                              {presetAppType === 'app'
+                                ? t('stylePage.appTypeApp')
+                                : presetAppType === 'desktop'
+                                ? t('stylePage.appTypeDesktop')
+                                : t('stylePage.appTypeWeb')}
                             </span>
-                          )}
-
-                          {isCustom && (
-                            <button
-                              type="button"
-                              onClick={(e) => handleDeleteTemplate(preset.id, e)}
-                              className="p-1 rounded-lg text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100"
-                              title={t('stylePage.btnDeleteTemplate')}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          </span>
                         </div>
-                      </div>
 
-                      {preset.description && (
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 line-clamp-2 leading-relaxed">
-                          {preset.description}
-                        </p>
-                      )}
-                    </div>
+                        {preset.description && (
+                          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 line-clamp-2 leading-relaxed">
+                            {preset.description}
+                          </p>
+                        )}
+                      </div>
 
                     {/* 配色微预览条 */}
                     <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800/80">

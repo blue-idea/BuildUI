@@ -204,6 +204,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       {
         id: 'dark-slate',
         name: 'Midnight Slate',
+        appType: 'web',
         primary: '#3b82f6',
         background: '#020617',
         stylePrompt:
@@ -212,6 +213,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       {
         id: 'cyberpunk-neon',
         name: 'Cyberpunk Neon',
+        appType: 'web',
         primary: '#00ffcc',
         background: '#0a0a12',
         stylePrompt:
@@ -220,6 +222,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       {
         id: 'forest-emerald',
         name: 'Forest Emerald',
+        appType: 'web',
         primary: '#10b981',
         background: '#051b14',
         stylePrompt:
@@ -228,6 +231,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       {
         id: 'sunset-glow',
         name: 'Sunset Glow',
+        appType: 'web',
         primary: '#f97316',
         background: '#1a0f0a',
         stylePrompt:
@@ -236,6 +240,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       {
         id: 'clean-light',
         name: 'Minimalist Light',
+        appType: 'web',
         primary: '#2563eb',
         background: '#ffffff',
         stylePrompt:

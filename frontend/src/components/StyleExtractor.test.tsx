@@ -103,6 +103,7 @@ describe('StyleExtractor Component (TDD)', () => {
       imageBase64: undefined,
       provider: 'openai',
       model: 'gpt-4o',
+      appType: 'web',
     });
 
     await waitFor(() => {
@@ -145,6 +146,74 @@ describe('StyleExtractor Component (TDD)', () => {
     const settingsBtn = screen.getByRole('button', { name: /Configure in Settings/i });
     fireEvent.click(settingsBtn);
     expect(handleOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders app type selector (Web, App, Desktop) defaulting to Web', () => {
+    renderWithI18n(<StyleExtractor onSaveTemplate={vi.fn()} />);
+
+    expect(screen.getByTestId('app-type-selector')).toBeDefined();
+    expect(screen.getByTestId('app-type-pill-web')).toBeDefined();
+    expect(screen.getByTestId('app-type-pill-app')).toBeDefined();
+    expect(screen.getByTestId('app-type-pill-desktop')).toBeDefined();
+  });
+
+  it('passes selected appType to backend ExtractStyle and renders appType badge in result', async () => {
+    const mockExtractStyle = vi.fn().mockResolvedValue({
+      id: 'style-app-456',
+      name: 'Mobile Social Style',
+      appType: 'app',
+      referenceSource: 'Instagram',
+      palette: {
+        primary: '#e1306c',
+        accent: '#f77737',
+        background: '#ffffff',
+        surface: '#fafafa',
+        text: '#262626',
+        textMuted: '#8e8e8e',
+        border: '#dbdbdb',
+      },
+      borderRadius: '2xl',
+      typography: '-apple-system, sans-serif',
+      tags: ['Mobile Touch', 'Rounded'],
+      stylePrompt: '# Design System: Mobile Social',
+      designPrompt: '# Design System: Mobile Social',
+      createdAt: '2026-11-23T12:00:00Z',
+    });
+
+    window.go = {
+      main: {
+        App: {
+          ExtractStyle: mockExtractStyle,
+        },
+      },
+    } as any;
+
+    renderWithI18n(<StyleExtractor onSaveTemplate={vi.fn()} />);
+
+    // 点击切换为移动端 App
+    const appPill = screen.getByTestId('app-type-pill-app');
+    fireEvent.click(appPill);
+
+    const brandInput = screen.getByPlaceholderText(/e\.g\. Linear, Stripe, Apple, Notion/i);
+    fireEvent.change(brandInput, { target: { value: 'Instagram' } });
+
+    const extractBtn = screen.getByRole('button', { name: /Extract Style & Prompt/i });
+    fireEvent.click(extractBtn);
+
+    await waitFor(() => {
+      expect(mockExtractStyle).toHaveBeenCalledWith({
+        reference: 'Instagram',
+        imageBase64: undefined,
+        provider: undefined,
+        model: undefined,
+        appType: 'app',
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('extracted-style-app-type-badge')).toBeDefined();
+      expect(screen.getByText('Mobile Social Style')).toBeDefined();
+    });
   });
 
   it('extracts style and displays color palette and generated design prompt when extracting with fallback', async () => {

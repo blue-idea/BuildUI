@@ -1,4 +1,4 @@
-import { ExtractedStyle, ColorPalette } from '../types/style';
+import { ExtractedStyle, ColorPalette, StyleAppType } from '../types/style';
 import type { ThemePreset } from '../components/ThemeSelector';
 
 export interface PresetDefinition {
@@ -168,14 +168,38 @@ export const buildDesignSystemPrompt = (
   palette: ColorPalette,
   borderRadius: string,
   typography: string,
-  tags: string[]
+  tags: string[],
+  appType: StyleAppType = 'web'
 ): string => {
   const accent = palette.accent || palette.primary;
   const textMuted = palette.textMuted || '#64748b';
 
+  const platformDirectives =
+    appType === 'app'
+      ? [
+          `[Platform Architecture Directives: Mobile App]`,
+          `- Touch Target: Strictly minimum 44x44px for buttons, chips, and tappable list items.`,
+          `- Geometry: Soft ergonomics using rounded-2xl or rounded-3xl corners for natural thumb reach.`,
+          `- Navigation: Bottom fixed TabBar navigation with icon + label pairings and top safe-area padding.`,
+        ]
+      : appType === 'desktop'
+      ? [
+          `[Platform Architecture Directives: Desktop Workstation]`,
+          `- Structure: 3-column split workstation with collapsible sidebar dock and native titlebar window controls.`,
+          `- Surface Polish: Subtle translucent glass (backdrop-blur-md) with 1px hairline divider borders.`,
+          `- Density: High information density optimized for mouse precision, keyboard shortcuts (kbd), and modal dialogs.`,
+        ]
+      : [
+          `[Platform Architecture Directives: Web]`,
+          `- Viewport: Responsive desktop and tablet grid with flexible container max-widths.`,
+          `- Navigation: Sticky top navigation bar with breadcrumbs and persistent workspace switcher.`,
+          `- Interactive States: Explicit hover elevation and pointer feedback on interactive elements.`,
+        ];
+
   return [
     `# Design System Specification: ${name}`,
     `[Visual Language & Identity]`,
+    `Platform Target: ${appType.toUpperCase()}`,
     `Aesthetic Tags: ${tags.join(', ')}.`,
     `Core Tone: Industrial-grade, high polish UI inspired by ${name} with crisp hierarchy and restrained accents.`,
     ``,
@@ -187,6 +211,8 @@ export const buildDesignSystemPrompt = (
     `- High Contrast Text: ${palette.text}`,
     `- Muted Subtext: ${textMuted}`,
     `- Hairline Divider: ${palette.border}`,
+    ``,
+    ...platformDirectives,
     ``,
     `[Layout & Component Directives]`,
     `- Corner Radius: Apply 'rounded-${borderRadius}' systematically to cards, modals, chips, and controls.`,
@@ -236,7 +262,8 @@ const formatTitleFromInput = (input: string): string => {
  */
 export const extractStyleFromReference = (
   referenceInput: string,
-  hasImageAttachment = false
+  hasImageAttachment = false,
+  appType: StyleAppType = 'web'
 ): ExtractedStyle => {
   const rawInput = (referenceInput || '').trim();
   const lowerInput = rawInput.toLowerCase();
@@ -326,17 +353,26 @@ export const extractStyleFromReference = (
     }
   }
 
+  // 注入端形态标签
+  const platformTag =
+    appType === 'app' ? 'Mobile App' : appType === 'desktop' ? 'Desktop Native' : 'Web SaaS';
+  if (!finalTags.includes(platformTag)) {
+    finalTags.push(platformTag);
+  }
+
   const generatedPrompt = buildDesignSystemPrompt(
     finalName,
     finalPalette,
     finalRadius,
     finalTypography,
-    finalTags
+    finalTags,
+    appType
   );
 
   return {
     id: `style-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
     name: finalName,
+    appType,
     referenceSource: rawInput || (hasImageAttachment ? 'Uploaded Screenshot' : 'Custom'),
     palette: finalPalette,
     borderRadius: finalRadius,
@@ -352,24 +388,30 @@ export const extractStyleFromReference = (
  * 获取系统内置的标杆设计系统 ThemePreset 列表
  */
 export const getBenchmarkThemePresets = (): ThemePreset[] => {
-  return Object.entries(BENCHMARK_PRESETS).map(([key, item]) => ({
-    id: `benchmark-${key}`,
-    name: `${item.name} Inspired`,
-    description: `Industrial design system inspired by ${item.name}`,
-    primary: item.palette.primary,
-    background: item.palette.background,
-    surface: item.palette.surface,
-    text: item.palette.text,
-    border: item.palette.border,
-    stylePrompt: buildDesignSystemPrompt(
-      `${item.name} Inspired`,
-      item.palette,
-      item.borderRadius,
-      item.typography,
-      item.tags
-    ),
-    tags: item.tags,
-    borderRadius: item.borderRadius,
-    typography: item.typography,
-  }));
+  return Object.entries(BENCHMARK_PRESETS).map(([key, item]) => {
+    const appType: StyleAppType =
+      key === 'apple' || key === 'raycast' ? 'desktop' : 'web';
+    return {
+      id: `benchmark-${key}`,
+      name: `${item.name} Inspired`,
+      appType,
+      description: `Industrial design system inspired by ${item.name}`,
+      primary: item.palette.primary,
+      background: item.palette.background,
+      surface: item.palette.surface,
+      text: item.palette.text,
+      border: item.palette.border,
+      stylePrompt: buildDesignSystemPrompt(
+        `${item.name} Inspired`,
+        item.palette,
+        item.borderRadius,
+        item.typography,
+        item.tags,
+        appType
+      ),
+      tags: item.tags,
+      borderRadius: item.borderRadius,
+      typography: item.typography,
+    };
+  });
 };

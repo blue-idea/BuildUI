@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { ExtractedStyle } from '../types/style';
+import { ExtractedStyle, StyleAppType } from '../types/style';
 import { extractStyleFromReference } from '../utils/styleExtractor';
-import { Sparkles, Upload, Copy, Check, Save, Loader2, AlertCircle } from 'lucide-react';
+import { Sparkles, Upload, Copy, Check, Save, Loader2, AlertCircle, Globe, Smartphone, Monitor } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { ModelSelector } from './ModelSelector';
 import { parseConfiguredProviders } from '../config/providers';
@@ -28,6 +28,7 @@ export const StyleExtractor: React.FC<StyleExtractorProps> = ({
   const [isCopied, setIsCopied] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [internalSelectedModel, setInternalSelectedModel] = useState(selectedModel || 'auto');
+  const [appType, setAppType] = useState<StyleAppType>('web');
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState<string | null>(null);
 
@@ -77,10 +78,12 @@ export const StyleExtractor: React.FC<StyleExtractorProps> = ({
           imageBase64: imagePreview || undefined,
           provider: reqProvider,
           model: reqModel,
+          appType,
         });
         result = {
           id: dto.id || `style-${Date.now()}`,
           name: dto.name,
+          appType: (dto.appType as StyleAppType) || appType,
           referenceSource: dto.referenceSource || referenceInput.trim() || 'Uploaded Screenshot',
           palette: {
             primary: dto.palette.primary,
@@ -99,7 +102,7 @@ export const StyleExtractor: React.FC<StyleExtractorProps> = ({
           createdAt: dto.createdAt || new Date().toISOString(),
         };
       } else {
-        result = extractStyleFromReference(referenceInput, Boolean(imagePreview));
+        result = extractStyleFromReference(referenceInput, Boolean(imagePreview), appType);
       }
       setExtractedResult(result);
     } catch (err: any) {
@@ -183,6 +186,62 @@ export const StyleExtractor: React.FC<StyleExtractorProps> = ({
         )}
 
         <div className="space-y-4">
+          {/* 应用形态选择器 (Web / App / Desktop) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+            <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+              {t('stylePage.appTypeLabel')}
+            </label>
+            <div
+              data-testid="app-type-selector"
+              className="inline-flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-zinc-800/80 border border-slate-200/80 dark:border-zinc-700/80 self-start sm:self-auto"
+            >
+              <button
+                type="button"
+                data-testid="app-type-pill-web"
+                disabled={isExtracting}
+                onClick={() => setAppType('web')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  appType === 'web'
+                    ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                }`}
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>{t('stylePage.appTypeWeb')}</span>
+              </button>
+
+              <button
+                type="button"
+                data-testid="app-type-pill-app"
+                disabled={isExtracting}
+                onClick={() => setAppType('app')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  appType === 'app'
+                    ? 'bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>{t('stylePage.appTypeApp')}</span>
+              </button>
+
+              <button
+                type="button"
+                data-testid="app-type-pill-desktop"
+                disabled={isExtracting}
+                onClick={() => setAppType('desktop')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  appType === 'desktop'
+                    ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span>{t('stylePage.appTypeDesktop')}</span>
+              </button>
+            </div>
+          </div>
+
           {/* 品牌/参照物文本输入 */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
@@ -278,9 +337,37 @@ export const StyleExtractor: React.FC<StyleExtractorProps> = ({
           <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-xs flex flex-col gap-5">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                  {extractedResult.name}
-                </h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    {extractedResult.name}
+                  </h4>
+                  {/* 应用形态 Badge */}
+                  <span
+                    data-testid="extracted-style-app-type-badge"
+                    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                      extractedResult.appType === 'app'
+                        ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border-purple-200/60 dark:border-purple-800/60'
+                        : extractedResult.appType === 'desktop'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/60'
+                        : 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200/60 dark:border-blue-800/60'
+                    }`}
+                  >
+                    {extractedResult.appType === 'app' ? (
+                      <Smartphone className="w-3 h-3" />
+                    ) : extractedResult.appType === 'desktop' ? (
+                      <Monitor className="w-3 h-3" />
+                    ) : (
+                      <Globe className="w-3 h-3" />
+                    )}
+                    <span>
+                      {extractedResult.appType === 'app'
+                        ? t('stylePage.appTypeApp')
+                        : extractedResult.appType === 'desktop'
+                        ? t('stylePage.appTypeDesktop')
+                        : t('stylePage.appTypeWeb')}
+                    </span>
+                  </span>
+                </div>
                 <div className="flex items-center gap-1.5 mt-1">
                   {extractedResult.tags.map((tag) => (
                     <span

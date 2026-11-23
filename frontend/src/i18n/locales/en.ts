@@ -276,5 +276,10 @@ export const en: I18nDictionary = {
     btnExtracting: 'Extracting with Vision LLM...',
     errorTitle: 'Style Extraction Failed',
     btnGoSettings: 'Configure in Settings',
+    appTypeLabel: 'App Type',
+    appTypeWeb: 'Web',
+    appTypeApp: 'Mobile App',
+    appTypeDesktop: 'Desktop',
+    filterAll: 'All',
   },
 };
