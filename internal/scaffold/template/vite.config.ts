@@ -16,7 +16,7 @@ export default defineConfig({
       name: "buildui-preview-inspector",
       apply: "serve",
       transformIndexHtml() {
-        return [{ tag: "script", attrs: { type: "module", src: "/src/preview-inspector.ts" }, injectTo: "body" }];
+        return [{ tag: "script", attrs: { type: "module", src: "/src/preview-inspector.js" }, injectTo: "body" }];
       },
     },
   ],

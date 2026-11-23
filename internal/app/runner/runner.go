@@ -11,6 +11,7 @@ import (
 
 	"buildui/internal/config"
 	"buildui/internal/errs"
+	"buildui/internal/scaffold"
 	"buildui/internal/workspace"
 )
 
@@ -33,10 +34,22 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 		return 0, err
 	}
 	cmd := workspace.PnpmCommand(ctx, appPath, "run", "dev", "--host", "127.0.0.1")
+	cleanup := func() {}
 	if native {
-		// Metro 同时处理 Web 请求，直接向工作台返回地址即可。
+		previewConfig, removeAssets, err := scaffold.PrepareExpoPreview(appPath)
+		if err != nil {
+			return 0, err
+		}
+		cleanup = removeAssets
 		cmd = workspace.ExpoCommand(ctx, appPath, "start", "--localhost", "--port", "0", "--max-workers", config.NativeMetroWorkers)
+		cmd.Env = append(cmd.Env, config.NativeExpoMetroConfigEnv+"="+previewConfig)
 	}
+	started := false
+	defer func() {
+		if !started {
+			cleanup()
+		}
+	}()
 	configurePreviewProcess(cmd)
 
 	stdout, err := cmd.StdoutPipe()
@@ -51,6 +64,7 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 	if err := cmd.Start(); err != nil {
 		return 0, err
 	}
+	started = true
 
 	readPipe := func(r io.Reader) {
 		scanner := bufio.NewScanner(r)
@@ -66,7 +80,9 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 			readers.Go(func() { readPipe(pipe) })
 		}
 		readers.Wait()
-		onExit(cmd.Wait())
+		err := cmd.Wait()
+		cleanup()
+		onExit(err)
 	}()
 
 	return cmd.Process.Pid, nil

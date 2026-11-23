@@ -13,4 +13,5 @@ const (
 	NativeMetroDiagnosticLimit = 8 * 1024
 	NativeBundleTimeout        = 3 * time.Minute
 	NativeExpoOfflineEnv       = "EXPO_OFFLINE=1"
+	NativeExpoMetroConfigEnv   = "EXPO_OVERRIDE_METRO_CONFIG"
 )
