@@ -134,6 +134,94 @@ describe('preview-inspector (TDD)', () => {
     teardown?.();
   });
 
+  it('点击超链接元素时严格阻止默认跳转，并上报包含完整盒模型 boxModel 的元素数据', () => {
+    // 增加带 a 标签的 DOM 结构
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <a href="https://example.com/checkout" data-dyad-id="src/components/Link.tsx:5:2" class="nav-link" style="margin: 10px; padding: 8px; border: 2px solid black;">
+        Go to Checkout
+      </a>
+    `;
+    document.body.appendChild(container);
+
+    const teardown = setupPreviewInspector(window);
+
+    // 激活审查模式
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'buildui:inspect-mode', active: true },
+        origin: 'http://localhost:3000',
+        source: window.parent,
+      })
+    );
+
+    const link = container.querySelector('a')!;
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+    });
+    link.dispatchEvent(clickEvent);
+
+    // 必须阻止默认跳转与冒泡
+    expect(clickEvent.defaultPrevented).toBe(true);
+
+    const calls = parentPostMessage.mock.calls;
+    const selectedCall = calls.find((call) => call[0]?.type === 'buildui:element-selected');
+    expect(selectedCall).toBeDefined();
+
+    const element = selectedCall![0].element;
+    expect(element.tagName).toBe('a');
+    expect(element.boxModel).toBeDefined();
+    expect(element.boxModel.margin).toBeDefined();
+    expect(element.boxModel.border).toBeDefined();
+    expect(element.boxModel.padding).toBeDefined();
+    expect(element.boxModel.content).toBeDefined();
+
+    teardown?.();
+  });
+
+  it('选中元素后在沙箱中渲染盒模型高亮框（包含 margin, border, padding, content 分色层与锁定标记）', () => {
+    const teardown = setupPreviewInspector(window);
+
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'buildui:inspect-mode', active: true },
+        origin: 'http://localhost:3000',
+        source: window.parent,
+      })
+    );
+
+    const button = document.querySelector('button')!;
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    const overlay = document.getElementById('__buildui_inspector_overlay__');
+    expect(overlay).not.toBeNull();
+    expect(overlay?.getAttribute('data-locked')).toBe('true');
+
+    // 验证盒模型分层 DOM 存在
+    const marginBox = overlay?.querySelector('#__buildui_box_margin__');
+    const borderBox = overlay?.querySelector('#__buildui_box_border__');
+    const paddingBox = overlay?.querySelector('#__buildui_box_padding__');
+    const contentBox = overlay?.querySelector('#__buildui_box_content__');
+
+    expect(marginBox).not.toBeNull();
+    expect(borderBox).not.toBeNull();
+    expect(paddingBox).not.toBeNull();
+    expect(contentBox).not.toBeNull();
+
+    // 验证接收 buildui:clear-selection 时解锁
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { type: 'buildui:clear-selection' },
+        origin: 'http://localhost:3000',
+        source: window.parent,
+      })
+    );
+    expect(overlay?.getAttribute('data-locked')).toBeNull();
+
+    teardown?.();
+  });
+
   it('监听路由变化并在 pushState / popstate / hashchange 时向父级分发 buildui:route-changed 消息', () => {
     const teardown = setupPreviewInspector(window);
 

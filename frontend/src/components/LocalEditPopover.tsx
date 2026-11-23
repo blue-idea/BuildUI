@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { InspectedElement } from '../types/inspect';
 import { DEFAULT_QUICK_ACTIONS, formatTargetedPrompt } from '../utils/targetedPrompt';
-import { Wand2, X, Sparkles, CornerDownLeft, Code2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Wand2, X, Sparkles, CornerDownLeft, Code2, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 
 export interface LocalEditPopoverProps {
   element: InspectedElement;
@@ -133,6 +133,107 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
               <code>{element.codeRegion.codeSnippet}</code>
             </pre>
           )}
+        </div>
+      )}
+
+      {/* 仿浏览器 DevTools 盒模型图解卡片 (Box Model Diagram) */}
+      {element.boxModel && (
+        <div
+          data-testid="box-model-diagram"
+          className="my-3 p-3 rounded-2xl bg-slate-50 dark:bg-zinc-950/80 border border-slate-200/80 dark:border-zinc-800 font-mono text-[11px]"
+        >
+          <div className="flex items-center justify-between pb-2 text-[10px] font-semibold text-slate-500 dark:text-zinc-400">
+            <span className="flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-blue-500" />
+              <span>Box Model (盒模型)</span>
+            </span>
+            <span className="text-slate-400">Chrome DevTools Style</span>
+          </div>
+
+          <div
+            data-testid="box-model-margin"
+            className="relative p-2 rounded-xl border border-dashed border-amber-500/70 bg-amber-500/10 text-amber-700 dark:text-amber-300 flex flex-col items-center gap-1"
+          >
+            <div className="w-full flex justify-between items-center text-[10px] select-none text-amber-600 dark:text-amber-400">
+              <span className="font-sans text-[9px] uppercase tracking-wider font-semibold">margin</span>
+              <span>{element.boxModel.margin.top}</span>
+              <span />
+            </div>
+
+            <div className="w-full flex items-center justify-between gap-1.5">
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 select-none">
+                {element.boxModel.margin.left}
+              </span>
+
+              {/* Border Box */}
+              <div
+                data-testid="box-model-border"
+                className="flex-1 p-2 rounded-lg border border-yellow-500/80 bg-yellow-500/15 text-yellow-800 dark:text-yellow-200 flex flex-col items-center gap-1"
+              >
+                <div className="w-full flex justify-between items-center text-[10px] select-none text-yellow-700 dark:text-yellow-400">
+                  <span className="font-sans text-[9px] uppercase tracking-wider font-semibold">border</span>
+                  <span>{element.boxModel.border.top}</span>
+                  <span />
+                </div>
+
+                <div className="w-full flex items-center justify-between gap-1.5">
+                  <span className="text-[10px] text-yellow-700 dark:text-yellow-400 select-none">
+                    {element.boxModel.border.left}
+                  </span>
+
+                  {/* Padding Box */}
+                  <div
+                    data-testid="box-model-padding"
+                    className="flex-1 p-2 rounded-md border border-emerald-500/70 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 flex flex-col items-center gap-1"
+                  >
+                    <div className="w-full flex justify-between items-center text-[10px] select-none text-emerald-700 dark:text-emerald-400">
+                      <span className="font-sans text-[9px] uppercase tracking-wider font-semibold">padding</span>
+                      <span>{element.boxModel.padding.top}</span>
+                      <span />
+                    </div>
+
+                    <div className="w-full flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 select-none">
+                        {element.boxModel.padding.left}
+                      </span>
+
+                      {/* Content Box */}
+                      <div
+                        data-testid="box-model-content"
+                        className="px-3 py-1 rounded bg-blue-500/25 border border-blue-500/80 text-blue-700 dark:text-blue-300 font-bold text-[11px] text-center select-none shadow-2xs whitespace-nowrap"
+                      >
+                        {Math.round(element.boxModel.content.width)} × {Math.round(element.boxModel.content.height)}
+                      </div>
+
+                      <span className="text-[10px] text-emerald-700 dark:text-emerald-400 select-none">
+                        {element.boxModel.padding.right}
+                      </span>
+                    </div>
+
+                    <div className="w-full text-center text-[10px] text-emerald-700 dark:text-emerald-400 select-none">
+                      {element.boxModel.padding.bottom}
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] text-yellow-700 dark:text-yellow-400 select-none">
+                    {element.boxModel.border.right}
+                  </span>
+                </div>
+
+                <div className="w-full text-center text-[10px] text-yellow-700 dark:text-yellow-400 select-none">
+                  {element.boxModel.border.bottom}
+                </div>
+              </div>
+
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 select-none">
+                {element.boxModel.margin.right}
+              </span>
+            </div>
+
+            <div className="w-full text-center text-[10px] text-amber-600 dark:text-amber-400 select-none">
+              {element.boxModel.margin.bottom}
+            </div>
+          </div>
         </div>
       )}
 

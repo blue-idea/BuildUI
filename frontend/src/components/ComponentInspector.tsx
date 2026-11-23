@@ -23,6 +23,13 @@ const DEFAULT_PREVIEW_ELEMENTS: InspectedElement[] = [
     componentPath: 'src/components/RecipeCard.tsx',
     className: 'px-4 py-2 bg-blue-600 text-white rounded-xl shadow-xs',
     textSnippet: 'Suggest Dinner',
+    boxModel: {
+      margin: { top: 8, right: 8, bottom: 8, left: 8 },
+      border: { top: 1, right: 1, bottom: 1, left: 1 },
+      padding: { top: 8, right: 16, bottom: 8, left: 16 },
+      content: { width: 120, height: 36 },
+      rect: { top: 140, left: 220, width: 154, height: 54, x: 220, y: 140 },
+    },
   },
   {
     id: 'el-h2-1',
@@ -30,6 +37,13 @@ const DEFAULT_PREVIEW_ELEMENTS: InspectedElement[] = [
     componentPath: 'src/components/PantryList.tsx',
     className: 'text-lg font-bold text-slate-900',
     textSnippet: 'Pantry Inventory',
+    boxModel: {
+      margin: { top: 16, right: 0, bottom: 8, left: 0 },
+      border: { top: 0, right: 0, bottom: 0, left: 0 },
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      content: { width: 260, height: 28 },
+      rect: { top: 80, left: 220, width: 260, height: 28, x: 220, y: 80 },
+    },
   },
   {
     id: 'el-nav-1',
@@ -37,6 +51,13 @@ const DEFAULT_PREVIEW_ELEMENTS: InspectedElement[] = [
     componentPath: 'src/components/Navbar.tsx',
     className: 'flex items-center justify-between px-6 py-3 border-b',
     textSnippet: 'Main Navigation Bar',
+    boxModel: {
+      margin: { top: 0, right: 0, bottom: 12, left: 0 },
+      border: { top: 0, right: 0, bottom: 1, left: 0 },
+      padding: { top: 12, right: 24, bottom: 12, left: 24 },
+      content: { width: 640, height: 48 },
+      rect: { top: 20, left: 20, width: 688, height: 73, x: 20, y: 20 },
+    },
   },
 ];
 
@@ -79,10 +100,10 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
           <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
           <span className="font-bold text-white flex items-center gap-1.5">
             <MousePointerClick className="w-3.5 h-3.5 text-blue-300" />
-            <span>Inspector Mode Active:</span>
+            <span>Local Edit Mode (Inspector Mode Active):</span>
           </span>
           <span className="text-blue-200 hidden md:inline">
-            Click any preview element to inspect source component and perform targeted AI edit
+            Select Elements to inspect source component and perform targeted AI edit
           </span>
         </div>
 

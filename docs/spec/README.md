@@ -9,7 +9,7 @@
 ## 当前活跃 Version
 
 ```yaml
-current_version: v18     # → Agent 替换 {{VERSION}} 时取此值
+current_version: v19     # → Agent 替换 {{VERSION}} 时取此值
 ```
 
 ---
@@ -35,7 +35,8 @@ current_version: v18     # → Agent 替换 {{VERSION}} 时取此值
 | v15 | finished | `docs/spec/versions/v15-finished/` | 第十五版本已圆满收官：工作台项目预览拟真地址栏手动路由输入、回车导航与沙箱双向路由同步 |
 | v16 | finished | `docs/spec/versions/v16-finished/` | 第十六版本已圆满收官：系统设置自定义默认存储路径与新建工程目录动态绑定 |
 | v17 | finished | `docs/spec/versions/v17-finished/` | 第十七版本已圆满收官：导出、版本历史等弹窗与交互页面配色与当前主题（明暗双模与主题色）全景对齐 |
-| v18 | finished | `docs/spec/versions/v18/` | 第十八版本已圆满收官：标杆网站设计系统风格深度提取、模版保存持久化与首页设计预设动态联动注入 |
+| v18 | finished | `docs/spec/versions/v18-finished/` | 第十八版本已圆满收官：标杆网站设计系统风格深度提取、模版保存持久化与首页设计预设动态联动注入 |
+| v19 | in_progress | `docs/spec/versions/v19/` | 第十九版本进行中：仿浏览器开发者工具局部编辑审查、点选防跳转拦截与选取区域盒模型框可视化 |
 
 ---
 

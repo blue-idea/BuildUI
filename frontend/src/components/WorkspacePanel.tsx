@@ -414,7 +414,12 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             <ComponentInspector
               isActive={isInspectMode}
               selectedElement={selectedInspectElement}
-              onClearSelectedElement={() => setSelectedInspectElement(null)}
+              onClearSelectedElement={() => {
+                setSelectedInspectElement(null);
+                if (previewOrigin) {
+                  iframeRef.current?.contentWindow?.postMessage({ type: 'buildui:clear-selection' }, previewOrigin);
+                }
+              }}
               onExit={() => onToggleInspect?.()}
               onSelectComponent={(p, pr) => onSelectComponent?.(p, pr)}
               onJumpToCode={(filePath, line) => {

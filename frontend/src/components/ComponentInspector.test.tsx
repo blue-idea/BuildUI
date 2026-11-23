@@ -13,7 +13,8 @@ describe('ComponentInspector (TDD)', () => {
       />
     );
 
-    expect(screen.getByText(/Inspector Mode Active/i)).toBeDefined();
+    expect(screen.getByText(/Local Edit Mode/i)).toBeDefined();
+    expect(screen.getByText(/Select Elements/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /exit inspect mode/i })).toBeDefined();
   });
 
