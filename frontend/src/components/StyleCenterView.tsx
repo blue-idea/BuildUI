@@ -11,6 +11,10 @@ export interface StyleCenterViewProps {
   onSelectTheme: (themeId: string) => void;
   onAddCustomPreset?: (preset: ThemePreset) => void;
   onDeleteCustomPreset?: (presetId: string) => void;
+  settings?: Record<string, string>;
+  onOpenSettings?: () => void;
+  selectedModel?: string;
+  onSelectModel?: (model: string) => void;
 }
 
 export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
@@ -19,6 +23,10 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
   onSelectTheme,
   onAddCustomPreset,
   onDeleteCustomPreset,
+  settings,
+  onOpenSettings,
+  selectedModel,
+  onSelectModel,
 }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'templates' | 'extractor'>('templates');
@@ -218,7 +226,13 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
             </div>
           </div>
         ) : (
-          <StyleExtractor onSaveTemplate={handleSaveExtractedStyle} />
+          <StyleExtractor
+            onSaveTemplate={handleSaveExtractedStyle}
+            settings={settings}
+            onOpenSettings={onOpenSettings}
+            selectedModel={selectedModel}
+            onSelectModel={onSelectModel}
+          />
         )}
       </div>
     </div>

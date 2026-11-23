@@ -250,7 +250,7 @@ export const extractStyleFromReference = (
     }
   }
 
-  let finalName = '';
+  let finalName: string;
   let finalPalette: ColorPalette;
   let finalTags: string[];
   let finalRadius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';

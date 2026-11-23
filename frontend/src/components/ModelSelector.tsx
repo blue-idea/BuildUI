@@ -20,6 +20,8 @@ export interface ModelSelectorProps {
   className?: string;
   /** 是否禁用 */
   disabled?: boolean;
+  /** 下拉浮层展开方向，默认为 top（向上展开） */
+  placement?: 'top' | 'bottom';
 }
 
 interface ConfiguredOption {
@@ -42,6 +44,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   onOpenSettings,
   className = '',
   disabled = false,
+  placement = 'top',
 }) => {
   const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
@@ -153,7 +156,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         <div
           role="listbox"
           aria-label="Model options"
-          className="absolute left-0 bottom-full mb-1.5 min-w-[230px] rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100"
+          className={`absolute ${placement === 'bottom' ? 'right-0 top-full mt-1.5' : 'left-0 bottom-full mb-1.5'} min-w-[230px] rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100`}
         >
           <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
             {t('chat.selectModelProvider') || 'Select Model / Provider'}

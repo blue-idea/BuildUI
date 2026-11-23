@@ -105,6 +105,7 @@ func (a *App) startup(ctx context.Context) {
 		a.settingsService = settings.NewSettingsService(settingsRepo)
 		a.versionService = version.NewVersionService(versionRepo, a.appRepo, emitter)
 		a.themeService = theme.NewThemeService(a.appRepo)
+		a.themeService.SetSettingsRepo(settingsRepo)
 		a.templateService = template.NewTemplateService()
 	}
 }
@@ -415,6 +416,14 @@ func (a *App) SetAppTheme(appID int64, themeID string) error {
 		return nil
 	}
 	return a.themeService.SetAppTheme(a.ctx, appID, themeID)
+}
+
+// ExtractStyle 暴露给前端的基于 Vision LLM 风格提取 RPC 方法
+func (a *App) ExtractStyle(req theme.ExtractStyleRequest) (*theme.ExtractedStyleDTO, error) {
+	if a.themeService == nil {
+		return nil, errors.New("theme service is not initialized")
+	}
+	return a.themeService.ExtractStyle(a.ctx, req)
 }
 
 // GetAppTemplates 暴露给前端的获取内置模版清单 RPC 方法

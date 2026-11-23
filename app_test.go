@@ -14,6 +14,7 @@ import (
 	"buildui/internal/app/runner"
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
+	"buildui/internal/theme"
 	"buildui/internal/verification/tsc"
 )
 
@@ -207,4 +208,24 @@ func (l *previewTestLauncher) Launch(_ context.Context, _ string, onOutput func(
 func (l *previewTestLauncher) Kill(pid int) error {
 	l.killed = pid
 	return nil
+}
+
+func TestApp_ExtractStyle(t *testing.T) {
+	a := NewApp()
+	// 未初始化 startup 时应报错
+	_, err := a.ExtractStyle(theme.ExtractStyleRequest{Reference: "Linear"})
+	if err == nil || !strings.Contains(err.Error(), "theme service is not initialized") {
+		t.Fatalf("expected uninitialized error, got: %v", err)
+	}
+
+	tmpDir := t.TempDir()
+	t.Setenv("BLOT_DEV_USER_DATA_DIR", tmpDir)
+	a.startup(t.Context())
+	defer a.shutdown(t.Context())
+
+	// startup 后未配置 LLM 时应返回友好报错
+	_, err = a.ExtractStyle(theme.ExtractStyleRequest{Reference: "Linear"})
+	if err == nil || !strings.Contains(err.Error(), "Configure the model") {
+		t.Fatalf("expected configure model error, got: %v", err)
+	}
 }

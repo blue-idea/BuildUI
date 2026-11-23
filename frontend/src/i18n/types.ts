@@ -272,5 +272,9 @@ export interface I18nDictionary {
     paletteSurface: string;
     paletteText: string;
     paletteBorder: string;
+    modelSelectLabel: string;
+    btnExtracting: string;
+    errorTitle: string;
+    btnGoSettings: string;
   };
 }

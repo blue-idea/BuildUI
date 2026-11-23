@@ -55,6 +55,26 @@ interface DesktopMethods {
   ExportAppZip: (appId: number, targetDir: string) => Promise<string>;
   OpenInFileManager: (path: string) => Promise<void>;
   CheckTypeScript: (req: { appId: number; paths: string[] }) => Promise<ProblemsResponse>;
+  ExtractStyle?: (req: { reference?: string; imageBase64?: string; provider?: string; model?: string }) => Promise<{
+    id: string;
+    name: string;
+    referenceSource: string;
+    palette: {
+      primary: string;
+      accent?: string;
+      background: string;
+      surface: string;
+      text: string;
+      textMuted?: string;
+      border: string;
+    };
+    borderRadius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+    typography: string;
+    tags: string[];
+    stylePrompt: string;
+    designPrompt?: string;
+    createdAt: string;
+  }>;
 }
 
 export function desktopApp(): DesktopMethods {

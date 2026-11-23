@@ -272,5 +272,9 @@ export const zh: I18nDictionary = {
     paletteSurface: '表面',
     paletteText: '文本',
     paletteBorder: '边框',
+    modelSelectLabel: '选择提取模型',
+    btnExtracting: '正在通过大模型提取风格规范...',
+    errorTitle: '风格提取失败',
+    btnGoSettings: '前往设置配置模型',
   },
 };

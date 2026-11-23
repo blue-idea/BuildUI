@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"buildui/internal/errs"
+	"buildui/internal/llm"
 )
 
 // ThemePreset 视觉主题预设元数据与颜色变量
@@ -79,14 +80,31 @@ type ThemeRepository interface {
 	UpdateTheme(ctx context.Context, appID int64, themeID string) error
 }
 
+// SettingsRepository 配置数据访问接口
+type SettingsRepository interface {
+	GetAll(ctx context.Context) (map[string]string, error)
+}
+
 // ThemeService 负责应用主题管理与持久化
 type ThemeService struct {
-	repo ThemeRepository
+	repo          ThemeRepository
+	settingsRepo  SettingsRepository
+	clientFactory func(endpoint, apiKey, model string) llm.Provider
 }
 
 // NewThemeService 创建 ThemeService
 func NewThemeService(repo ThemeRepository) *ThemeService {
 	return &ThemeService{repo: repo}
+}
+
+// SetSettingsRepo 注入配置仓储依赖
+func (s *ThemeService) SetSettingsRepo(repo SettingsRepository) {
+	s.settingsRepo = repo
+}
+
+// SetClientFactory 注入自定义 LLM Provider 工厂方法 (主要用于单元测试 Mock)
+func (s *ThemeService) SetClientFactory(factory func(endpoint, apiKey, model string) llm.Provider) {
+	s.clientFactory = factory
 }
 
 // GetThemePresets 返回支持的主题集

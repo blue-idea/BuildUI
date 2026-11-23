@@ -272,5 +272,9 @@ export const en: I18nDictionary = {
     paletteSurface: 'Surface',
     paletteText: 'Text',
     paletteBorder: 'Border',
+    modelSelectLabel: 'Extraction Model',
+    btnExtracting: 'Extracting with Vision LLM...',
+    errorTitle: 'Style Extraction Failed',
+    btnGoSettings: 'Configure in Settings',
   },
 };

@@ -1294,6 +1294,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             onSelectTheme={handleSelectTheme}
             onAddCustomPreset={handleAddCustomPreset}
             onDeleteCustomPreset={handleDeleteCustomPreset}
+            settings={settings}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            selectedModel={selectedModel}
+            onSelectModel={setSelectedModel}
           />
         ) : (
           <>
