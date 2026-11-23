@@ -8,25 +8,38 @@ import (
 	"path/filepath"
 	"strings"
 
+	"buildui/internal/config"
 	"buildui/internal/errs"
 )
 
-//go:embed all:template
+//go:embed all:template all:native-template
 var templateFS embed.FS
 
 // Extract 将嵌入的脚手架模板解压写入目标目录
 func Extract(targetDir string, appName string) error {
+	return extract(targetDir, appName, "template", "vite_react_shadcn_ts")
+}
+
+// ExtractForTemplate 根据创建请求选择脚手架，保留旧请求的默认行为。
+func ExtractForTemplate(targetDir, appName, templateID string) error {
+	if templateID == config.NativeAppTemplate {
+		return extract(targetDir, appName, "native-template", config.NativeAppPackageName)
+	}
+	return Extract(targetDir, appName)
+}
+
+func extract(targetDir, appName, templateDir, originalName string) error {
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return errs.NewInternalError(fmt.Sprintf("failed to create target directory: %s", targetDir), err)
 	}
 
-	err := fs.WalkDir(templateFS, "template", func(path string, d fs.DirEntry, walkErr error) error {
+	err := fs.WalkDir(templateFS, templateDir, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 
 		// 计算相对路径
-		relPath, err := filepath.Rel("template", path)
+		relPath, err := filepath.Rel(templateDir, path)
 		if err != nil {
 			return err
 		}
@@ -49,7 +62,7 @@ func Extract(targetDir string, appName string) error {
 		if filepath.Base(path) == "package.json" && appName != "" {
 			slug := toSlug(appName)
 			content := string(data)
-			content = strings.Replace(content, `"name": "vite_react_shadcn_ts"`, fmt.Sprintf(`"name": "%s"`, slug), 1)
+			content = strings.Replace(content, fmt.Sprintf(`"name": "%s"`, originalName), fmt.Sprintf(`"name": "%s"`, slug), 1)
 			data = []byte(content)
 		}
 

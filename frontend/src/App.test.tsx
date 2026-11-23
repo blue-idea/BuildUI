@@ -131,6 +131,34 @@ describe('App Guided Mode Home & Navigation', () => {
     expect(chatInput.value).toBe('');
   });
 
+  // v22.REQ-001-AC-001：三个平台通过同一个首页生成入口选择脚手架。
+  it.each(['app', 'desktop', 'web'] as const)('首页 %s 选择对应构建路线', async (category) => {
+    const create = vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' });
+    const streamChat = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('go', { main: { App: {
+      GetSettings: vi.fn().mockResolvedValue({}),
+      ListApps: vi.fn().mockResolvedValue([]),
+      CreateApp: create,
+      SwitchApp: vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' }),
+      GetProjectChat: vi.fn().mockResolvedValue({ chatId: 7, messages: [] }),
+      GetVersions: vi.fn().mockResolvedValue([]),
+      ListProjectFiles: vi.fn().mockResolvedValue([]),
+      StreamChat: streamChat,
+    } } });
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByTestId(`guide-tab-${category}`));
+      fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: 'Fitness Check-in' } });
+      fireEvent.click(screen.getByTestId('guide-submit-btn'));
+      await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(1));
+      const stack = category === 'app' ? 'React Native + NativeWind + React Native Reusables' : 'React 19 + Tailwind CSS';
+      expect(streamChat.mock.calls[0][0].prompt).toContain(stack);
+      expect(create.mock.calls[0][0].templateId).toBe(category === 'app' ? 'react-native' : undefined);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('桌面端首页点击开始生成按钮，自动创建项目并直接调用生成，无需再次点击发送指令', async () => {
     const create = vi.fn().mockResolvedValue({ appId: 88, name: 'Crypto App', path: '/crypto' });
     const streamChat = vi.fn().mockResolvedValue(undefined);

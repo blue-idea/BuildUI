@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"buildui/internal/config"
 	"buildui/internal/errs"
 	"buildui/internal/workspace"
 )
@@ -23,10 +24,19 @@ type ProcessLauncher interface {
 type defaultProcessLauncher struct{}
 
 func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onOutput func(string), onExit func(error)) (int, error) {
-	if err := workspace.EnsureProjectDependencies(ctx, appPath); err != nil {
+	native := workspace.UsesExpo(appPath)
+	var commands []string
+	if native {
+		commands = append(commands, "expo")
+	}
+	if err := workspace.EnsureProjectDependencies(ctx, appPath, commands...); err != nil {
 		return 0, err
 	}
 	cmd := workspace.PnpmCommand(ctx, appPath, "run", "dev", "--host", "127.0.0.1")
+	if native {
+		// Metro 同时处理 Web 请求，直接向工作台返回地址即可。
+		cmd = workspace.ExpoCommand(ctx, appPath, "start", "--localhost", "--port", "0", "--max-workers", config.NativeMetroWorkers)
+	}
 	configurePreviewProcess(cmd)
 
 	stdout, err := cmd.StdoutPipe()

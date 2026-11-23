@@ -90,51 +90,38 @@ func (s *ProblemsService) RunSelfHealingLoop(
 	paths []string,
 	maxAttempts int,
 	fixHandler func(ctx context.Context, problems []DiagnosticItem) error,
+	checkBundle ...func(context.Context) ([]DiagnosticItem, error),
 ) (*RemediationResult, error) {
 	if maxAttempts <= 0 {
 		maxAttempts = 3
 	}
 
-	attempts := 0
-	for attempts < maxAttempts {
-		resp, err := s.CheckTypeScript(ctx, CheckTypeScriptRequest{
-			AppID: appID,
-			Paths: paths,
-		})
+	// 每次修复后从类型检查重新开始，避免打包修复引入新的类型错误。
+	for attempts := 0; ; attempts++ {
+		resp, err := s.CheckTypeScript(ctx, CheckTypeScriptRequest{AppID: appID, Paths: paths})
 		if err != nil {
 			return nil, err
 		}
-
-		if !resp.HasErrors {
-			// 零错误，自愈成功或首次即通过
+		if !resp.HasErrors && len(checkBundle) > 0 {
+			problems, err := checkBundle[0](ctx)
+			if err != nil {
+				return nil, err
+			}
+			if len(problems) > 0 {
+				resp = &ProblemsResponse{HasErrors: true, Problems: problems}
+			}
+		}
+		if !resp.HasErrors || attempts == maxAttempts {
 			return &RemediationResult{
-				Success:       true,
+				Success:       !resp.HasErrors,
 				Attempts:      attempts,
 				FinalProblems: resp.Problems,
 			}, nil
 		}
-
-		attempts++
-
 		if fixHandler != nil {
 			if err := fixHandler(ctx, resp.Problems); err != nil {
 				return nil, err
 			}
 		}
 	}
-
-	// 达到最大轮次后进行最后一次检查确认
-	finalResp, err := s.CheckTypeScript(ctx, CheckTypeScriptRequest{
-		AppID: appID,
-		Paths: paths,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &RemediationResult{
-		Success:       !finalResp.HasErrors,
-		Attempts:      attempts,
-		FinalProblems: finalResp.Problems,
-	}, nil
 }

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"buildui/internal/workspace"
 )
 
 // HistoryMessage 历史消息元数据
@@ -78,12 +80,24 @@ func NewPromptAssembler() *PromptAssembler {
 
 // AssembleSystemPrompt 组装系统级提示词（含角色定义、工业级脚手架底座、零占位符铁律、缺失文件即时创建与 XML 写盘语法）
 func (p *PromptAssembler) AssembleSystemPrompt() string {
-	return `<role>
+	return reactRole + reactScaffold + fmt.Sprintf(fileWritingRules, "lucide-react canvas-confetti")
+}
+
+func (p *PromptAssembler) assembleProjectSystemPrompt(root string) string {
+	if workspace.UsesExpo(root) {
+		return nativeRole + nativeScaffold + fmt.Sprintf(fileWritingRules, "@rn-primitives/dialog")
+	}
+	return p.AssembleSystemPrompt()
+}
+
+const reactRole = `<role>
 You are Dyad (Blot-UI), an AI assistant that creates and modifies web applications in real-time.
 Users see a live preview of their application on the right side while you make code changes.
 </role>
 
-<scaffold_baseline>
+`
+
+const reactScaffold = `<scaffold_baseline>
 INDUSTRIAL SCAFFOLD BASELINE & RULES (docs/knowledge/scaffold/AI_RULES.md):
 - Tech Stack: React 19 + TypeScript + Vite + Tailwind CSS.
 - Pre-installed shadcn/ui components (40+ components built-in):
@@ -101,7 +115,9 @@ INDUSTRIAL SCAFFOLD BASELINE & RULES (docs/knowledge/scaffold/AI_RULES.md):
   - lucide-react is installed. Use Lucide icons for all visual iconography.
 </scaffold_baseline>
 
-<zero_placeholder_policy>
+`
+
+const fileWritingRules = `<zero_placeholder_policy>
 ZERO PLACEHOLDER POLICY & IMMEDIATE FILE CREATION (docs/knowledge/src/prompts/local_agent_prompt.ts):
 - FULLY FUNCTIONAL: Every feature and component you implement must be FULLY FUNCTIONAL with complete production-ready code.
 - Strict prohibition: no // TODO, no /* TODO */, no // FIXME, no /* implement */, no placeholder comments, and no ellipsis code like // ... existing code ... or // rest of code.
@@ -118,10 +134,9 @@ To create or update files, emit XML tags in the following format:
 </dyad-write>
 
 To install or declare external npm packages, emit:
-<dyad-add-dependency packages="lucide-react canvas-confetti"></dyad-add-dependency>
+<dyad-add-dependency packages="%s"></dyad-add-dependency>
 </tool_specifications>
 `
-}
 
 // AssembleContextPrompt 组装特定应用和设计蓝图的上下文提示词
 func (p *PromptAssembler) AssembleContextPrompt(ctx PromptContext) string {

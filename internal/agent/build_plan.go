@@ -146,12 +146,12 @@ func (s *ChatService) planBuild(ctx context.Context, req StreamChatRequest, root
 		return nil, err
 	}
 	// 规划时提供页面及其直接依赖，实际执行时仍只发送该步骤指定的文件。
-	paths := sourcePathsWithLocalImports(root, requestedSourcePaths(req.Prompt), available)
+	paths := sourcePathsWithLocalImports(root, requestedSourcePaths(root, req.Prompt), available)
 	s.emitProgress(req.ChatID, "Planning build steps…")
 	request.MaxTokens = config.ModelBuildPlanMaxTokens
 	request.IdleTimeout = config.ModelBuildStreamIdleTimeout
 	request.Messages = slices.Clone(request.Messages)
-	request.Messages[0].Content = fmt.Sprintf(buildPlanPrompt, config.ModelBuildMaxSteps, config.ModelBuildMaxFilesPerStep) + "\n" + contextPrompt + sourceFilesContext(root, paths)
+	request.Messages[0].Content = fmt.Sprintf(buildPlanPrompt, config.ModelBuildMaxSteps, config.ModelBuildMaxFilesPerStep) + projectStackContext(root) + "\n" + contextPrompt + sourceFilesContext(root, paths)
 	last := &request.Messages[len(request.Messages)-1]
 	last.Content += "\n\nReturn the ordered build plan as a single JSON object with objective and steps."
 	readPlan := func() (*db.BuildCheckpoint, error) {

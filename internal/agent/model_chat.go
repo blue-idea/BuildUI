@@ -15,6 +15,7 @@ import (
 	"buildui/internal/db"
 	"buildui/internal/errs"
 	"buildui/internal/llm"
+	"buildui/internal/workspace"
 )
 
 // BlueprintPrompt 规定大模型生成应用蓝图的标准格式与关键字段（设计方向、主色调、视觉资产清单含Logo/插图prompts）
@@ -129,10 +130,11 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	system := BlueprintPrompt
 	switch {
 	case bp == nil || !bp.Approved:
+		system += projectStackContext(app.Path)
 	case req.Mode == "plan":
-		system = "Discuss the user's project and describe a plan. Do not emit tools or change any files."
+		system = "Discuss the user's project and describe a plan. Do not emit tools or change any files." + projectStackContext(app.Path)
 	default:
-		system = assembler.AssembleSystemPrompt() + "\nDo not use Markdown fences around tool output. For an app implementation, emit complete files with dyad-write. Use the language of the user's request for the interface and explanations."
+		system = assembler.assembleProjectSystemPrompt(app.Path) + "\nDo not use Markdown fences around tool output. For an app implementation, emit complete files with dyad-write. Use the language of the user's request for the interface and explanations."
 	}
 	tree, err := ScanWorkspaceTree(app.Path)
 	if err != nil {
@@ -173,7 +175,7 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 		if req.Mode == "build" {
 			return s.streamPlannedBuild(ctx, req, app.ID, app.Path, contextPrompt, client, request)
 		}
-		return s.streamBuild(ctx, req, app.Path, client, request)
+		return s.streamBuild(ctx, req, app.ID, app.Path, client, request)
 	}
 
 	drafting := bp == nil || !bp.Approved
@@ -236,12 +238,17 @@ func streamModelResponse(ctx context.Context, client *llm.OpenAIClient, request 
 	return err
 }
 
-func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, root string, client *llm.OpenAIClient, request llm.ChatRequest) error {
+func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, appID int64, root string, client *llm.OpenAIClient, request llm.ChatRequest) error {
 	s.emitProgress(req.ChatID, "Waiting for the model to generate code…")
 	var display strings.Builder
 	changed, err := s.streamBuildStep(ctx, req.ChatID, root, client, request, nil, func(text string) { display.WriteString(text) }, nil)
 	if err != nil {
 		return err
+	}
+	if changed && workspace.UsesExpo(root) {
+		if err := s.verifyPlannedBuild(ctx, req.ChatID, appID, root, client, request); err != nil {
+			return err
+		}
 	}
 	return s.finalizeModelBuild(ctx, req, root, request.Model, display.String(), changed, false)
 }

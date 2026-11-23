@@ -8,6 +8,7 @@ import {
   ArrowUp,
   Check,
 } from 'lucide-react';
+import { NATIVE_APP_STACK } from '../config/projectTemplates';
 import { useI18n } from '../i18n/I18nContext';
 import { ModelSelector } from './ModelSelector';
 import type { AttachmentItem } from '../App';
@@ -260,7 +261,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
 • Design System & Palette: ${styleName}
 • Base Starter Template: ${selectedTemplate === 'blank' ? 'Blank Canvas' : selectedTemplate}
 • Implementation Requirements:
-  - Clean modular React 19 + Tailwind CSS
+  - Clean modular ${category === 'app' ? NATIVE_APP_STACK : 'React 19 + Tailwind CSS'}
   - Responsive design adapting dynamically to both Light and Dark themes
   - Accessible controls, polished micro-interactions, and crisp typography`;
 

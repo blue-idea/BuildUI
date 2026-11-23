@@ -29,7 +29,7 @@ interface ProjectChat {
 
 interface DesktopMethods {
   ListApps: () => Promise<AppItem[] | null>;
-  CreateApp: (req: { name: string; customPath?: string }) => Promise<ActiveProject>;
+  CreateApp: (req: { name: string; customPath?: string; templateId?: string }) => Promise<ActiveProject>;
   CreateAppFromTemplate: (req: { templateId: string; appName: string; destPath?: string }) => Promise<ActiveProject>;
   DeleteApp: (id: number) => Promise<void>;
   SwitchApp: (id: number) => Promise<ActiveProject>;

@@ -10,6 +10,7 @@ import { TemplateModal, AppTemplate } from './components/TemplateModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
 import { MacOSWindowHeader } from './components/MacOSWindowHeader';
 import { LeftDock, DockTab } from './components/LeftDock';
+import { NATIVE_APP_TEMPLATE } from './config/projectTemplates';
 import { HomeGuideView, GuideCustomizationOptions } from './components/HomeGuideView';
 import { TemplateCenterView } from './components/TemplateCenterView';
 import { ComponentCenterView } from './components/ComponentCenterView';
@@ -530,11 +531,13 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     }
   };
 
-  const createDesktopProject = (name: string, templateId?: string): Promise<void> => updateProject(async () => {
+  const createDesktopProject = (name: string, templateId?: string, native = false): Promise<void> => updateProject(async () => {
     const api = desktopApp();
-    const created = templateId
-      ? await api.CreateAppFromTemplate({ appName: name, templateId })
-      : await api.CreateApp({ name });
+    const created = native
+      ? await api.CreateApp({ name, templateId: NATIVE_APP_TEMPLATE })
+      : templateId
+        ? await api.CreateAppFromTemplate({ appName: name, templateId })
+        : await api.CreateApp({ name });
     setApps((previous) => [...previous, { id: created.appId, name: created.name, path: created.path }]);
     setIsDrawerOpen(false);
     setIsTemplateModalOpen(false);
@@ -905,8 +908,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       // 首页点击开始生成按钮，自动创建新项目并直接开始构建，无需再次点击发送指令
       const appName = generateSafeAppName(options?.userInput || prompt, apps.map((a) => a.name));
       const templateId = options?.template && options.template !== 'blank' ? options.template : undefined;
-      await createDesktopProject(appName, templateId);
-      if (!chatID.current) return;
+      const previousAppId = projectID.current;
+      await createDesktopProject(appName, templateId, options?.category === 'app');
+      if (!chatID.current || projectID.current === previousAppId) return;
 
       const userMsg: ChatMessage = {
         id: String(Date.now()),
@@ -916,6 +920,11 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       };
       setMessages((prev) => [...prev, userMsg]);
       void runDesktopTurn(prompt, atts.map((att) => att.dataUrl), 'build', { chatId: chatID.current });
+      return;
+    }
+
+    if (options?.category === 'app') {
+      setProjectError('Open BuildUI for desktop to generate a React Native app.');
       return;
     }
 

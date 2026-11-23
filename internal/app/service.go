@@ -20,7 +20,7 @@ import (
 // CreateAppRequest 创建新应用请求
 type CreateAppRequest struct {
 	Name       string `json:"name"`       // 应用名称 (非空)
-	TemplateID string `json:"templateId"` // 模板标识，默认 "react"
+	TemplateID string `json:"templateId"` // 模板标识，默认 "react"，App 使用 "react-native"
 	CustomPath string `json:"customPath"` // 用户自定义路径 (可选)
 }
 
@@ -125,7 +125,7 @@ func (s *AppService) CreateApp(ctx context.Context, req CreateAppRequest) (*Crea
 	}
 
 	// 1. 展开脚手架模板
-	if err := scaffold.Extract(targetPath, name); err != nil {
+	if err := scaffold.ExtractForTemplate(targetPath, name, req.TemplateID); err != nil {
 		return nil, err
 	}
 

@@ -18,7 +18,7 @@ import (
 
 func (s *ChatService) verifyPlannedBuild(ctx context.Context, chatID, appID int64, root string, client *llm.OpenAIClient, request llm.ChatRequest) error {
 	report := func(message string) { s.emitProgress(chatID, message) }
-	_, err := s.verifyTypeScript(ctx, appID, root, report, "Resume the build to retry.", func(ctx context.Context, problems []tsc.DiagnosticItem) error {
+	_, err := s.verifyProjectBuild(ctx, appID, root, config.NativeBuildAllPlatforms, report, "Resume the build to retry.", func(ctx context.Context, problems []tsc.DiagnosticItem) error {
 		return s.repairBuildProblems(ctx, chatID, root, client, request, problems, report)
 	})
 	return err
@@ -39,7 +39,7 @@ func (s *ChatService) PreparePreview(ctx context.Context, project *db.AppEntity)
 	var client *llm.OpenAIClient
 	var chatID int64
 	var request llm.ChatRequest
-	return s.verifyTypeScript(ctx, project.ID, project.Path, report, "Start the preview again to retry.", func(ctx context.Context, problems []tsc.DiagnosticItem) error {
+	return s.verifyProjectBuild(ctx, project.ID, project.Path, config.NativeBuildPreviewPlatform, report, "Start the preview again to retry.", func(ctx context.Context, problems []tsc.DiagnosticItem) error {
 		if s.emitter != nil {
 			s.emitter.Emit("preview:diagnostics", map[string]any{"appId": project.ID, "problems": problems})
 		}
@@ -53,7 +53,7 @@ func (s *ChatService) PreparePreview(ctx context.Context, project *db.AppEntity)
 			if err != nil {
 				return previewRepairError(problems, err)
 			}
-			system := NewPromptAssembler().AssembleSystemPrompt()
+			system := NewPromptAssembler().assembleProjectSystemPrompt(project.Path)
 			request = llm.ChatRequest{Model: model, Messages: []llm.ChatMessage{{Role: "system", Content: system}}, Temperature: 0.2, IdleTimeout: config.ModelBuildStreamIdleTimeout}
 			configureBuildModel(&request)
 		}
@@ -89,19 +89,19 @@ func (s *ChatService) previewRepairChat(ctx context.Context, appID int64) (int64
 }
 
 func previewRepairError(problems []tsc.DiagnosticItem, cause error) error {
-	return errs.NewExternalError("Preview check failed at "+strings.TrimSuffix(firstTypeScriptIssue(problems), "."), cause)
+	return errs.NewExternalError("Preview check failed at "+strings.TrimSuffix(firstBuildIssue(problems), "."), cause)
 }
 
-func firstTypeScriptIssue(problems []tsc.DiagnosticItem) string {
+func firstBuildIssue(problems []tsc.DiagnosticItem) string {
 	for _, problem := range problems {
 		if problem.Severity == "error" {
 			return fmt.Sprintf("%s:%d %s", problem.File, problem.Line, problem.Message)
 		}
 	}
-	return "an unknown TypeScript issue"
+	return "an unknown " + tsc.DiagnosticTool(problems) + " issue"
 }
 
-func (s *ChatService) verifyTypeScript(ctx context.Context, appID int64, root string, report func(string), retryMessage string, repair func(context.Context, []tsc.DiagnosticItem) error) (*tsc.RemediationResult, error) {
+func (s *ChatService) verifyProjectBuild(ctx context.Context, appID int64, root, bundlePlatform string, report func(string), retryMessage string, repair func(context.Context, []tsc.DiagnosticItem) error) (*tsc.RemediationResult, error) {
 	if s.buildProblems == nil {
 		return nil, nil
 	}
@@ -114,6 +114,13 @@ func (s *ChatService) verifyTypeScript(ctx context.Context, appID int64, root st
 	if err := workspace.EnsureProjectDependencies(ctx, root); err != nil {
 		return nil, err
 	}
+	var checkBundle []func(context.Context) ([]tsc.DiagnosticItem, error)
+	if workspace.UsesExpo(root) {
+		checkBundle = append(checkBundle, func(ctx context.Context) ([]tsc.DiagnosticItem, error) {
+			report("Checking Expo Metro bundles…")
+			return checkNativeBundle(ctx, root, bundlePlatform)
+		})
+	}
 	report("Checking project TypeScript…")
 	result, err := s.buildProblems.RunSelfHealingLoop(ctx, appID, nil, config.ModelBuildRepairAttempts, func(ctx context.Context, problems []tsc.DiagnosticItem) error {
 		if err := repair(ctx, problems); err != nil {
@@ -121,12 +128,12 @@ func (s *ChatService) verifyTypeScript(ctx context.Context, appID int64, root st
 		}
 		report("Checking the repaired TypeScript…")
 		return nil
-	})
+	}, checkBundle...)
 	if err != nil {
 		return nil, err
 	}
 	if !result.Success {
-		return nil, errs.NewExternalError(fmt.Sprintf("TypeScript issues remain after repair. %s First issue: %s", retryMessage, firstTypeScriptIssue(result.FinalProblems)), nil)
+		return nil, errs.NewExternalError(fmt.Sprintf("%s issues remain after repair. %s First issue: %s", tsc.DiagnosticTool(result.FinalProblems), retryMessage, firstBuildIssue(result.FinalProblems)), nil)
 	}
 	return result, nil
 }
@@ -149,7 +156,7 @@ func (s *ChatService) repairBuildProblems(ctx context.Context, chatID int64, roo
 		byFile[name] = append(byFile[name], problem)
 	}
 	for files := range slices.Chunk(affected, config.ModelBuildRepairBatchSize) {
-		report(fmt.Sprintf("Repairing TypeScript (files affected: %d)…", len(files)))
+		report(fmt.Sprintf("Repairing %s (files affected: %d)…", tsc.DiagnosticTool(problems), len(files)))
 		var batch []tsc.DiagnosticItem
 		for _, file := range files {
 			batch = append(batch, byFile[file]...)

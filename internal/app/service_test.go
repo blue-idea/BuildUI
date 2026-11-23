@@ -211,3 +211,34 @@ func TestAppService_RunAppAndStopApp(t *testing.T) {
 		t.Fatal("expected validation error for invalid app ID, got nil")
 	}
 }
+
+// v22.REQ-001-AC-001：首页 App 路线展开独立脚手架，并沿用工作区初始化。
+func TestAppService_CreateNativeApp(t *testing.T) {
+	ctx := context.Background()
+	database, err := db.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+
+	svc := app.NewAppService(db.NewAppRepository(database), database)
+	resp, err := svc.CreateApp(ctx, app.CreateAppRequest{
+		Name: "Fitness Check-in", TemplateID: "react-native", CustomPath: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{".buildui-runtime", "App.tsx", "app.config.js", "metro.config.js", "src/components/ui/button.tsx"} {
+		if _, err := os.Stat(filepath.Join(resp.Path, name)); err != nil {
+			t.Errorf("missing native scaffold file %s: %v", name, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(resp.Path, "vite.config.ts")); !os.IsNotExist(err) {
+		t.Errorf("unexpected Vite configuration in native workspace: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(resp.Path, "package.json"))
+	if err != nil || !strings.Contains(string(content), `"name": "fitness-check-in"`) ||
+		!strings.Contains(string(content), `"nativewind"`) || !strings.Contains(string(content), `"react-native"`) {
+		t.Errorf("invalid native manifest: %s, %v", content, err)
+	}
+}

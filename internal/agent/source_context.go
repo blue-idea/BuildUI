@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"buildui/internal/config"
 	"buildui/internal/workspace"
 )
 
@@ -13,12 +14,15 @@ var sourceMention = regexp.MustCompile(`@([a-zA-Z0-9_./-]+)[:\s]`)
 var localSourceImport = regexp.MustCompile(`(?:\bfrom\s+|\bimport\s+)["']((?:@/|\.\.?/)[^"']+)["']`)
 
 func sourceContext(root, prompt string) string {
-	return sourceFilesContext(root, requestedSourcePaths(prompt))
+	return sourceFilesContext(root, requestedSourcePaths(root, prompt))
 }
 
-func requestedSourcePaths(prompt string) []string {
+func requestedSourcePaths(root, prompt string) []string {
 	// 先加载首页依赖，避免其他路由的源码占满上下文后遗漏首页组件。
 	paths := []string{"src/pages/Index.tsx", "src/App.tsx", "package.json"}
+	if workspace.UsesExpo(root) {
+		paths = []string{config.NativeAppEntry, "index.ts", "app.config.js", "package.json"}
+	}
 	for _, match := range sourceMention.FindAllStringSubmatch(prompt+" ", 5) {
 		paths = append([]string{match[1]}, paths...)
 	}

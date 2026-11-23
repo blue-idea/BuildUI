@@ -13,6 +13,7 @@ type DiagnosticItem struct {
 	Column   int    `json:"column"`
 	Message  string `json:"message"`
 	Severity string `json:"severity"` // "error" | "warning"
+	Tool     string `json:"tool,omitempty"`
 }
 
 // ProblemsResponse 响应结构
