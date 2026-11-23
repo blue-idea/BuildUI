@@ -16,7 +16,7 @@ export const zh: I18nDictionary = {
     workspace: '工作区:',
     commandHint: '打开命令面板 (Ctrl+K)',
     techBadge: 'Wails v2 + React 19',
-    inspect: '组件审查',
+    inspect: '局部编辑',
   },
   dock: {
     toggle: '折叠/展开侧栏',

@@ -16,7 +16,7 @@ export const en: I18nDictionary = {
     workspace: 'Workspace:',
     commandHint: 'Open Command Palette (Ctrl+K)',
     techBadge: 'Wails v2 + React 19',
-    inspect: 'Inspect',
+    inspect: 'Local Edit',
   },
   dock: {
     toggle: 'Toggle Sidebar',

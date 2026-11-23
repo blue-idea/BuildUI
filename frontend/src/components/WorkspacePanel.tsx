@@ -305,13 +305,14 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
           </button>
         </div>
 
-        {/* 组件审查模式切换按钮 */}
+        {/* 局部编辑模式切换按钮 */}
         {onToggleInspect && (
           <button
             type="button"
             onClick={onToggleInspect}
             disabled={!previewUrl && !previewDoc}
             aria-label="Toggle component inspector"
+            title={t('header.inspect')}
             className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md border transition-all ${
               isInspectMode
                 ? 'bg-blue-600 text-white border-blue-600 shadow-xs'

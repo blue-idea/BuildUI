@@ -121,7 +121,7 @@ describe('TASK-026: i18n Localization Engine and Dictionaries', () => {
     // 顶部与操作栏验证
     expect(screen.getByText('工作区:')).toBeDefined();
     expect(screen.getByText('管理应用')).toBeDefined();
-    expect(screen.getByText('组件审查')).toBeDefined();
+    expect(screen.getByText('局部编辑')).toBeDefined();
 
     // 会话流与工具条验证
     expect(screen.getByText('新建对话')).toBeDefined();
