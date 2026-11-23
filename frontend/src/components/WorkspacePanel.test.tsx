@@ -358,5 +358,28 @@ describe('WorkspacePanel Code Review Layout', () => {
         expect(addressInput.value).toBe('http://localhost:8080/products/42');
       });
     });
+
+    it('激活审查模式时在预览区展示局部编辑覆盖层，支持点选元素并呈现盒模型图解卡片', () => {
+      const handleToggle = vi.fn();
+      renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl="http://localhost:8080"
+          isInspectMode={true}
+          onToggleInspect={handleToggle}
+        />
+      );
+
+      // 验证局部编辑模式横幅展示
+      expect(screen.getByText(/Local Edit Mode/i)).toBeDefined();
+      expect(screen.getByText(/Select Elements/i)).toBeDefined();
+
+      // 点选按钮元素
+      const targetPill = screen.getByTestId('inspect-target-button');
+      fireEvent.click(targetPill);
+
+      // 验证弹出局部编辑控制器
+      expect(screen.getByTestId('local-edit-popover')).toBeDefined();
+    });
   });
 });

@@ -127,4 +127,35 @@ describe('LocalEditPopover Component (TDD)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
     expect(handleCancel).toHaveBeenCalledTimes(1);
   });
+
+  it('renders DevTools-style Box Model diagram widget when boxModel metrics are present', () => {
+    const elementWithBoxModel: InspectedElement = {
+      ...mockElement,
+      boxModel: {
+        margin: { top: 12, right: 16, bottom: 12, left: 16 },
+        border: { top: 2, right: 2, bottom: 2, left: 2 },
+        padding: { top: 8, right: 14, bottom: 8, left: 14 },
+        content: { width: 140, height: 38 },
+        rect: { top: 100, left: 100, width: 176, height: 62, x: 100, y: 100 },
+      },
+    };
+
+    render(
+      <LocalEditPopover
+        element={elementWithBoxModel}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('box-model-diagram')).toBeDefined();
+    expect(screen.getByTestId('box-model-margin')).toBeDefined();
+    expect(screen.getByTestId('box-model-border')).toBeDefined();
+    expect(screen.getByTestId('box-model-padding')).toBeDefined();
+    expect(screen.getByTestId('box-model-content')).toBeDefined();
+
+    expect(screen.getByText('140 × 38')).toBeDefined();
+    expect(screen.getAllByText('12').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('8').length).toBeGreaterThanOrEqual(1);
+  });
 });

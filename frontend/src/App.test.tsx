@@ -481,6 +481,25 @@ describe('App Main Split Layout & Workflow', () => {
     expect(chatInput.value).toContain('RecipeCard.tsx');
   });
 
+  it('审查模式点选元素后展示局部编辑模式状态与控制器', () => {
+    renderBuilder();
+
+    // 开启审查模式
+    const inspectBtn = screen.getByRole('button', { name: /toggle component inspector/i });
+    fireEvent.click(inspectBtn);
+
+    // 验证局部编辑模式状态横幅
+    expect(screen.getByText(/Local Edit Mode/i)).toBeDefined();
+    expect(screen.getByText(/Select Elements/i)).toBeDefined();
+
+    // 点选 <button> 元素
+    const targetBtn = screen.getByTestId('inspect-target-button');
+    fireEvent.click(targetBtn);
+
+    // 弹出局部编辑控制器
+    expect(screen.getByTestId('local-edit-popover')).toBeDefined();
+  });
+
   it('opens export modal and triggers export as zip', () => {
     renderBuilder();
 
