@@ -151,7 +151,7 @@ describe('App Guided Mode Home & Navigation', () => {
       fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: 'Fitness Check-in' } });
       fireEvent.click(screen.getByTestId('guide-submit-btn'));
       await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(1));
-      const stack = category === 'app' ? 'React Native + NativeWind + React Native Reusables' : 'React 19 + Tailwind CSS';
+      const stack = category === 'app' ? 'Expo + React Native + NativeWind + Expo Router + Font Awesome' : 'React 19 + Tailwind CSS';
       expect(streamChat.mock.calls[0][0].prompt).toContain(stack);
       expect(create.mock.calls[0][0].templateId).toBe(category === 'app' ? 'react-native' : undefined);
     } finally {

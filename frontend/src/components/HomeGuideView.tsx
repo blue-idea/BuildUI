@@ -262,7 +262,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
 • Base Starter Template: ${selectedTemplate === 'blank' ? 'Blank Canvas' : selectedTemplate}
 • Implementation Requirements:
   - Clean modular ${category === 'app' ? NATIVE_APP_STACK : 'React 19 + Tailwind CSS'}
-  - Responsive design adapting dynamically to both Light and Dark themes
+  - ${category === 'app' ? 'Phone-first screens with a visible primary action, native navigation, and device safe areas' : 'Responsive design adapting dynamically to both Light and Dark themes'}
   - Accessible controls, polished micro-interactions, and crisp typography`;
 
     // 将风格模版中的 stylePrompt 注入到项目生成提示词中

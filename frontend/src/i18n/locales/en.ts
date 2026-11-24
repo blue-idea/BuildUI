@@ -131,6 +131,7 @@ export const en: I18nDictionary = {
     code: 'Code',
     publish: 'Publish',
     startingApp: 'Starting up your app...',
+    phonePreviewSize: 'Phone preview size',
     systemMessages: 'System Messages',
     reload: 'Reload preview',
     restart: 'Restart preview',

@@ -131,6 +131,7 @@ export const zh: I18nDictionary = {
     code: '代码检视',
     publish: '打包发布',
     startingApp: '正在启动您的应用程序...',
+    phonePreviewSize: '手机预览尺寸',
     systemMessages: '系统运行日志',
     reload: '刷新预览',
     restart: '重新运行',

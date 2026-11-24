@@ -88,7 +88,8 @@ describe('styleExtractor Utility (TDD)', () => {
     expect(mobileStyle.appType).toBe('app');
     expect(mobileStyle.tags).toContain('Mobile App');
     expect(mobileStyle.stylePrompt).toContain('[Platform Architecture Directives: Mobile App]');
-    expect(mobileStyle.stylePrompt).toContain('Touch Target: Strictly minimum 44x44px');
+    expect(mobileStyle.stylePrompt).toContain('44×44 pt on iOS and 48×48 dp on Android');
+    expect(mobileStyle.stylePrompt).toContain('3–5 stable top-level destinations');
 
     // Desktop
     const desktopStyle = extractStyleFromReference('Linear', false, 'desktop');

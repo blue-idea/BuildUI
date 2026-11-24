@@ -9,6 +9,22 @@ const renderWorkspace = (ui: ReactElement) => {
 };
 
 describe('WorkspacePanel Code Review Layout', () => {
+  it('使用真实手机视口预览 App，并支持切换到窄屏', () => {
+    renderWorkspace(<WorkspacePanel nativePreview previewUrl="http://localhost:8081" />);
+    const frame = screen.getByTitle('App live preview');
+    expect(frame.getAttribute('width')).toBe('390');
+    expect(frame.getAttribute('height')).toBe('844');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Phone preview size' }), { target: { value: 'compact' } });
+    expect(screen.getByTitle('App live preview')).toBe(frame);
+    expect(frame.getAttribute('width')).toBe('360');
+  });
+
+  it('Web 预览沿用全宽画布', () => {
+    renderWorkspace(<WorkspacePanel previewUrl="http://localhost:8080" />);
+    expect(screen.getByTitle('App live preview').hasAttribute('width')).toBe(false);
+    expect(screen.queryByRole('combobox', { name: 'Phone preview size' })).toBeNull();
+  });
+
   const mockFiles = [
     {
       path: 'src/components/PantryList.tsx',
@@ -332,7 +348,7 @@ describe('WorkspacePanel Code Review Layout', () => {
       expect(addressInput.value).toBe('http://localhost:8080');
     });
 
-    it('接收沙箱内 buildui:route-changed 消息时自动同步更新地址栏显示', async () => {
+    it('同步沙箱路由到地址栏并保留当前 iframe 文档', async () => {
       renderWorkspace(
         <WorkspacePanel
           activeView="preview"
@@ -357,6 +373,7 @@ describe('WorkspacePanel Code Review Layout', () => {
       await waitFor(() => {
         expect(addressInput.value).toBe('http://localhost:8080/products/42');
       });
+      expect(screen.getByTitle('App live preview').getAttribute('src')).toBe('http://localhost:8080');
     });
 
     it('激活审查模式时在预览区展示局部编辑覆盖层，支持点选元素并呈现盒模型图解卡片', () => {

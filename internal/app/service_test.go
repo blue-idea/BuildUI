@@ -228,7 +228,7 @@ func TestAppService_CreateNativeApp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{".buildui-runtime", "App.tsx", "app.config.js", "metro.config.js", "src/components/ui/button.tsx"} {
+	for _, name := range []string{".buildui-runtime", "src/app/_layout.tsx", "src/app/index.tsx", "app.config.js", "metro.config.js", "src/components/ui/button.tsx"} {
 		if _, err := os.Stat(filepath.Join(resp.Path, name)); err != nil {
 			t.Errorf("missing native scaffold file %s: %v", name, err)
 		}
@@ -236,9 +236,14 @@ func TestAppService_CreateNativeApp(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(resp.Path, "vite.config.ts")); !os.IsNotExist(err) {
 		t.Errorf("unexpected Vite configuration in native workspace: %v", err)
 	}
+	active, err := svc.SwitchApp(ctx, resp.AppID)
+	if err != nil || !active.NativeApp {
+		t.Fatalf("native app must use the phone preview: %+v, %v", active, err)
+	}
 	content, err := os.ReadFile(filepath.Join(resp.Path, "package.json"))
 	if err != nil || !strings.Contains(string(content), `"name": "fitness-check-in"`) ||
-		!strings.Contains(string(content), `"nativewind"`) || !strings.Contains(string(content), `"react-native"`) {
+		!strings.Contains(string(content), `"nativewind"`) || !strings.Contains(string(content), `"react-native"`) ||
+		!strings.Contains(string(content), `"main": "expo-router/entry"`) || !strings.Contains(string(content), `"@expo/vector-icons"`) {
 		t.Errorf("invalid native manifest: %s, %v", content, err)
 	}
 }

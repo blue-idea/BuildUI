@@ -131,6 +131,7 @@ export interface I18nDictionary {
     code: string;
     publish: string;
     startingApp: string;
+    phonePreviewSize: string;
     systemMessages: string;
     reload: string;
     restart: string;

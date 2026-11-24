@@ -6,5 +6,7 @@ module.exports = {
   version,
   platforms: ['ios', 'android', 'web'],
   userInterfaceStyle: 'automatic',
+  scheme: `buildui-${name}`,
+  plugins: ['expo-router'],
   web: { bundler: 'metro' },
 };

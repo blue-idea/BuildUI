@@ -15,7 +15,13 @@
 
   win.addEventListener('message', (event) => {
     if (event.source !== win.parent) return;
-    if (event.data?.type === 'buildui:clear-selection') {
+    if (event.data?.type === 'buildui:traverse-history') {
+      const direction = event.data.direction;
+      const navigation = win.navigation;
+      const canGo = direction === 'back' ? navigation?.canGoBack : direction === 'forward' && navigation?.canGoForward;
+      // Navigation API 只遍历当前 iframe 的同源历史条目。
+      if (canGo) navigation[direction]().finished.catch(() => {});
+    } else if (event.data?.type === 'buildui:clear-selection') {
       resetHighlight();
     } else if (event.data?.type === 'buildui:inspect-mode') {
       parentOrigin = event.data.active ? (event.origin === 'null' ? '*' : event.origin) : '';

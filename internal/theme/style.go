@@ -53,10 +53,10 @@ func buildStyleSystemPrompt(appType string) string {
 	switch appType {
 	case "app":
 		platformTarget = "Mobile Application (iOS Human Interface Guidelines & Android Material 3)"
-		platformDirectives = `- Touch Targets: Strictly minimum 44x44px for buttons, chips, and tappable list items.
-- Corners & Geometry: Emphasize 'rounded-2xl' or 'rounded-3xl' for natural mobile thumb reach.
-- Navigation & Structure: Prominent bottom TabBar navigation, compact top navigation bar, safe-area top/bottom insets.
-- Typography: Mobile-optimized typography stack with generous line heights and high legibility.`
+		platformDirectives = `- Touch Targets: Aim for at least 44×44 pt on iOS and 48×48 dp on Android.
+- Structure: Give each screen one task and make its primary action visible on a 390×844 phone viewport. Respect device safe-area insets.
+- Navigation: Use stack navigation for details and a TabBar when there are 3–5 stable top-level destinations.
+- Typography and Geometry: Preserve the reference's visual character using a readable type hierarchy and consistent spacing. Allow content to wrap at larger font sizes.`
 	case "desktop":
 		platformTarget = "Desktop Native Application (macOS Tahoe & Windows Fluent Workstation)"
 		platformDirectives = `- Workstation Structure: 3-column split workstation, collapsible left sidebar/dock, integrated titlebar with native window controls / traffic lights.

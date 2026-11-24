@@ -13,6 +13,7 @@ interface ActiveProject {
   path: string;
   previewUrl: string;
   blueprintApproved: boolean;
+  nativeApp?: boolean;
 }
 
 export interface BuildProgress {

@@ -252,7 +252,7 @@ func TestExtractStyle_AppType(t *testing.T) {
 		t.Errorf("expected AppType 'app', got '%s'", resApp.AppType)
 	}
 	appSysPrompt := mockLLMApp.capturedRequest.Messages[0].Content
-	if !strings.Contains(appSysPrompt, "Mobile Application") || !strings.Contains(appSysPrompt, "TabBar") {
+	if !strings.Contains(appSysPrompt, "Mobile Application") || !strings.Contains(appSysPrompt, "3–5 stable") || !strings.Contains(appSysPrompt, "48×48 dp") {
 		t.Errorf("expected app prompt with TabBar/mobile directives, got: %s", appSysPrompt)
 	}
 

@@ -42,6 +42,10 @@ export function resolveNavigationUrl(rawInput: string, basePreviewUrl: string): 
 }
 
 export type WorkspaceView = 'preview' | 'code' | 'publish';
+const phonePreviewSizes = {
+  standard: { width: 390, height: 844 },
+  compact: { width: 360, height: 800 },
+};
 
 export interface WorkspacePanelProps {
   activeView?: WorkspaceView;
@@ -51,6 +55,7 @@ export interface WorkspacePanelProps {
   previewUrl?: string;
   previewDoc?: string;
   previewKey?: number;
+  nativePreview?: boolean;
   files?: Array<{ path: string; content: string }>;
   sourcePaths?: string[];
   sourceRevision?: number;
@@ -77,6 +82,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   previewUrl = 'http://localhost:5173',
   previewDoc,
   previewKey,
+  nativePreview = false,
   files = [],
   sourcePaths,
   sourceRevision,
@@ -102,9 +108,14 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   const [source, setSource] = useState<{ path: string; text: string; error: boolean } | null>(null);
   const [selectedInspectElement, setSelectedInspectElement] = useState<InspectedElement | null>(null);
   const [activeUrl, setActiveUrl] = useState<string>(previewUrl || '');
+  const [frameUrl, setFrameUrl] = useState<string>(previewUrl || '');
   const [addressInput, setAddressInput] = useState<string>(previewUrl || '');
   const [isAddressFocused, setIsAddressFocused] = useState<boolean>(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const previewStage = useRef<HTMLDivElement>(null);
+  const [phoneSize, setPhoneSize] = useState<keyof typeof phonePreviewSizes>('standard');
+  const [phoneScale, setPhoneScale] = useState(1);
+  const device = nativePreview ? phonePreviewSizes[phoneSize] : null;
 
   const activeFile = files.find((f) => f.path === selectedFilePath) || files[0];
   const codePaths = sourcePaths ?? files.map((file) => file.path);
@@ -114,11 +125,29 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   useEffect(() => {
     if (previewUrl) {
       setActiveUrl(previewUrl);
+      setFrameUrl(previewUrl);
       if (!isAddressFocused) {
         setAddressInput(previewUrl);
       }
     }
   }, [previewUrl]);
+
+  useEffect(() => {
+    // 路由事件只同步地址栏，切出预览时才记录下次载入的位置。
+    if (activeView !== 'preview') setFrameUrl(activeUrl);
+  }, [activeUrl, activeView]);
+
+  useEffect(() => {
+    const stage = previewStage.current;
+    if (!device || !stage || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([{ contentRect }]) => {
+      if (contentRect.width > 0 && contentRect.height > 0) {
+        setPhoneScale(Math.min(1, contentRect.width / device.width, contentRect.height / device.height));
+      }
+    });
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [activeView, device]);
 
   useEffect(() => {
     if (!isInspectMode) {
@@ -215,6 +244,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
     if (!addressInput.trim()) return;
     const targetUrl = resolveNavigationUrl(addressInput, previewUrl);
     setActiveUrl(targetUrl);
+    setFrameUrl(targetUrl);
     setAddressInput(targetUrl);
     (document.activeElement as HTMLElement)?.blur();
   };
@@ -226,19 +256,16 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
     }
   };
 
-  const handleGoBack = () => {
+  const traversePreviewHistory = (direction: 'back' | 'forward') => {
+    const frameWindow = iframeRef.current?.contentWindow;
+    if (!frameWindow) return;
     try {
-      iframeRef.current?.contentWindow?.history.back();
+      frameWindow.history[direction]();
     } catch {
-      // 忽略跨域访问限制
-    }
-  };
-
-  const handleGoForward = () => {
-    try {
-      iframeRef.current?.contentWindow?.history.forward();
-    } catch {
-      // 忽略跨域访问限制
+      // 跨域预览在自己的 iframe 中处理历史记录，避免重载预览。
+      if (previewOrigin) {
+        frameWindow.postMessage({ type: 'buildui:traverse-history', direction }, previewOrigin);
+      }
     }
   };
 
@@ -330,7 +357,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
         <div className="flex items-center gap-1 text-slate-400 dark:text-zinc-500">
           <button
             type="button"
-            onClick={handleGoBack}
+            onClick={() => traversePreviewHistory('back')}
             title={t('workspace.back')}
             className="p-1 hover:text-slate-700 dark:hover:text-zinc-200 rounded transition-colors"
           >
@@ -338,7 +365,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
           </button>
           <button
             type="button"
-            onClick={handleGoForward}
+            onClick={() => traversePreviewHistory('forward')}
             title={t('workspace.forward')}
             className="p-1 hover:text-slate-700 dark:hover:text-zinc-200 rounded transition-colors"
           >
@@ -381,6 +408,19 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
           </div>
         </form>
 
+        {device && activeView === 'preview' && (
+          <select
+            aria-label={t('workspace.phonePreviewSize')}
+            value={phoneSize}
+            onChange={(event) => setPhoneSize(event.currentTarget.value as keyof typeof phonePreviewSizes)}
+            className="shrink-0 rounded border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          >
+            {Object.entries(phonePreviewSizes).map(([key, size]) => (
+              <option key={key} value={key}>{size.width} × {size.height}</option>
+            ))}
+          </select>
+        )}
+
         {/* 刷新按钮 */}
         <button
           type="button"
@@ -410,7 +450,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
       {/* 中间核心画布视图 */}
       <div className="flex-1 relative overflow-auto bg-slate-50/40 dark:bg-zinc-950/40">
         {activeView === 'preview' && (
-          <div className="w-full h-full relative flex flex-col items-center justify-center p-6">
+          <div ref={previewStage} className="w-full h-full relative flex flex-col items-center justify-center p-6">
             {/* 组件审查模式覆盖层与局部定向编辑控制器 */}
             <ComponentInspector
               isActive={isInspectMode}
@@ -443,16 +483,24 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                 </span>
               </div>
             ) : previewDoc || previewUrl ? (
-              <iframe
-                key={previewKey}
-                ref={iframeRef}
-                onLoad={syncInspector}
-                title="App live preview"
-                src={previewDoc ? undefined : activeUrl || previewUrl}
-                srcDoc={previewDoc}
-                sandbox={previewDoc ? undefined : 'allow-scripts allow-same-origin allow-forms'}
-                className="w-full h-full rounded-lg border border-slate-200 dark:border-zinc-800 shadow-xs bg-white"
-              />
+              <div
+                className={device ? 'shrink-0 overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-slate-900/15 dark:ring-white/15' : 'h-full w-full'}
+                style={device ? { width: device.width * phoneScale, height: device.height * phoneScale } : undefined}
+              >
+                <iframe
+                  key={previewKey}
+                  ref={iframeRef}
+                  onLoad={syncInspector}
+                  title="App live preview"
+                  src={previewDoc ? undefined : frameUrl || previewUrl}
+                  srcDoc={previewDoc}
+                  sandbox={previewDoc ? undefined : 'allow-scripts allow-same-origin allow-forms'}
+                  width={device?.width}
+                  height={device?.height}
+                  className={device ? 'block origin-top-left border-0 bg-white' : 'block h-full w-full rounded-lg border border-slate-200 bg-white shadow-xs dark:border-zinc-800'}
+                  style={device ? { transform: `scale(${phoneScale})` } : undefined}
+                />
+              </div>
             ) : (
               <button type="button" onClick={onReload} disabled={previewActionsDisabled} className="text-sm font-medium text-purple-600">
                 Start preview

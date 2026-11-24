@@ -150,6 +150,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const [blueprint, setBlueprint] = useState<BlueprintDTO | null>(null);
   const [questionnaire, setQuestionnaire] = useState<QuestionItem[] | null>(null);
   const [previewUrl, setPreviewUrl] = useState(desktop ? '' : 'http://localhost:5173');
+  const [nativePreview, setNativePreview] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const [sourcePaths, setSourcePaths] = useState<string[]>([]);
   const [sourceRevision, setSourceRevision] = useState(0);
@@ -467,6 +468,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       void desktopApp().StopApp?.({ appId: activeAppId }).catch(() => {});
     }
     setActiveAppId(0);
+    setNativePreview(false);
     previewRequest.current = null;
     setPreviewProgress('');
     setIsStartingApp(false);
@@ -494,6 +496,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     projectID.current = id;
     chatID.current = 0;
     setActiveAppId(id);
+    setNativePreview(active.nativeApp === true);
     setWorkspaceDir(active.path);
     setMessages([]);
     setBlueprint(null);
@@ -1617,6 +1620,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
 
         {/* 右侧：三态工作区 (WorkspacePanel: Preview | Code | Publish) */}
         <WorkspacePanel
+          nativePreview={nativePreview}
           activeView={workspaceView}
           onViewChange={setWorkspaceView}
           isLoading={isStartingApp}

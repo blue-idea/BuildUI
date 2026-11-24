@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"buildui/internal/workspace"
 )
 
 // HistoryMessage 历史消息元数据
@@ -84,8 +82,8 @@ func (p *PromptAssembler) AssembleSystemPrompt() string {
 }
 
 func (p *PromptAssembler) assembleProjectSystemPrompt(root string) string {
-	if workspace.UsesExpo(root) {
-		return nativeRole + nativeScaffold + fmt.Sprintf(fileWritingRules, "@rn-primitives/dialog")
+	if stack := projectStackContext(root); stack != "" {
+		return nativeRole + stack + fmt.Sprintf(fileWritingRules, "@rn-primitives/dialog")
 	}
 	return p.AssembleSystemPrompt()
 }

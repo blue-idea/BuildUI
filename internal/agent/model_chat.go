@@ -18,20 +18,31 @@ import (
 	"buildui/internal/workspace"
 )
 
-// BlueprintPrompt 规定大模型生成应用蓝图的标准格式与关键字段（设计方向、主色调、视觉资产清单含Logo/插图prompts）
-const BlueprintPrompt = `Propose the blueprint for the user's requested app. Reply with only one JSON object, without Markdown fences, using these fields:
+const blueprintHeader = `Propose the blueprint for the user's requested app. Reply with only one JSON object, without Markdown fences, using these fields:
 {
   "appName": "...",
   "designDirection": "...",
   "primaryColor": "#123456",
   "themeId": "default",
   "visuals": [
+`
+
+const blueprintFooter = `  ]
+}
+Use the language of the user's request for human-readable values. Do not write code or install dependencies. Approval is required before implementation.`
+
+// BlueprintPrompt 规定蓝图 JSON 格式并提供 Web 视觉素材示例。
+const BlueprintPrompt = blueprintHeader + `
     {"id": "brand-logo", "type": "logo", "description": "Application logo mark", "prompt": "Modern minimalist vector logo for..."},
     {"id": "hero-illustration", "type": "illustration", "description": "Hero section illustration", "prompt": "Clean modern isometric illustration depicting..."},
     {"id": "feature-icon", "type": "icon", "description": "Key feature icon", "prompt": "Clean Lucide-style feature icon for..."}
-  ]
-}
-Use the language of the user's request for human-readable values. Do not write code or install dependencies. Approval is required before implementation.`
+` + blueprintFooter
+
+const nativeBlueprintPrompt = blueprintHeader + `
+    {"id": "journal-photo", "type": "photo", "description": "Cover for the selected journal entry", "prompt": "Editorial travel photograph of..."}
+` + blueprintFooter + `
+Write designDirection as a short screen-by-screen plan. Name each screen, its core task and visible primary action, then list navigation and return paths. Specify typography hierarchy, spacing, colors, and image roles. List only visual assets that support those screens, and use an empty visuals array if none are needed.
+`
 
 // StreamChat 使用当前保存的模型发起一轮真实对话。
 func (s *ChatService) StreamChat(ctx context.Context, req StreamChatRequest) error {
@@ -130,7 +141,9 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	system := BlueprintPrompt
 	switch {
 	case bp == nil || !bp.Approved:
-		system += projectStackContext(app.Path)
+		if stack := projectStackContext(app.Path); stack != "" {
+			system = nativeBlueprintPrompt + stack
+		}
 	case req.Mode == "plan":
 		system = "Discuss the user's project and describe a plan. Do not emit tools or change any files." + projectStackContext(app.Path)
 	default:

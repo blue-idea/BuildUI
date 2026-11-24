@@ -178,9 +178,9 @@ export const buildDesignSystemPrompt = (
     appType === 'app'
       ? [
           `[Platform Architecture Directives: Mobile App]`,
-          `- Touch Target: Strictly minimum 44x44px for buttons, chips, and tappable list items.`,
-          `- Geometry: Soft ergonomics using rounded-2xl or rounded-3xl corners for natural thumb reach.`,
-          `- Navigation: Bottom fixed TabBar navigation with icon + label pairings and top safe-area padding.`,
+          `- Touch targets: Aim for at least 44×44 pt on iOS and 48×48 dp on Android.`,
+          `- Layout: Use one task per screen, with the main action visible at 390×844 and actual device safe-area insets.`,
+          `- Navigation: Stack details and use a bottom tab bar for 3–5 stable top-level destinations.`,
         ]
       : appType === 'desktop'
       ? [

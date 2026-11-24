@@ -53,7 +53,7 @@ func checkNativeBundle(ctx context.Context, root, platform string) ([]tsc.Diagno
 }
 
 func nativeBundleDiagnostic(root, message string) tsc.DiagnosticItem {
-	item := tsc.DiagnosticItem{Tool: "Expo Metro", Severity: "error", File: config.NativeAppEntry, Line: 1, Column: 1, Message: message}
+	item := tsc.DiagnosticItem{Tool: "Expo Metro", Severity: "error", File: workspace.NativeEntry(root), Line: 1, Column: 1, Message: message}
 	var origin string
 	if match := metroSyntaxOrigin.FindStringSubmatch(message); match != nil {
 		origin = match[1]

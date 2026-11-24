@@ -6,7 +6,7 @@ const tokens = [
 
 module.exports = {
   darkMode: 'class',
-  content: ['./App.tsx', './src/**/*.{js,jsx,ts,tsx}'],
+  content: ['./src/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
   theme: {
     extend: {

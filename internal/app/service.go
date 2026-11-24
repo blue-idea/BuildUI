@@ -15,6 +15,7 @@ import (
 	"buildui/internal/errs"
 	"buildui/internal/scaffold"
 	"buildui/internal/verification/tsc"
+	"buildui/internal/workspace"
 )
 
 // CreateAppRequest 创建新应用请求
@@ -48,6 +49,7 @@ type ActiveAppResponse struct {
 	PreviewURL        string `json:"previewUrl"`
 	LatestCommitHash  string `json:"latestCommitHash"`
 	BlueprintApproved bool   `json:"blueprintApproved"`
+	NativeApp         bool   `json:"nativeApp"`
 }
 
 // AppService 负责应用管理与脚手架初始化
@@ -303,6 +305,7 @@ func (s *AppService) SwitchApp(ctx context.Context, targetAppID int64) (*ActiveA
 		PreviewURL:        s.runner.PreviewURL(targetAppID),
 		LatestCommitHash:  commitHash,
 		BlueprintApproved: !appEntity.NeedsAppBlueprint,
+		NativeApp:         workspace.UsesExpo(appEntity.Path),
 	}, nil
 }
 
