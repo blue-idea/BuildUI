@@ -89,6 +89,14 @@ export function essentialEvent<T>(name: string, handler: (data: T) => void): () 
   return window.runtime?.EventsOn?.(name, handler) ?? (() => {});
 }
 
+export function openExternalUrl(url: string): void {
+  if (typeof window !== 'undefined' && window.runtime?.BrowserOpenURL) {
+    window.runtime.BrowserOpenURL(url);
+  } else if (typeof window !== 'undefined') {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
 export interface DiagnosticItem {
   file: string;
   line: number;
@@ -123,6 +131,7 @@ declare global {
     runtime?: {
       EventsOn?: (eventName: string, callback: (...args: any[]) => void) => () => void;
       EventsEmit?: (eventName: string, ...data: any[]) => void;
+      BrowserOpenURL?: (url: string) => void;
     };
   }
 }

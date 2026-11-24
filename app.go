@@ -20,6 +20,7 @@ import (
 	"buildui/internal/settings"
 	"buildui/internal/template"
 	"buildui/internal/theme"
+	"buildui/internal/updater"
 	"buildui/internal/verification/tsc"
 	"buildui/internal/version"
 	"buildui/internal/workspace"
@@ -52,6 +53,7 @@ type App struct {
 	versionService   *version.VersionService
 	themeService     *theme.ThemeService
 	templateService  *template.TemplateService
+	updaterService   *updater.Service
 }
 
 // NewApp 创建 App 实例
@@ -107,6 +109,15 @@ func (a *App) startup(ctx context.Context) {
 		a.themeService = theme.NewThemeService(a.appRepo)
 		a.themeService.SetSettingsRepo(settingsRepo)
 		a.templateService = template.NewTemplateService()
+
+		a.updaterService = updater.NewService(updater.Config{
+			Emitter: func(ctx context.Context, eventName string, result updater.UpdateCheckResult) {
+				emitter.Emit(eventName, result)
+			},
+		})
+		go func() {
+			_, _ = a.updaterService.CheckAndNotify(a.ctx)
+		}()
 	}
 }
 
@@ -115,6 +126,18 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.db != nil {
 		_ = a.db.Close()
 	}
+}
+
+// CheckForUpdates 暴露给前端手动检查更新的 RPC 方法
+func (a *App) CheckForUpdates() (*updater.UpdateCheckResult, error) {
+	if a.updaterService == nil {
+		return &updater.UpdateCheckResult{Available: false}, nil
+	}
+	res, err := a.updaterService.CheckForUpdates(a.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 // CreateApp 暴露给前端的 Wails RPC 方法

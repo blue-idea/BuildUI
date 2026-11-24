@@ -8,6 +8,7 @@ import { AppDrawer, AppItem, ProjectPlatform, inferAppPlatform } from './compone
 import { ExportModal } from './components/ExportModal';
 import { TemplateModal, AppTemplate } from './components/TemplateModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
+import { UpdateNotifier } from './components/UpdateNotifier';
 import { MacOSWindowHeader } from './components/MacOSWindowHeader';
 import { LeftDock, DockTab } from './components/LeftDock';
 import { NATIVE_APP_TEMPLATE } from './config/projectTemplates';
@@ -1862,6 +1863,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         onClose={() => setIsCommandPaletteOpen(false)}
         actions={commandActions}
       />
+
+      {/* 自动更新提示 */}
+      <UpdateNotifier />
     </div>
   );
 };
