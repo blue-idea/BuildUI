@@ -19,6 +19,9 @@ describe('ComponentCenterView Component (TDD)', () => {
     ['shadcn', 'Standard input/output (stdio)', 'npx'],
     ['playwright', 'Standard input/output (stdio)', 'npx'],
     ['stitch', 'Streamable HTTP', 'https://stitch.googleapis.com/mcp'],
+    ['mobbin', 'Streamable HTTP', 'https://api.mobbin.com/mcp'],
+    ['magicui', 'Standard input/output (stdio)', 'npx'],
+    ['awwwards', 'Standard input/output (stdio)', 'npx'],
     ['github', 'Streamable HTTP', 'https://api.githubcopilot.com/mcp/'],
     ['cloudflare', 'Streamable HTTP', 'https://mcp.cloudflare.com/mcp'],
     ['snyk', 'Standard input/output (stdio)', 'npx'],
@@ -36,6 +39,7 @@ describe('ComponentCenterView Component (TDD)', () => {
   });
 
   it.each([
+    ['mobbin', 'http', 'https://api.mobbin.com/mcp', 'Add Header', '', false, true],
     ['stitch', 'http', 'https://stitch.googleapis.com/mcp', 'Add Header', 'X-Goog-Api-Key', true, false],
     ['github', 'http', 'https://api.githubcopilot.com/mcp/', 'Add Header', 'Authorization', true, false],
     ['cloudflare', 'http', 'https://mcp.cloudflare.com/mcp', 'Add Header', 'Authorization', false, true],
