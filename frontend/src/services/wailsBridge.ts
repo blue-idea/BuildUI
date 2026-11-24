@@ -55,6 +55,7 @@ interface DesktopMethods {
   SelectDirectory: (title: string) => Promise<string>;
   ExportAppZip: (appId: number, targetDir: string) => Promise<string>;
   OpenInFileManager: (path: string) => Promise<void>;
+  CheckForUpdates?: () => Promise<UpdateCheckResult>;
   CheckTypeScript: (req: { appId: number; paths: string[] }) => Promise<ProblemsResponse>;
   ExtractStyle?: (req: { reference?: string; imageBase64?: string; provider?: string; model?: string; appType?: string }) => Promise<{
     id: string;
@@ -95,6 +96,26 @@ export function openExternalUrl(url: string): void {
   } else if (typeof window !== 'undefined') {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
+}
+
+export interface UpdateCheckResult {
+  available: boolean;
+  version?: string;
+  releaseUrl?: string;
+  downloadUrl?: string;
+  error?: string;
+}
+
+export async function checkForUpdates(): Promise<UpdateCheckResult> {
+  const wails = getWailsApp();
+  if (wails?.CheckForUpdates) {
+    try {
+      return await wails.CheckForUpdates();
+    } catch (e: any) {
+      return { available: false, error: e?.message || 'Failed to check for updates' };
+    }
+  }
+  return { available: false };
 }
 
 export interface DiagnosticItem {

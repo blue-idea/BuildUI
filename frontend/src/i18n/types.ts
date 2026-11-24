@@ -208,6 +208,7 @@ export interface I18nDictionary {
     tabWorkspace: string;
     tabAppearance: string;
     tabGeneral: string;
+    tabAbout: string;
     modelsDesc: string;
     workspaceTitle: string;
     workspaceDesc: string;
@@ -223,6 +224,18 @@ export interface I18nDictionary {
     themeModeDark: string;
     generalTitle: string;
     generalDesc: string;
+    aboutTitle: string;
+    aboutDesc: string;
+    currentVersionLabel: string;
+    checkUpdatesBtn: string;
+    checkingUpdates: string;
+    upToDate: string;
+    updateAvailable: string;
+    repoTitle: string;
+    repoDesc: string;
+    openRepo: string;
+    copyRepo: string;
+    copied: string;
   };
   pluginsPage: {
     goBack: string;

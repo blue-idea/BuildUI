@@ -317,4 +317,91 @@ describe('SettingsModal', () => {
       expect(savedArgs['llm.provider_ids']).not.toContain('custom_test');
     });
   });
+
+  it('switches to Version & Update tab and displays version, check updates button and repository link', async () => {
+    const handleCheckUpdates = vi.fn().mockResolvedValue({
+      available: false,
+    });
+    const handleOpenExternal = vi.fn();
+
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        currentVersion="0.1.0"
+        onCheckForUpdates={handleCheckUpdates}
+        onOpenExternalUrl={handleOpenExternal}
+      />
+    );
+
+    // 切换到版本与更新 Tab
+    const aboutTab = screen.getByTestId('settings-nav-about');
+    fireEvent.click(aboutTab);
+
+    // 验证显示版本与仓库地址
+    expect(screen.getByTestId('current-version-badge').textContent).toContain('0.1.0');
+    expect(screen.getByText('https://github.com/blue-idea/BuildUI')).toBeDefined();
+
+    // 点击检查更新按钮
+    const checkBtn = screen.getByTestId('btn-check-updates');
+    fireEvent.click(checkBtn);
+
+    await waitFor(() => {
+      expect(handleCheckUpdates).toHaveBeenCalled();
+      expect(screen.getByText(/latest version/i)).toBeDefined();
+    });
+
+    // 点击访问仓库按钮
+    const openRepoBtn = screen.getByTestId('btn-open-repo');
+    fireEvent.click(openRepoBtn);
+    expect(handleOpenExternal).toHaveBeenCalledWith('https://github.com/blue-idea/BuildUI');
+
+    // 点击复制仓库链接按钮
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn(),
+      },
+    });
+    const copyRepoBtn = screen.getByTestId('btn-copy-repo');
+    fireEvent.click(copyRepoBtn);
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://github.com/blue-idea/BuildUI');
+    expect(screen.getByText('Copied!')).toBeDefined();
+  });
+
+  it('displays new version available feedback when update check finds newer release', async () => {
+    const handleCheckUpdates = vi.fn().mockResolvedValue({
+      available: true,
+      version: '0.2.0',
+      releaseUrl: 'https://github.com/blue-idea/BuildUI/releases/tag/v0.2.0',
+      downloadUrl: 'https://github.com/blue-idea/BuildUI/releases/download/v0.2.0/BuildUI.dmg',
+    });
+    const handleOpenExternal = vi.fn();
+
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        currentVersion="0.1.0"
+        onCheckForUpdates={handleCheckUpdates}
+        onOpenExternalUrl={handleOpenExternal}
+      />
+    );
+
+    const aboutTab = screen.getByTestId('settings-nav-about');
+    fireEvent.click(aboutTab);
+
+    const checkBtn = screen.getByTestId('btn-check-updates');
+    fireEvent.click(checkBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/0\.2\.0/)).toBeDefined();
+      expect(screen.getByText(/brew upgrade buildui/)).toBeDefined();
+    });
+
+    const downloadBtn = screen.getByTestId('btn-download-update');
+    fireEvent.click(downloadBtn);
+    expect(handleOpenExternal).toHaveBeenCalledWith(
+      'https://github.com/blue-idea/BuildUI/releases/download/v0.2.0/BuildUI.dmg'
+    );
+  });
 });

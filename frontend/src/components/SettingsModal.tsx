@@ -17,10 +17,18 @@ import {
   Layers,
   Edit2,
   Check,
+  Info,
+  ExternalLink,
+  Copy,
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { useMacOSTheme } from '../context/ThemeContext';
-import { selectDirectory } from '../services/wailsBridge';
+import {
+  selectDirectory,
+  checkForUpdates,
+  openExternalUrl,
+  UpdateCheckResult,
+} from '../services/wailsBridge';
 import {
   ProviderConfig,
   DEFAULT_PROVIDER_PRESETS,
@@ -30,7 +38,7 @@ import {
   normalizeBaseUrl,
 } from '../config/providers';
 
-export type SettingsNavTab = 'models' | 'workspace' | 'appearance' | 'general';
+export type SettingsNavTab = 'models' | 'workspace' | 'appearance' | 'general' | 'about';
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -40,6 +48,9 @@ export interface SettingsModalProps {
   onTestConnection?: (baseURL: string, apiKey: string, model: string) => Promise<string | boolean>;
   onSelectDirectory?: () => Promise<string | undefined> | void;
   defaultWorkspaceDir?: string;
+  currentVersion?: string;
+  onCheckForUpdates?: () => Promise<UpdateCheckResult>;
+  onOpenExternalUrl?: (url: string) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -50,6 +61,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onTestConnection,
   onSelectDirectory,
   defaultWorkspaceDir = '/workspace/default-app',
+  currentVersion = '0.1.0',
+  onCheckForUpdates,
+  onOpenExternalUrl,
 }) => {
   const { t, locale, setLocale } = useI18n();
   const { isDark, toggleTheme } = useMacOSTheme();
@@ -94,6 +108,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // 版本与更新状态
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updateResult, setUpdateResult] = useState<UpdateCheckResult | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
+  const [copiedRepo, setCopiedRepo] = useState(false);
+
+  const repoUrl = 'https://github.com/blue-idea/BuildUI';
+
+  const handleOpenUrl = (url: string) => {
+    if (onOpenExternalUrl) {
+      onOpenExternalUrl(url);
+    } else {
+      openExternalUrl(url);
+    }
+  };
+
+  const handleCheckUpdatesClick = async () => {
+    setCheckingUpdates(true);
+    setCheckError(null);
+    try {
+      const res = onCheckForUpdates ? await onCheckForUpdates() : await checkForUpdates();
+      setUpdateResult(res);
+    } catch (err: any) {
+      setCheckError(err?.message || 'Failed to check updates');
+    } finally {
+      setCheckingUpdates(false);
+    }
+  };
+
+  const handleCopyRepoUrl = () => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(repoUrl);
+      }
+      setCopiedRepo(true);
+      setTimeout(() => setCopiedRepo(false), 2000);
+    } catch (e) {
+      console.warn('Failed to copy repo url', e);
+    }
+  };
 
   // 初始化与重载 settings
   useEffect(() => {
@@ -308,6 +363,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       label: t('settingsModal.tabGeneral'),
       icon: Sliders,
     },
+    {
+      id: 'about' as const,
+      testId: 'settings-nav-about',
+      label: t('settingsModal.tabAbout'),
+      icon: Info,
+    },
   ];
 
   // 兼容旧测试所需的预设列表
@@ -373,7 +434,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             <div className="px-2 py-1 text-[11px] text-slate-400 dark:text-zinc-500 font-mono">
-              BuildUI v0.1.0
+              BuildUI v{currentVersion}
             </div>
           </aside>
 
@@ -870,6 +931,149 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         >
                           <Globe className="w-3.5 h-3.5" />
                           <span>English</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. 版本与更新 */}
+                {activeNavTab === 'about' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900 dark:text-zinc-100">
+                        {t('settingsModal.aboutTitle')}
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                        {t('settingsModal.aboutDesc')}
+                      </p>
+                    </div>
+
+                    {/* 版本与更新卡片 */}
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/30 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-medium text-slate-500 dark:text-zinc-400">
+                            {t('settingsModal.currentVersionLabel')}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                              BuildUI
+                            </span>
+                            <span
+                              data-testid="current-version-badge"
+                              className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900"
+                            >
+                              v{currentVersion}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          data-testid="btn-check-updates"
+                          disabled={checkingUpdates}
+                          onClick={handleCheckUpdatesClick}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-medium shadow-2xs transition-all active:scale-95"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${checkingUpdates ? 'animate-spin' : ''}`} />
+                          <span>{checkingUpdates ? t('settingsModal.checkingUpdates') : t('settingsModal.checkUpdatesBtn')}</span>
+                        </button>
+                      </div>
+
+                      {/* 检查结果反馈 */}
+                      {updateResult && (
+                        <div className="pt-2 border-t border-slate-200/60 dark:border-zinc-700/60">
+                          {updateResult.available ? (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
+                                <Sparkles className="w-4 h-4" />
+                                <span>
+                                  {t('settingsModal.updateAvailable').replace('{version}', updateResult.version || '')}
+                                </span>
+                              </div>
+
+                              {/* Homebrew 升级指引 */}
+                              <div className="p-2.5 rounded-lg bg-slate-100 dark:bg-zinc-900/80 border border-slate-200 dark:border-zinc-700/80 font-mono text-[11px] text-slate-700 dark:text-zinc-300 flex items-center justify-between">
+                                <code>brew upgrade buildui</code>
+                              </div>
+
+                              {/* 下载/更新动作 */}
+                              {(updateResult.downloadUrl || updateResult.releaseUrl) && (
+                                <div>
+                                  <button
+                                    type="button"
+                                    data-testid="btn-download-update"
+                                    onClick={() => handleOpenUrl(updateResult.downloadUrl || updateResult.releaseUrl!)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-2xs transition-colors"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <span>Download Update</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-300">
+                              <Check className="w-4 h-4 text-emerald-500" />
+                              <span>
+                                {t('settingsModal.upToDate').replace('{version}', currentVersion)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {checkError && (
+                        <div className="pt-2 text-xs text-rose-500 font-medium">
+                          {checkError}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 开源仓库卡片 */}
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/30 space-y-3">
+                      <div>
+                        <h4 className="text-xs font-semibold text-slate-900 dark:text-zinc-100">
+                          {t('settingsModal.repoTitle')}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                          {t('settingsModal.repoDesc')}
+                        </p>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-xs font-mono text-slate-700 dark:text-zinc-300 break-all select-all">
+                        {repoUrl}
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          data-testid="btn-open-repo"
+                          onClick={() => handleOpenUrl(repoUrl)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-medium text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>{t('settingsModal.openRepo')}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          data-testid="btn-copy-repo"
+                          onClick={handleCopyRepoUrl}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-medium text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700 shadow-2xs transition-colors"
+                        >
+                          {copiedRepo ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                              <span className="text-emerald-600 dark:text-emerald-400">{t('settingsModal.copied')}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>{t('settingsModal.copyRepo')}</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
