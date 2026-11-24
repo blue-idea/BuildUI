@@ -119,12 +119,15 @@ export interface I18nDictionary {
     subtitle: string;
     pendingApproval: string;
     approved: string;
+    pendingApprovalBadge: string;
     designDirection: string;
     primaryColor: string;
     theme: string;
     visualElements: string;
     approveBtn: string;
     approvedHint: string;
+    pendingGuidance: string;
+    startBuilding: string;
   };
   workspace: {
     preview: string;

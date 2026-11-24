@@ -399,4 +399,49 @@ describe('WorkspacePanel Code Review Layout', () => {
       expect(screen.getByTestId('local-edit-popover')).toBeDefined();
     });
   });
+
+  describe('Blueprint Pending Guidance State', () => {
+    const mockPendingBlueprint = {
+      chatId: 42,
+      appName: 'Travel Explorer',
+      designDirection: 'OLED dark theme',
+      primaryColor: '#ff2d55',
+      themeId: 'default',
+      visuals: [],
+      approved: false,
+    };
+
+    it('当蓝图未审批时展示引导卡片与批准按钮，并不加载未生成的预览 iframe', () => {
+      const onApprove = vi.fn();
+      renderWorkspace(
+        <WorkspacePanel
+          previewUrl="http://localhost:8081"
+          blueprint={mockPendingBlueprint}
+          onApproveBlueprint={onApprove}
+        />
+      );
+
+      const guidance = screen.getByTestId('blueprint-pending-guidance');
+      expect(guidance).toBeDefined();
+      expect(screen.getByText('Travel Explorer')).toBeDefined();
+      expect(screen.getByText(/Blueprint Pending/i)).toBeDefined();
+      expect(screen.queryByTitle('App live preview')).toBeNull();
+
+      const approveBtn = screen.getByTestId('preview-approve-blueprint-btn');
+      fireEvent.click(approveBtn);
+      expect(onApprove).toHaveBeenCalledWith(42);
+    });
+
+    it('当蓝图审批通过后，引导卡片消失并恢复渲染正常预览 iframe', () => {
+      renderWorkspace(
+        <WorkspacePanel
+          previewUrl="http://localhost:8081"
+          blueprint={{ ...mockPendingBlueprint, approved: true }}
+        />
+      );
+
+      expect(screen.queryByTestId('blueprint-pending-guidance')).toBeNull();
+      expect(screen.getByTitle('App live preview')).toBeDefined();
+    });
+  });
 });

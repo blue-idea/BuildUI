@@ -23,7 +23,7 @@ const nativeScaffold = `<scaffold_baseline>
 `
 
 const nativeRouterScaffold = `<routing>
-Use Expo Router with expo-router/entry, src/app/_layout.tsx, and file-based routes in src/app. Keep reusable components outside src/app. Use Stack and Tabs where the screen hierarchy calls for them. Wire every visible navigation control to a real destination or action.
+Use Expo Router with expo-router/entry, src/app/_layout.tsx, and file-based routes in src/app. Keep reusable components outside src/app. Use Stack and Tabs where the screen hierarchy calls for them. When using a (tabs) route group, rewrite src/app/index.tsx with <Redirect href="/(tabs)" /> from expo-router to redirect root traffic to the tabs. Never leave the placeholder HomeScreen in src/app/index.tsx. Wire every visible navigation control to a real destination or action.
 </routing>
 `
 

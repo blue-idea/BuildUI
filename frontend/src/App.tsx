@@ -1620,6 +1620,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
 
         {/* 右侧：三态工作区 (WorkspacePanel: Preview | Code | Publish) */}
         <WorkspacePanel
+          blueprint={blueprint}
+          onApproveBlueprint={handleApproveBlueprint}
           nativePreview={nativePreview}
           activeView={workspaceView}
           onViewChange={setWorkspaceView}

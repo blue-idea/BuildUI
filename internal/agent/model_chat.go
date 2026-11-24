@@ -15,6 +15,7 @@ import (
 	"buildui/internal/db"
 	"buildui/internal/errs"
 	"buildui/internal/llm"
+	"buildui/internal/scaffold"
 	"buildui/internal/workspace"
 )
 
@@ -334,6 +335,11 @@ func (s *ChatService) streamBuildStep(ctx context.Context, chatID int64, root st
 }
 
 func (s *ChatService) finalizeModelBuild(ctx context.Context, req StreamChatRequest, root, model, display string, changed, completeBuild bool) error {
+	if workspace.UsesExpo(root) {
+		if err := scaffold.AutoHealNativeRouterEntry(root); err == nil {
+			changed = true
+		}
+	}
 	s.emitProgress(req.ChatID, "Saving generated changes…")
 	commitHash := s.commitBuild(ctx, req.ChatID, root, changed)
 	if err := ctx.Err(); err != nil {

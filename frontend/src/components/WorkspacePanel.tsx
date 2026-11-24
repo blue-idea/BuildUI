@@ -15,6 +15,8 @@ import {
   Scan,
   AlertCircle,
   AlertTriangle,
+  Clock,
+  Sparkles,
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { FileTree } from './FileTree';
@@ -23,6 +25,7 @@ import { ComponentInspector } from './ComponentInspector';
 import { locateCodeRegion } from '../utils/sourceLocator';
 import type { InspectedElement } from '../types/inspect';
 import type { DiagnosticItem } from '../services/wailsBridge';
+import type { BlueprintDTO } from './BlueprintCard';
 
 export function resolveNavigationUrl(rawInput: string, basePreviewUrl: string): string {
   const trimmed = rawInput.trim();
@@ -72,6 +75,8 @@ export interface WorkspacePanelProps {
   previewActionsDisabled?: boolean;
   onOpenExternal?: () => void;
   onPublish?: () => void;
+  blueprint?: BlueprintDTO | null;
+  onApproveBlueprint?: (chatId: number) => void;
 }
 
 export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
@@ -99,6 +104,8 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   previewActionsDisabled = false,
   onOpenExternal,
   onPublish,
+  blueprint,
+  onApproveBlueprint,
 }) => {
   const { t } = useI18n();
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
@@ -481,6 +488,38 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                 <span role="status" className="text-sm font-medium text-slate-500 dark:text-zinc-400">
                   {loadingMessage || t('workspace.startingApp')}
                 </span>
+              </div>
+            ) : blueprint && !blueprint.approved ? (
+              <div
+                data-testid="blueprint-pending-guidance"
+                className={device
+                  ? 'shrink-0 overflow-hidden rounded-2xl bg-slate-900 text-white shadow-lg ring-1 ring-white/10 flex flex-col items-center justify-center p-6 text-center select-none'
+                  : 'max-w-md w-full rounded-2xl border border-slate-200/80 bg-white/95 p-6 text-center shadow-lg backdrop-blur-md select-none dark:border-zinc-800 dark:bg-zinc-900/95'}
+                style={device ? { width: device.width * phoneScale, height: device.height * phoneScale } : undefined}
+              >
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 dark:bg-amber-400/10 dark:text-amber-400 ring-1 ring-amber-500/20">
+                  <Clock className="h-7 w-7" />
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 mb-3">
+                  {t('blueprint.pendingApprovalBadge')}
+                </span>
+                <h3 className="text-base font-semibold text-slate-800 dark:text-zinc-100">
+                  {blueprint.appName || t('blueprint.subtitle')}
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-zinc-400 px-4">
+                  {t('blueprint.pendingGuidance')}
+                </p>
+                {onApproveBlueprint && (
+                  <button
+                    type="button"
+                    data-testid="preview-approve-blueprint-btn"
+                    onClick={() => onApproveBlueprint(blueprint.chatId)}
+                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-xs font-medium text-white shadow-xs transition-colors hover:bg-purple-700 active:scale-95"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <span>{t('blueprint.startBuilding')}</span>
+                  </button>
+                )}
               </div>
             ) : previewDoc || previewUrl ? (
               <div

@@ -9,7 +9,7 @@
 ## 当前活跃 Version
 
 ```yaml
-current_version: v24     # → Agent 替换 {{VERSION}} 时取此值
+current_version: v25     # → Agent 替换 {{VERSION}} 时取此值
 ```
 
 ---
@@ -41,6 +41,7 @@ current_version: v24     # → Agent 替换 {{VERSION}} 时取此值
 | v21 | finished | `docs/spec/versions/v21-finished/` | 第二十一版本：多应用类型（Web / App / Desktop）定制风格提取、专属提示词增强与模版类型标注 |
 | v22 | finished | `docs/spec/versions/v22-finished/` | 第二十二版本已圆满收官：App 的 Expo React Native 生成、构建、修复与预览 |
 | v23 | finished | `docs/spec/versions/v23-finished/` | 第二十三版本已圆满收官：风格与设计中心经典 App/Desktop 风格扩充，首页设计预设按 App/Desktop/Web 分类显示 |
+| v24 | finished | `docs/spec/versions/v24-finished/` | 第二十四版本已圆满收官：Native 移动端路由自愈保障、Expo Router 路由重定向约束与预览区蓝图待审批视觉引导 |
 
 ---
 

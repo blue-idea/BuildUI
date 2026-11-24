@@ -3,6 +3,7 @@ package scaffold_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"buildui/internal/scaffold"
@@ -38,4 +39,87 @@ func TestPrepareExpoPreview(t *testing.T) {
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Fatalf("preview runtime still exists: %v", err)
 	}
+}
+
+func TestAutoHealNativeRouterEntry(t *testing.T) {
+	t.Run("heals placeholder index when tabs exist", func(t *testing.T) {
+		project := t.TempDir()
+		tabsDir := filepath.Join(project, "src", "app", "(tabs)")
+		if err := os.MkdirAll(tabsDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		indexPath := filepath.Join(project, "src", "app", "index.tsx")
+		placeholder := `import { Text } from 'react-native';
+export default function HomeScreen() {
+  return <Text>Your app is ready to build.</Text>;
+}`
+		if err := os.WriteFile(indexPath, []byte(placeholder), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := scaffold.AutoHealNativeRouterEntry(project); err != nil {
+			t.Fatalf("AutoHealNativeRouterEntry failed: %v", err)
+		}
+
+		healed, err := os.ReadFile(indexPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(healed), `<Redirect href="/(tabs)" />`) {
+			t.Fatalf("expected redirect to (tabs), got: %s", string(healed))
+		}
+	})
+
+	t.Run("does not overwrite customized index", func(t *testing.T) {
+		project := t.TempDir()
+		tabsDir := filepath.Join(project, "src", "app", "(tabs)")
+		if err := os.MkdirAll(tabsDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		indexPath := filepath.Join(project, "src", "app", "index.tsx")
+		custom := `import { View } from 'react-native';
+export default function CustomHome() {
+  return <View testID="custom-landing" />;
+}`
+		if err := os.WriteFile(indexPath, []byte(custom), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := scaffold.AutoHealNativeRouterEntry(project); err != nil {
+			t.Fatalf("AutoHealNativeRouterEntry failed: %v", err)
+		}
+
+		content, err := os.ReadFile(indexPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(content) != custom {
+			t.Fatalf("custom index should not be overwritten, got: %s", string(content))
+		}
+	})
+
+	t.Run("does nothing when no tabs directory", func(t *testing.T) {
+		project := t.TempDir()
+		appDir := filepath.Join(project, "src", "app")
+		if err := os.MkdirAll(appDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		indexPath := filepath.Join(appDir, "index.tsx")
+		placeholder := `Your app is ready to build.`
+		if err := os.WriteFile(indexPath, []byte(placeholder), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := scaffold.AutoHealNativeRouterEntry(project); err != nil {
+			t.Fatalf("AutoHealNativeRouterEntry failed: %v", err)
+		}
+
+		content, err := os.ReadFile(indexPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(content) != placeholder {
+			t.Fatalf("placeholder should remain if tabs directory does not exist, got: %s", string(content))
+		}
+	})
 }

@@ -23,7 +23,7 @@ func TestNativeDesignContextMatchesProjectEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	router := projectStackContext(root)
-	for _, term := range []string{"Expo Router", "Font Awesome", "390×844", "360×800", "48×48", "one core task", "completed actions"} {
+	for _, term := range []string{"Expo Router", "Font Awesome", "390×844", "360×800", "48×48", "one core task", "completed actions", `Redirect href="/(tabs)"`} {
 		if !strings.Contains(router, term) {
 			t.Errorf("native context is missing %q", term)
 		}
