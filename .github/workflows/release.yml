@@ -243,3 +243,4 @@ jobs:
           git add -- "$CASK_PATH"
           git commit -m "bump: update BuildUI to $RELEASE_TAG"
           git push "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPOSITORY}.git" HEAD:main
+

@@ -14,3 +14,4 @@
 > xattr -cr /Applications/BuildUI.app
 > ```
 > </details>
+

@@ -58,3 +58,4 @@ echo "✅ Installation Success / 安装成功！"
 echo "You can now launch BuildUI from your Applications folder."
 echo "你现在可以在【应用程序】中直接运行并使用 BuildUI。"
 echo "========================================================"
+
