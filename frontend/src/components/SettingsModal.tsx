@@ -105,6 +105,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     return initialSettings['workspace.dir'] || defaultWorkspaceDir;
   });
 
+  // 记忆窗口大小偏好（默认开启，即 !== 'false'）
+  const [rememberWindowSize, setRememberWindowSize] = useState<boolean>(() => {
+    return initialSettings['window.remember_size'] !== 'false';
+  });
+
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -174,6 +179,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       });
     }
     setWorkspaceDir(parsed['workspace.dir'] || defaultWorkspaceDir);
+    setRememberWindowSize(parsed['window.remember_size'] !== 'false');
   }, [serializedSettings, defaultWorkspaceDir]);
 
   if (!isOpen) return null;
@@ -329,6 +335,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (onSave) {
         const payload = serializeProviders(latestProviders, activeProvider, {
           'workspace.dir': workspaceDir.trim(),
+          'window.remember_size': rememberWindowSize ? 'true' : 'false',
         });
         await onSave(payload);
       }
@@ -933,6 +940,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           <span>English</span>
                         </button>
                       </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+                      <div className="space-y-0.5 pr-4">
+                        <label
+                          htmlFor="switch-remember-window-size"
+                          className="text-xs font-medium text-slate-700 dark:text-zinc-300 cursor-pointer"
+                        >
+                          {t('settingsModal.rememberWindowSize')}
+                        </label>
+                        <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                          {t('settingsModal.rememberWindowSizeDesc')}
+                        </p>
+                      </div>
+                      <button
+                        id="switch-remember-window-size"
+                        data-testid="switch-remember-window-size"
+                        type="button"
+                        role="switch"
+                        aria-checked={rememberWindowSize}
+                        onClick={() => setRememberWindowSize(!rememberWindowSize)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2 ${
+                          rememberWindowSize ? 'bg-blue-600' : 'bg-slate-200 dark:bg-zinc-700'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                            rememberWindowSize ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
                     </div>
                   </div>
                 )}

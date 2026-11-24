@@ -5,7 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -13,6 +15,7 @@ import (
 	"buildui/internal/app"
 	"buildui/internal/app/runner"
 	"buildui/internal/blueprint"
+	"buildui/internal/config"
 	"buildui/internal/db"
 	"buildui/internal/errs"
 	"buildui/internal/export"
@@ -61,11 +64,8 @@ func NewApp() *App {
 	return &App{}
 }
 
-// startup 在应用启动时调用
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
-
-	// 确定数据存储目录（默认在用户配置目录下的 buildui 目录）
+// GetAppDataDir 获取应用数据存储目录
+func GetAppDataDir() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = "."
@@ -74,6 +74,80 @@ func (a *App) startup(ctx context.Context) {
 	if devDataDir := os.Getenv("BLOT_DEV_USER_DATA_DIR"); devDataDir != "" {
 		appDataDir = devDataDir
 	}
+	return appDataDir
+}
+
+// GetInitialWindowSize 读取数据库中持久化的启动窗口尺寸
+func (a *App) GetInitialWindowSize() (int, int) {
+	appDataDir := GetAppDataDir()
+	dbPath := filepath.Join(appDataDir, "buildui.db")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		return config.DefaultWindowWidth, config.DefaultWindowHeight
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	database, err := db.Open(ctx, dbPath)
+	if err != nil {
+		return config.DefaultWindowWidth, config.DefaultWindowHeight
+	}
+	defer database.Close()
+
+	settingsRepo := db.NewSettingsRepository(database)
+	allSettings, err := settingsRepo.GetAll(ctx)
+	if err != nil {
+		return config.DefaultWindowWidth, config.DefaultWindowHeight
+	}
+
+	size := settings.ResolveStartupWindowSize(allSettings)
+	return size.Width, size.Height
+}
+
+// SaveWindowSize 保存当前窗口尺寸（当开启记忆时生效）
+func (a *App) SaveWindowSize(width, height int) error {
+	if a.settingsService == nil {
+		return nil
+	}
+	ctx := a.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	allSettings, err := a.settingsService.GetSettings(ctx)
+	if err != nil {
+		return err
+	}
+	if !settings.ShouldRememberWindowSize(allSettings) {
+		return nil
+	}
+	size, valid := settings.ValidateAndNormalizeWindowSize(width, height)
+	if !valid {
+		return nil
+	}
+	return a.settingsService.SaveSettings(ctx, map[string]string{
+		config.KeyWindowWidth:  strconv.Itoa(size.Width),
+		config.KeyWindowHeight: strconv.Itoa(size.Height),
+	})
+}
+
+// beforeClose 在应用退出或关闭窗口时触发生命周期钩子
+func (a *App) beforeClose(ctx context.Context) (prevent bool) {
+	targetCtx := ctx
+	if targetCtx == nil {
+		targetCtx = a.ctx
+	}
+	if targetCtx != nil {
+		w, h := runtime.WindowGetSize(targetCtx)
+		_ = a.SaveWindowSize(w, h)
+	}
+	return false
+}
+
+// startup 在应用启动时调用
+func (a *App) startup(ctx context.Context) {
+	a.ctx = ctx
+
+	appDataDir := GetAppDataDir()
 	_ = os.MkdirAll(appDataDir, 0755)
 
 	dbPath := filepath.Join(appDataDir, "buildui.db")
@@ -118,6 +192,14 @@ func (a *App) startup(ctx context.Context) {
 		go func() {
 			_, _ = a.updaterService.CheckAndNotify(a.ctx)
 		}()
+
+		// 若启用了记忆，在 startup 确保窗口尺寸同步
+		if allSettings, err := settingsRepo.GetAll(ctx); err == nil {
+			size := settings.ResolveStartupWindowSize(allSettings)
+			if size.Width != config.DefaultWindowWidth || size.Height != config.DefaultWindowHeight {
+				runtime.WindowSetSize(ctx, size.Width, size.Height)
+			}
+		}
 	}
 }
 

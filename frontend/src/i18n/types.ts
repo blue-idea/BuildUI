@@ -224,6 +224,8 @@ export interface I18nDictionary {
     themeModeDark: string;
     generalTitle: string;
     generalDesc: string;
+    rememberWindowSize: string;
+    rememberWindowSizeDesc: string;
     aboutTitle: string;
     aboutDesc: string;
     currentVersionLabel: string;

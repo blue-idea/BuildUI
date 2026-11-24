@@ -224,6 +224,8 @@ export const zh: I18nDictionary = {
     themeModeDark: '深色模式',
     generalTitle: '通用偏好',
     generalDesc: '设置界面显示语言与基础运行环境偏好。',
+    rememberWindowSize: '记忆窗口大小',
+    rememberWindowSizeDesc: '退出应用时记住当前窗口尺寸，并在下次启动时恢复',
     aboutTitle: '版本与更新',
     aboutDesc: '查看软件版本、在线检测最新版本及访问官方开源仓库。',
     currentVersionLabel: '当前版本',

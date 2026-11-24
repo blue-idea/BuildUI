@@ -13,16 +13,18 @@ var assets embed.FS
 
 func main() {
 	app := NewApp()
+	w, h := app.GetInitialWindowSize()
 
 	err := wails.Run(&options.App{
 		Title:  "Blot-UI",
-		Width:  1280,
-		Height: 800,
+		Width:  w,
+		Height: h,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,
+		OnBeforeClose:    app.beforeClose,
 		OnShutdown:       app.shutdown,
 		Bind: []interface{}{
 			app,

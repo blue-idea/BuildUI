@@ -224,6 +224,8 @@ export const en: I18nDictionary = {
     themeModeDark: 'Dark Mode',
     generalTitle: 'General Preferences',
     generalDesc: 'Interface language and system environment preferences.',
+    rememberWindowSize: 'Remember window size',
+    rememberWindowSizeDesc: 'Save the window size upon exit and restore it on next launch',
     aboutTitle: 'Version & Updates',
     aboutDesc: 'View software version, check for updates, and access the open source repository.',
     currentVersionLabel: 'Current Version',

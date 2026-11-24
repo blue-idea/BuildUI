@@ -229,3 +229,54 @@ func TestApp_ExtractStyle(t *testing.T) {
 		t.Fatalf("expected configure model error, got: %v", err)
 	}
 }
+
+func TestApp_WindowSizeMemory(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("BLOT_DEV_USER_DATA_DIR", tmpDir)
+
+	a := NewApp()
+
+	// 1. 数据库未初始化或空配置时，获取初始尺寸应返回默认 1280x800
+	w, h := a.GetInitialWindowSize()
+	if w != 1280 || h != 800 {
+		t.Fatalf("expected default (1280, 800), got (%d, %d)", w, h)
+	}
+
+	// 2. 初始化应用并启动
+	ctx := t.Context()
+	a.startup(ctx)
+	defer a.shutdown(ctx)
+
+	// 3. 保存窗口尺寸 1600x1000（记忆默认开启）
+	err := a.SaveWindowSize(1600, 1000)
+	if err != nil {
+		t.Fatalf("SaveWindowSize failed: %v", err)
+	}
+
+	// 4. 重启实例前检查 GetInitialWindowSize
+	w, h = a.GetInitialWindowSize()
+	if w != 1600 || h != 1000 {
+		t.Fatalf("expected remembered size (1600, 1000), got (%d, %d)", w, h)
+	}
+
+	// 5. 关闭记忆开关
+	err = a.SaveSettings(map[string]string{
+		"window.remember_size": "false",
+	})
+	if err != nil {
+		t.Fatalf("SaveSettings failed: %v", err)
+	}
+
+	// 6. 当记忆开关关闭时，GetInitialWindowSize 应回退到默认 1280x800
+	w, h = a.GetInitialWindowSize()
+	if w != 1280 || h != 800 {
+		t.Fatalf("expected fallback (1280, 800) when remember disabled, got (%d, %d)", w, h)
+	}
+
+	// 7. 当记忆开关关闭时，调用 SaveWindowSize 不应更新尺寸
+	_ = a.SaveWindowSize(1920, 1080)
+	w, h = a.GetInitialWindowSize()
+	if w != 1280 || h != 800 {
+		t.Fatalf("expected still default (1280, 800), got (%d, %d)", w, h)
+	}
+}

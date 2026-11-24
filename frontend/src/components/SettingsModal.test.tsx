@@ -404,4 +404,76 @@ describe('SettingsModal', () => {
       'https://github.com/blue-idea/BuildUI/releases/download/v0.2.0/BuildUI.dmg'
     );
   });
+
+  it('renders remember window size option in General tab with default true and saves correctly', async () => {
+    const handleSave = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        onSave={handleSave}
+      />
+    );
+
+    // 切换到通用偏好选项卡
+    const generalNav = screen.getByTestId('settings-nav-general');
+    fireEvent.click(generalNav);
+
+    // 验证记忆窗口大小开关存在并默认开启
+    const toggle = screen.getByTestId('switch-remember-window-size');
+    expect(toggle).toBeDefined();
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+
+    // 点击保存，验证 payload 包含 window.remember_size: 'true'
+    const saveBtn = screen.getByRole('button', { name: 'Save Settings' });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'window.remember_size': 'true',
+        })
+      );
+    });
+  });
+
+  it('honors initial false setting and allows toggling remember window size', async () => {
+    const handleSave = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SettingsModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialSettings={{
+          'window.remember_size': 'false',
+        }}
+        onSave={handleSave}
+      />
+    );
+
+    // 切换到通用偏好选项卡
+    const generalNav = screen.getByTestId('settings-nav-general');
+    fireEvent.click(generalNav);
+
+    // 验证开关初始为关闭状态
+    const toggle = screen.getByTestId('switch-remember-window-size');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+    // 点击开关切换为开启
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+
+    // 保存设置
+    const saveBtn = screen.getByRole('button', { name: 'Save Settings' });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(handleSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          'window.remember_size': 'true',
+        })
+      );
+    });
+  });
 });
