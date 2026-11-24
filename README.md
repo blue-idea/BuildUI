@@ -74,7 +74,43 @@ graph TD
 
 ---
 
-## 3. 技术选型矩阵
+## 3. 🍎 安装指南 (macOS)
+
+### 推荐：使用 Homebrew 安装
+
+通过 Homebrew Tap 安装是 macOS 平台最便捷的方式（自动处理 Gatekeeper 隔离属性）：
+
+```bash
+brew install blue-idea/tap/buildui
+```
+
+升级到最新版本：
+```bash
+brew upgrade buildui
+```
+
+卸载：
+```bash
+brew uninstall --cask buildui
+```
+
+### 一键脚本安装（无需 Homebrew）
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/blue-idea/BuildUI/main/scripts/install-mac.sh)"
+```
+
+### 手动安装 DMG
+
+前往 [GitHub Releases](https://github.com/blue-idea/BuildUI/releases) 下载 `BuildUI.dmg`，将 `BuildUI.app` 拖入 `/Applications` 目录后运行：
+
+```bash
+xattr -cr /Applications/BuildUI.app
+```
+
+---
+
+## 4. 技术选型矩阵
 
 | 领域 | 选型 | 版本要求 | 说明 |
 | :--- | :--- | :--- | :--- |

@@ -1,0 +1,6 @@
+{
+  "tapRepository": "blue-idea/homebrew-tap",
+  "releaseRepository": "blue-idea/BuildUI",
+  "caskRelativePath": "Casks/buildui.rb",
+  "releaseAsset": "BuildUI.dmg"
+}

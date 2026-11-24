@@ -1,0 +1,245 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (e.g. v0.1.0)
+        required: false
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: '1.26'
+  PNPM_VERSION: '10.33.0'
+  WAILS_VERSION: v2.13.0
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            platform: darwin/universal
+            os: macos
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            os: linux
+            deb_arch: amd64
+          - runner: windows-latest
+            platform: windows/amd64
+            os: windows
+
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine Release Tag
+        shell: bash
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "Release tag must match vX.Y.Z or vX.Y.Z.W" >&2
+            exit 1
+          fi
+          CLEAN_VERSION="${TAG#v}"
+          echo "RELEASE_TAG=${TAG}" >> $GITHUB_ENV
+          echo "CLEAN_VERSION=${CLEAN_VERSION}" >> $GITHUB_ENV
+
+      - name: Install Linux build dependencies
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev xdg-utils xvfb
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm --dir frontend install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm --dir frontend build
+
+      - name: Build Wails desktop app (macOS)
+        if: matrix.os == 'macos'
+        run: go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build -clean -platform ${{ matrix.platform }}
+
+      - name: Build DMG (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          mkdir -p build/bin/dmg_root
+          cp -R build/bin/BuildUI.app build/bin/dmg_root/
+          ln -s /Applications build/bin/dmg_root/Applications
+          hdiutil create -volname "BuildUI" -srcfolder build/bin/dmg_root -ov -format UDZO build/bin/BuildUI.dmg
+          rm -rf build/bin/dmg_root
+
+      - name: Verify release artifacts (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          test -f "build/bin/BuildUI.dmg"
+          binary="$(find build/bin/BuildUI.app/Contents/MacOS -type f -perm -111 | head -n 1)"
+          test -n "$binary"
+
+      - name: Build Wails desktop app (Linux)
+        if: matrix.os == 'linux'
+        run: xvfb-run -a go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build -clean -platform ${{ matrix.platform }} -tags webkit2_41
+
+      - name: Copy architecture-specific binary (Linux)
+        if: matrix.os == 'linux'
+        run: cp build/bin/buildui build/bin/buildui-${{ matrix.deb_arch }}
+
+      - name: Verify release artifacts (Linux)
+        if: matrix.os == 'linux'
+        run: test -x "build/bin/buildui-${{ matrix.deb_arch }}"
+
+      - name: Build Wails desktop app (Windows)
+        if: matrix.os == 'windows'
+        shell: bash
+        run: go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build -clean -platform ${{ matrix.platform }}
+
+      - name: Verify release artifacts (Windows)
+        if: matrix.os == 'windows'
+        shell: bash
+        run: |
+          test -f "build/bin/buildui.exe"
+          cp build/bin/buildui.exe build/bin/buildui-windows-amd64.exe
+
+      - name: Upload macOS artifacts
+        if: matrix.os == 'macos'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="${{ env.RELEASE_TAG }} - AI Native App Builder"
+          BODY=""
+          if [ -f .github/mac-install-notice.md ]; then
+            BODY="$(cat .github/mac-install-notice.md)"
+          fi
+          gh release view "${{ env.RELEASE_TAG }}" >/dev/null 2>&1 || gh release create "${{ env.RELEASE_TAG }}" --title "$TITLE" --notes "$BODY" || true
+          gh release upload "${{ env.RELEASE_TAG }}" build/bin/BuildUI.dmg --clobber
+
+      - name: Upload Linux artifacts
+        if: matrix.os == 'linux'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ env.RELEASE_TAG }}" >/dev/null 2>&1 || gh release create "${{ env.RELEASE_TAG }}" --generate-notes || true
+          gh release upload "${{ env.RELEASE_TAG }}" build/bin/buildui-${{ matrix.deb_arch }} --clobber
+
+      - name: Upload Windows artifacts
+        if: matrix.os == 'windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ env.RELEASE_TAG }}" >/dev/null 2>&1 || gh release create "${{ env.RELEASE_TAG }}" --generate-notes || true
+          gh release upload "${{ env.RELEASE_TAG }}" build/bin/buildui-windows-amd64.exe --clobber
+
+  update-homebrew-tap:
+    name: Update Homebrew Tap
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Determine Release Tag
+        shell: bash
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "Release tag must match vX.Y.Z or vX.Y.Z.W" >&2
+            exit 1
+          fi
+          echo "RELEASE_TAG=${TAG}" >> "$GITHUB_ENV"
+
+      - name: Load Homebrew Tap config
+        id: tap-config
+        shell: bash
+        run: |
+          echo "tap_repository=$(jq -r '.tapRepository' config/homebrew-tap.json)" >> "$GITHUB_OUTPUT"
+          echo "release_repository=$(jq -r '.releaseRepository' config/homebrew-tap.json)" >> "$GITHUB_OUTPUT"
+          echo "cask_path=$(jq -r '.caskRelativePath' config/homebrew-tap.json)" >> "$GITHUB_OUTPUT"
+          echo "release_asset=$(jq -r '.releaseAsset' config/homebrew-tap.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Homebrew Tap
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.tap-config.outputs.tap_repository }}
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          path: homebrew-tap-repository
+
+      - name: Download published DMG and calculate SHA256
+        id: release-asset
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: ${{ steps.tap-config.outputs.release_repository }}
+          RELEASE_ASSET: ${{ steps.tap-config.outputs.release_asset }}
+        run: |
+          mkdir -p release-assets
+          gh release download "$RELEASE_TAG" \
+            --repo "$RELEASE_REPOSITORY" \
+            --pattern "$RELEASE_ASSET" \
+            --dir release-assets
+          test -s "release-assets/$RELEASE_ASSET"
+          SHA256="$(sha256sum "release-assets/$RELEASE_ASSET" | awk '{print $1}')"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew Cask
+        shell: bash
+        env:
+          CASK_PATH: ${{ steps.tap-config.outputs.cask_path }}
+          DMG_SHA256: ${{ steps.release-asset.outputs.sha256 }}
+        run: |
+          node scripts/update-homebrew-cask.mjs \
+            --cask "homebrew-tap-repository/$CASK_PATH" \
+            --tag "$RELEASE_TAG" \
+            --sha256 "$DMG_SHA256"
+
+      - name: Commit and push Homebrew Cask
+        shell: bash
+        env:
+          CASK_PATH: ${{ steps.tap-config.outputs.cask_path }}
+          TAP_REPOSITORY: ${{ steps.tap-config.outputs.tap_repository }}
+          TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          cd homebrew-tap-repository
+          if git diff --quiet -- "$CASK_PATH"; then
+            echo "Homebrew Cask is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -- "$CASK_PATH"
+          git commit -m "bump: update BuildUI to $RELEASE_TAG"
+          git push "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPOSITORY}.git" HEAD:main

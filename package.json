@@ -1,6 +1,6 @@
 {
   "name": "buildui",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Blot-UI Desktop Application",
   "scripts": {
@@ -10,6 +10,7 @@
     "lint:staged": "node frontend/node_modules/lint-staged/bin/lint-staged.js",
     "typecheck": "pnpm --prefix frontend exec tsc -p tsconfig.json --noEmit",
     "test": "pnpm --prefix frontend test",
+    "test:scripts": "node --test scripts/update-homebrew-cask.test.mjs",
     "build": "pnpm --prefix frontend build"
   }
 }
