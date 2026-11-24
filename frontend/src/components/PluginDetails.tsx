@@ -29,8 +29,10 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
   const isHTTP = plugin.transport === 'http';
   const title = isHTTP ? 'Headers' : 'Environment variables';
   const keys = (isHTTP ? plugin.headers : plugin.env) ?? [];
-  const requiredHeader = isHTTP ? getCatalogPlugin(plugin.catalogId)?.requiredHeader : undefined;
-  const missingHeader = requiredHeader && !keys.some((key) => key.toLowerCase() === requiredHeader.toLowerCase());
+  const catalogCredential = getCatalogPlugin(plugin.catalogId)?.credential;
+  const credential = catalogCredential?.transport === plugin.transport ? catalogCredential : undefined;
+  const normalizeCredentialName = (key: string) => isHTTP ? key.toLowerCase() : key;
+  const unconfiguredCredential = credential && !keys.some((key) => normalizeCredentialName(key) === normalizeCredentialName(credential.name)) ? credential : undefined;
 
   async function perform(work: (api: NonNullable<ReturnType<typeof pluginBridge>>) => Promise<void>) {
     const api = pluginBridge();
@@ -104,7 +106,7 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
             </select>
           </label>}
 
-          {isHTTP && !requiredHeader && <section aria-label="OAuth" className="space-y-3 border-b border-slate-200 pb-4 dark:border-zinc-800">
+          {isHTTP && !credential?.required && <section aria-label="OAuth" className="space-y-3 border-b border-slate-200 pb-4 dark:border-zinc-800">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold">OAuth</h3>
@@ -149,11 +151,11 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
           <section className="space-y-3" aria-label={title}>
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm font-semibold"><KeyRound size={15} />{title}</h3>
-              <button type="button" className={action} disabled={busy || !!draft || plugin.credentialsUnreadable} onClick={() => setDraft({ oldKey: '', key: missingHeader ? requiredHeader : '', value: '' })}><Plus size={13} className="mr-1 inline" />{isHTTP ? 'Add Header' : 'Add Variable'}</button>
+              <button type="button" className={action} disabled={busy || !!draft || plugin.credentialsUnreadable} onClick={() => setDraft({ oldKey: '', key: unconfiguredCredential?.name ?? '', value: '' })}><Plus size={13} className="mr-1 inline" />{isHTTP ? 'Add Header' : 'Add Variable'}</button>
             </div>
             {plugin.credentialsUnreadable && <p className="text-sm text-red-700 dark:text-red-300">Saved credentials could not be decrypted.</p>}
-            {missingHeader && !draft && <p className="text-xs text-slate-500 dark:text-zinc-400">Add your API key as <code>{requiredHeader}</code> to connect.</p>}
-            {!missingHeader && !keys.length && !draft && !plugin.credentialsUnreadable && <p className="text-xs text-slate-500 dark:text-zinc-400">{isHTTP ? 'No headers configured.' : 'No environment variables configured.'}</p>}
+            {unconfiguredCredential && !draft && !plugin.credentialsUnreadable && <p className="text-xs text-slate-500 dark:text-zinc-400">{unconfiguredCredential.hint}</p>}
+            {!unconfiguredCredential && !keys.length && !draft && !plugin.credentialsUnreadable && <p className="text-xs text-slate-500 dark:text-zinc-400">{isHTTP ? 'No headers configured.' : 'No environment variables configured.'}</p>}
             {keys.map((key) => <div key={key} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-zinc-800/70">
               <code className="min-w-0 flex-1 break-all text-xs">{key}</code>
               <button type="button" className={action} disabled={busy || !!draft} aria-label={'Edit ' + key} onClick={() => setDraft({ oldKey: key, key, value: '' })}>Edit</button>
@@ -162,7 +164,7 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
             {draft && <form className="space-y-3 rounded-xl border border-blue-200 p-3 dark:border-blue-900" onSubmit={(e) => { e.preventDefault(); saveCredential(draft); }}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="space-y-1 text-xs font-semibold"><span>Key</span><input className={field} value={draft.key} required disabled={busy} onChange={(e) => setDraft({ ...draft, key: e.target.value })} /></label>
-                <label className="space-y-1 text-xs font-semibold"><span>Value</span><input className={field} type="password" autoComplete="off" value={draft.value} required disabled={busy} onChange={(e) => setDraft({ ...draft, value: e.target.value })} /></label>
+                <label className="space-y-1 text-xs font-semibold"><span>Value</span><input className={field} type="password" autoComplete="off" value={draft.value} placeholder={credential && normalizeCredentialName(draft.key) === normalizeCredentialName(credential.name) ? credential.valuePlaceholder : undefined} required disabled={busy} onChange={(e) => setDraft({ ...draft, value: e.target.value })} /></label>
               </div>
               <div className="flex justify-end gap-2">
                 <button type="button" className={action} disabled={busy} onClick={() => setDraft(null)}>Cancel</button>
@@ -174,7 +176,7 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
           <section className="space-y-3 border-t border-slate-200 pt-4 dark:border-zinc-800">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold">Tools</h3>
-              <button type="button" className={action} disabled={busy || !plugin.enabled || plugin.credentialsUnreadable || !!missingHeader} onClick={discover}>Test connection</button>
+              <button type="button" className={action} disabled={busy || !plugin.enabled || plugin.credentialsUnreadable || !!unconfiguredCredential?.required} onClick={discover}>Test connection</button>
             </div>
             {tools === null ? <p className="text-xs text-slate-500 dark:text-zinc-400">Test the connection to discover available tools.</p> : tools.length === 0 ? <p className="text-xs text-slate-500 dark:text-zinc-400">This server returned no tools.</p> : (
               <div className="max-h-52 space-y-2 overflow-y-auto">

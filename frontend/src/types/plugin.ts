@@ -7,7 +7,13 @@ export interface PluginItem {
   endpoint?: string;
   transport?: PluginConfig['transport'];
   args?: string[];
-  requiredHeader?: string;
+  credential?: {
+    transport: PluginConfig['transport'];
+    name: string;
+    hint: string;
+    valuePlaceholder?: string;
+    required?: boolean;
+  };
   category: 'featured' | 'ai_media' | 'developer' | 'custom';
   iconColor?: string;
   iconBg?: string;

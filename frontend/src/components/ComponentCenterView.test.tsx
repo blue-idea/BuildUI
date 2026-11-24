@@ -19,6 +19,9 @@ describe('ComponentCenterView Component (TDD)', () => {
     ['shadcn', 'Standard input/output (stdio)', 'npx'],
     ['playwright', 'Standard input/output (stdio)', 'npx'],
     ['stitch', 'Streamable HTTP', 'https://stitch.googleapis.com/mcp'],
+    ['github', 'Streamable HTTP', 'https://api.githubcopilot.com/mcp/'],
+    ['cloudflare', 'Streamable HTTP', 'https://mcp.cloudflare.com/mcp'],
+    ['snyk', 'Standard input/output (stdio)', 'npx'],
   ])('预填 %s 的传输和连接地址', async (id, transport, endpoint) => {
     vi.stubGlobal('go', { main: { App: { ListPlugins: vi.fn().mockResolvedValue([]) } } });
     try {
@@ -26,21 +29,28 @@ describe('ComponentCenterView Component (TDD)', () => {
       fireEvent.click(within(await screen.findByTestId('plugin-card-' + id)).getByRole('button', { name: 'Add' }));
       expect((screen.getByLabelText('Transport') as HTMLSelectElement).selectedOptions[0].text).toBe(transport);
       expect((screen.getByLabelText(transport.startsWith('Streamable') ? 'Server URL' : 'Command') as HTMLInputElement).value).toBe(endpoint);
-      if (id === 'shadcn' || id === 'playwright') {
+      if (transport.includes('stdio')) {
         expect((screen.getByLabelText('Arguments') as HTMLInputElement).value).toContain(id);
       }
     } finally { vi.unstubAllGlobals(); }
   });
 
-  it('展示 Stitch 需要的 Header 名称并留空凭据', async () => {
+  it.each([
+    ['stitch', 'http', 'https://stitch.googleapis.com/mcp', 'Add Header', 'X-Goog-Api-Key', true, false],
+    ['github', 'http', 'https://api.githubcopilot.com/mcp/', 'Add Header', 'Authorization', true, false],
+    ['cloudflare', 'http', 'https://mcp.cloudflare.com/mcp', 'Add Header', 'Authorization', false, true],
+    ['snyk', 'stdio', 'npx', 'Add Variable', 'SNYK_TOKEN', false, false],
+  ])('为 %s 预填凭据名并保留可用的认证方式', async (id, transport, endpoint, action, key, blocked, oauth) => {
     vi.stubGlobal('go', { main: { App: { ListPlugins: vi.fn().mockResolvedValue([
-      { id: 1, name: 'Stitch', catalogId: 'stitch', transport: 'http', endpoint: 'https://stitch.googleapis.com/mcp', enabled: true, headers: [] },
+      { id: 1, name: id, catalogId: id, transport, endpoint, enabled: true, headers: [], env: [] },
     ]) } } });
     try {
       renderWithProviders(<ComponentCenterView />);
       fireEvent.click(await screen.findByRole('button', { name: 'Configure' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Add Header' }));
-      expect((screen.getByLabelText('Key') as HTMLInputElement).value).toBe('X-Goog-Api-Key');
+      expect((screen.getByRole('button', { name: 'Test connection' }) as HTMLButtonElement).disabled).toBe(blocked);
+      expect(Boolean(screen.queryByRole('button', { name: 'Sign in with OAuth' }))).toBe(oauth);
+      fireEvent.click(screen.getByRole('button', { name: action }));
+      expect((screen.getByLabelText('Key') as HTMLInputElement).value).toBe(key);
       expect((screen.getByLabelText('Value') as HTMLInputElement).value).toBe('');
     } finally { vi.unstubAllGlobals(); }
   });
