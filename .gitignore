@@ -18,8 +18,10 @@ ehthumbs.db
 *.swp
 *.swo
 
+# Project documentation & specs
+docs/
+
 # Project-level sensitive info & credentials
-docs/spec/info.md
 .env
 .env.*
 !.env.example
