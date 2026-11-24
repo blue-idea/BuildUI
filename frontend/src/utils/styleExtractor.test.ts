@@ -109,27 +109,50 @@ describe('styleExtractor Utility (TDD)', () => {
     expect(webStyle.stylePrompt).toContain('[Platform Architecture Directives: Web]');
   });
 
-  it('includes classic App and Desktop benchmark presets in getBenchmarkThemePresets()', () => {
+  it('includes classic App and Desktop benchmark presets in getBenchmarkThemePresets() without dark backgrounds for App', () => {
     const presets = getBenchmarkThemePresets();
 
-    // 包含经典 App 设计风格
+    // 验证所有 App 预设中已彻底移除纯黑/深黑背景风格
     const iosHealth = presets.find((p) => p.id === 'benchmark-ios-health');
-    expect(iosHealth).toBeDefined();
-    expect(iosHealth?.appType).toBe('app');
-    expect(iosHealth?.tags).toContain('Mobile App');
-    expect(iosHealth?.stylePrompt).toContain('[Platform Architecture Directives: Mobile App]');
-
+    expect(iosHealth).toBeUndefined();
     const threads = presets.find((p) => p.id === 'benchmark-threads');
-    expect(threads).toBeDefined();
-    expect(threads?.appType).toBe('app');
+    expect(threads).toBeUndefined();
+    const cashapp = presets.find((p) => p.id === 'benchmark-cashapp');
+    expect(cashapp).toBeUndefined();
+
+    // 包含补充的经典高品质浅色移动端 App 设计风格
+    const iosClean = presets.find((p) => p.id === 'benchmark-ios-clean');
+    expect(iosClean).toBeDefined();
+    expect(iosClean?.appType).toBe('app');
+    expect(iosClean?.tags).toContain('Mobile App');
+    expect(iosClean?.stylePrompt).toContain('[Platform Architecture Directives: Mobile App]');
+
+    const airbnb = presets.find((p) => p.id === 'benchmark-airbnb-mobile');
+    expect(airbnb).toBeDefined();
+    expect(airbnb?.appType).toBe('app');
+
+    const headspace = presets.find((p) => p.id === 'benchmark-headspace-mobile');
+    expect(headspace).toBeDefined();
+    expect(headspace?.appType).toBe('app');
+
+    const revolut = presets.find((p) => p.id === 'benchmark-revolut-mobile');
+    expect(revolut).toBeDefined();
+    expect(revolut?.appType).toBe('app');
+
+    const notion = presets.find((p) => p.id === 'benchmark-notion-mobile');
+    expect(notion).toBeDefined();
+    expect(notion?.appType).toBe('app');
 
     const duolingo = presets.find((p) => p.id === 'benchmark-duolingo');
     expect(duolingo).toBeDefined();
     expect(duolingo?.appType).toBe('app');
 
-    const cashapp = presets.find((p) => p.id === 'benchmark-cashapp');
-    expect(cashapp).toBeDefined();
-    expect(cashapp?.appType).toBe('app');
+    // 关键守恒定律：所有移动端 App 风格模版的背景绝对不能是深黑/纯黑底色
+    const appPresets = presets.filter((p) => p.appType === 'app');
+    expect(appPresets.length).toBeGreaterThanOrEqual(6);
+    appPresets.forEach((p) => {
+      expect(['#000000', '#101010', '#111111', '#121212']).not.toContain(p.background.toLowerCase());
+    });
 
     // 包含经典 Desktop 客户端设计风格
     const windowsFluent = presets.find((p) => p.id === 'benchmark-windows-fluent');
@@ -153,10 +176,14 @@ describe('styleExtractor Utility (TDD)', () => {
   });
 
   it('matches benchmark preset when extracting classic app or desktop styles by name or alias', () => {
-    const extractedHealth = extractStyleFromReference('Apple Health', false, 'app');
-    expect(extractedHealth.name).toContain('Apple Health');
-    expect(extractedHealth.appType).toBe('app');
-    expect(extractedHealth.stylePrompt).toContain('[Platform Architecture Directives: Mobile App]');
+    const extractedClean = extractStyleFromReference('iOS Clean', false, 'app');
+    expect(extractedClean.name).toContain('iOS Modern Clean');
+    expect(extractedClean.appType).toBe('app');
+    expect(extractedClean.stylePrompt).toContain('[Platform Architecture Directives: Mobile App]');
+
+    const extractedAirbnb = extractStyleFromReference('Airbnb App', false, 'app');
+    expect(extractedAirbnb.name).toContain('Airbnb Mobile');
+    expect(extractedAirbnb.appType).toBe('app');
 
     const extractedFluent = extractStyleFromReference('Windows Fluent', false, 'desktop');
     expect(extractedFluent.name).toContain('Windows Fluent');

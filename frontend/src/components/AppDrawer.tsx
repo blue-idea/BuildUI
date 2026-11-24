@@ -1,12 +1,35 @@
 import React, { useState } from 'react';
 import { useI18n } from '../i18n/I18nContext';
 
+export type ProjectPlatform = 'web' | 'desktop' | 'app';
+
 export interface AppItem {
   id: number;
   name: string;
   path: string;
   createdAt?: string;
+  platform?: ProjectPlatform;
 }
+
+/** 智能推断工程所属平台，未指定时默认安全 fallback 到 web */
+export const inferAppPlatform = (app: Partial<AppItem>): ProjectPlatform => {
+  if (app.platform) return app.platform;
+  const combined = `${app.name || ''} ${app.path || ''}`.toLowerCase();
+  if (combined.includes('desktop') || combined.includes('wails') || combined.includes('electron')) {
+    return 'desktop';
+  }
+  if (
+    combined.includes('app') ||
+    combined.includes('native') ||
+    combined.includes('expo') ||
+    combined.includes('mobile') ||
+    combined.includes('ios') ||
+    combined.includes('android')
+  ) {
+    return 'app';
+  }
+  return 'web';
+};
 
 export interface AppDrawerProps {
   isOpen: boolean;
@@ -15,7 +38,7 @@ export interface AppDrawerProps {
   activeAppId: number;
   onSelectApp: (id: number) => void;
   onCreateApp: () => void;
-  onCreateNamedApp?: (name: string) => Promise<void>;
+  onCreateNamedApp?: (name: string, platform?: ProjectPlatform) => Promise<void> | void;
   busy?: boolean;
   error?: string;
   onOpenTemplates?: () => void;

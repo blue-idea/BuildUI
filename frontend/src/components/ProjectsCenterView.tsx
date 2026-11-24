@@ -13,8 +13,12 @@ import {
   CheckCircle2,
   Pencil,
   Check,
+  Globe,
+  Monitor,
+  Smartphone,
+  LayoutGrid,
 } from 'lucide-react';
-import { AppItem } from './AppDrawer';
+import { AppItem, ProjectPlatform, inferAppPlatform } from './AppDrawer';
 import { useI18n } from '../i18n/I18nContext';
 
 export interface ProjectsCenterViewProps {
@@ -23,7 +27,7 @@ export interface ProjectsCenterViewProps {
   onSelectApp: (id: number) => void;
   onOpenProject?: (id: number) => void;
   onCreateApp: () => void;
-  onCreateNamedApp?: (name: string) => Promise<void> | void;
+  onCreateNamedApp?: (name: string, platform?: ProjectPlatform) => Promise<void> | void;
   onDeleteApp: (id: number) => void;
   onRenameApp?: (id: number, newName: string) => void;
   onOpenTemplates?: () => void;
@@ -47,23 +51,45 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
   error,
 }) => {
   const { t } = useI18n();
+  const [platformFilter, setPlatformFilter] = useState<ProjectPlatform | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectPlatform, setNewProjectPlatform] = useState<ProjectPlatform>('web');
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
 
-  // 过滤工程列表
+  // 按照平台形态（Web、Desktop、App）与搜索关键字联合过滤
   const filteredApps = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return apps;
-    return apps.filter(
-      (app) =>
+    return apps.filter((app) => {
+      const appPlatform = app.platform ?? inferAppPlatform(app);
+      if (platformFilter !== 'all' && appPlatform !== platformFilter) {
+        return false;
+      }
+      if (!q) return true;
+      return (
         app.name.toLowerCase().includes(q) ||
         (app.path && app.path.toLowerCase().includes(q))
-    );
-  }, [apps, searchQuery]);
+      );
+    });
+  }, [apps, platformFilter, searchQuery]);
+
+  // 各平台形态工程数量统计
+  const counts = useMemo(() => {
+    const all = apps.length;
+    let web = 0;
+    let desktop = 0;
+    let app = 0;
+    apps.forEach((a) => {
+      const p = a.platform ?? inferAppPlatform(a);
+      if (p === 'desktop') desktop++;
+      else if (p === 'app') app++;
+      else web++;
+    });
+    return { all, web, desktop, app };
+  }, [apps]);
 
   const handleOpen = (appId: number) => {
     onSelectApp(appId);
@@ -76,12 +102,48 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
     if (!name || busy) return;
 
     if (onCreateNamedApp) {
-      await onCreateNamedApp(name);
+      await onCreateNamedApp(name, newProjectPlatform);
     } else {
       onCreateApp();
     }
     setNewProjectName('');
     setIsCreating(false);
+  };
+
+  const renderPlatformBadge = (platform: ProjectPlatform, appId: number) => {
+    switch (platform) {
+      case 'desktop':
+        return (
+          <span
+            data-testid={`project-platform-badge-${appId}`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60 shrink-0"
+          >
+            <Monitor className="w-3 h-3" />
+            <span>{t('projectsPage.platformDesktop')}</span>
+          </span>
+        );
+      case 'app':
+        return (
+          <span
+            data-testid={`project-platform-badge-${appId}`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 shrink-0"
+          >
+            <Smartphone className="w-3 h-3" />
+            <span>{t('projectsPage.platformApp')}</span>
+          </span>
+        );
+      case 'web':
+      default:
+        return (
+          <span
+            data-testid={`project-platform-badge-${appId}`}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 shrink-0"
+          >
+            <Globe className="w-3 h-3" />
+            <span>{t('projectsPage.platformWeb')}</span>
+          </span>
+        );
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -191,6 +253,113 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
           </div>
         </header>
 
+        {/* 平台分类选项卡：全部、Web 应用、桌面端应用、移动端 App */}
+        <div
+          role="tablist"
+          aria-label="Project platform categories"
+          className="flex items-center gap-2 overflow-x-auto pb-1"
+        >
+          <button
+            type="button"
+            role="tab"
+            data-testid="project-filter-all"
+            aria-selected={platformFilter === 'all'}
+            onClick={() => setPlatformFilter('all')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+              platformFilter === 'all'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>{t('projectsPage.tabAll')}</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                platformFilter === 'all'
+                  ? 'bg-blue-700/80 text-white'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+              }`}
+            >
+              {counts.all}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            data-testid="project-filter-web"
+            aria-selected={platformFilter === 'web'}
+            onClick={() => setPlatformFilter('web')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+              platformFilter === 'web'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>{t('projectsPage.tabWeb')}</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                platformFilter === 'web'
+                  ? 'bg-blue-700/80 text-white'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+              }`}
+            >
+              {counts.web}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            data-testid="project-filter-desktop"
+            aria-selected={platformFilter === 'desktop'}
+            onClick={() => setPlatformFilter('desktop')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+              platformFilter === 'desktop'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+            }`}
+          >
+            <Monitor className="w-3.5 h-3.5" />
+            <span>{t('projectsPage.tabDesktop')}</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                platformFilter === 'desktop'
+                  ? 'bg-purple-700/80 text-white'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+              }`}
+            >
+              {counts.desktop}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            data-testid="project-filter-app"
+            aria-selected={platformFilter === 'app'}
+            onClick={() => setPlatformFilter('app')}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+              platformFilter === 'app'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>{t('projectsPage.tabApp')}</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                platformFilter === 'app'
+                  ? 'bg-emerald-700/80 text-white'
+                  : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+              }`}
+            >
+              {counts.app}
+            </span>
+          </button>
+        </div>
+
         {/* 错误提示条 */}
         {error && (
           <div
@@ -221,7 +390,7 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   id="new-project-input"
                   data-testid="new-project-name-input"
@@ -233,22 +402,68 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
                   placeholder={t('projectsPage.projectNamePlaceholder')}
                   className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
-                <button
-                  type="submit"
-                  data-testid="submit-create-project-btn"
-                  aria-label="Create project"
-                  disabled={busy || !newProjectName.trim()}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
-                >
-                  {t('projectsPage.createProject')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsCreating(false)}
-                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all"
-                >
-                  {t('projectsPage.cancel')}
-                </button>
+
+                {/* 应用形态选择器 */}
+                <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 self-start sm:self-auto select-none">
+                  <button
+                    type="button"
+                    data-testid="new-project-platform-web"
+                    onClick={() => setNewProjectPlatform('web')}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      newProjectPlatform === 'web'
+                        ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold'
+                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    <Globe className="w-3 h-3" />
+                    <span>Web</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="new-project-platform-desktop"
+                    onClick={() => setNewProjectPlatform('desktop')}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      newProjectPlatform === 'desktop'
+                        ? 'bg-white dark:bg-zinc-700 text-purple-600 dark:text-purple-400 shadow-2xs font-semibold'
+                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    <Monitor className="w-3 h-3" />
+                    <span>Desktop</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="new-project-platform-app"
+                    onClick={() => setNewProjectPlatform('app')}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      newProjectPlatform === 'app'
+                        ? 'bg-white dark:bg-zinc-700 text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold'
+                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    <Smartphone className="w-3 h-3" />
+                    <span>App</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    data-testid="submit-create-project-btn"
+                    aria-label="Create project"
+                    disabled={busy || !newProjectName.trim()}
+                    className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
+                  >
+                    {t('projectsPage.createProject')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsCreating(false)}
+                    className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all"
+                  >
+                    {t('projectsPage.cancel')}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -336,15 +551,18 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
                         )}
                       </div>
 
-                      {isActive && (
-                        <span
-                          data-testid={`active-badge-${app.id}`}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 shrink-0"
-                        >
-                          <CheckCircle2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                          <span>{t('projectsPage.activeBadge')}</span>
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {renderPlatformBadge(app.platform ?? inferAppPlatform(app), app.id)}
+                        {isActive && (
+                          <span
+                            data-testid={`active-badge-${app.id}`}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60 shrink-0"
+                          >
+                            <CheckCircle2 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                            <span>{t('projectsPage.activeBadge')}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* 路径信息 */}

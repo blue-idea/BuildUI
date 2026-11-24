@@ -9,7 +9,7 @@
 ## 当前活跃 Version
 
 ```yaml
-current_version: v25     # → Agent 替换 {{VERSION}} 时取此值
+current_version: v28     # → Agent 替换 {{VERSION}} 时取此值
 ```
 
 ---
@@ -42,6 +42,9 @@ current_version: v25     # → Agent 替换 {{VERSION}} 时取此值
 | v22 | finished | `docs/spec/versions/v22-finished/` | 第二十二版本已圆满收官：App 的 Expo React Native 生成、构建、修复与预览 |
 | v23 | finished | `docs/spec/versions/v23-finished/` | 第二十三版本已圆满收官：风格与设计中心经典 App/Desktop 风格扩充，首页设计预设按 App/Desktop/Web 分类显示 |
 | v24 | finished | `docs/spec/versions/v24-finished/` | 第二十四版本已圆满收官：Native 移动端路由自愈保障、Expo Router 路由重定向约束与预览区蓝图待审批视觉引导 |
+| v25 | finished | `docs/spec/versions/v25-finished/` | 第二十五版本已圆满收官：风格页模版列表全项删除功能、事件防误触拦截、活动主题平滑顺延、空状态防御与持久化恢复 |
+| v26 | finished | `docs/spec/versions/v26-finished/` | 第二十六版本已圆满收官：风格与设计中心 App 模版清理全部黑底风格，扩充 5 款经典高品质浅色/暖色移动端 App 设计系统模版 |
+| v27 | finished | `docs/spec/versions/v27-finished/` | 第二十七版本已圆满收官：工程管理页按 Web、Desktop、App 多端形态分类显示、实时筛选与统计，卡片形态 Badge 呈现，新建工程形态智能指定 |
 
 ---
 

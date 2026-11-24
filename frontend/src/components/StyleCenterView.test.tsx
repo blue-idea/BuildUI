@@ -155,21 +155,115 @@ describe('StyleCenterView Component (TDD)', () => {
 
     // 默认展示全部风格（应包含 Web、App 和 Desktop 经典预设）
     expect(screen.getByText('Linear Inspired')).toBeDefined();
-    expect(screen.getByText('Apple Health Inspired')).toBeDefined();
+    expect(screen.getByText('iOS Modern Clean Inspired')).toBeDefined();
+    expect(screen.getByText('Airbnb Mobile Inspired')).toBeDefined();
     expect(screen.getByText('Windows Fluent Inspired')).toBeDefined();
 
-    // 筛选 App
+    // 筛选 App（应展示经典浅色 App 风格，无任何纯黑风格）
     fireEvent.click(screen.getByTestId('style-filter-app'));
-    expect(screen.getByText('Apple Health Inspired')).toBeDefined();
-    expect(screen.getByText('Threads Mobile Inspired')).toBeDefined();
+    expect(screen.getByText('iOS Modern Clean Inspired')).toBeDefined();
+    expect(screen.getByText('Airbnb Mobile Inspired')).toBeDefined();
+    expect(screen.getByText('Headspace Mindful Inspired')).toBeDefined();
+    expect(screen.getByText('Duolingo Mobile Inspired')).toBeDefined();
     expect(screen.queryByText('Linear Inspired')).toBeNull();
     expect(screen.queryByText('Windows Fluent Inspired')).toBeNull();
+    expect(screen.queryByText('Apple Health Inspired')).toBeNull();
+    expect(screen.queryByText('Threads Mobile Inspired')).toBeNull();
 
     // 筛选 Desktop
     fireEvent.click(screen.getByTestId('style-filter-desktop'));
     expect(screen.getByText('Windows Fluent Inspired')).toBeDefined();
     expect(screen.getByText('Slack Workstation Inspired')).toBeDefined();
-    expect(screen.queryByText('Apple Health Inspired')).toBeNull();
+    expect(screen.queryByText('iOS Modern Clean Inspired')).toBeNull();
     expect(screen.queryByText('Linear Inspired')).toBeNull();
+  });
+
+  describe('Universal Delete Button on Template Items (v25 TDD)', () => {
+    it('renders delete buttons for every item in the templates list including built-in presets', () => {
+      renderWithI18n(
+        <StyleCenterView
+          presets={initialPresets}
+          activeThemeId="macos"
+          onSelectTheme={vi.fn()}
+        />
+      );
+
+      // 验证每一个预设项（无论内置还是自定义）均渲染专属删除按钮
+      expect(screen.getByTestId('delete-template-btn-macos')).toBeDefined();
+      expect(screen.getByTestId('delete-template-btn-dark-minimal')).toBeDefined();
+      expect(screen.getByTestId('delete-template-btn-ios-fintech')).toBeDefined();
+    });
+
+    it('deletes item when delete button is clicked and stops event propagation without triggering onSelectTheme', () => {
+      const handleSelectTheme = vi.fn();
+      const handleDeletePreset = vi.fn();
+
+      renderWithI18n(
+        <StyleCenterView
+          presets={initialPresets}
+          activeThemeId="macos"
+          onSelectTheme={handleSelectTheme}
+          onDeleteCustomPreset={handleDeletePreset}
+        />
+      );
+
+      expect(screen.getByText('Dark Minimalist')).toBeDefined();
+
+      // 点击 dark-minimal 的删除按钮
+      const deleteBtn = screen.getByTestId('delete-template-btn-dark-minimal');
+      fireEvent.click(deleteBtn);
+
+      // 验证删除回调被触发，卡片从列表中移除
+      expect(handleDeletePreset).toHaveBeenCalledWith('dark-minimal');
+      expect(screen.queryByText('Dark Minimalist')).toBeNull();
+
+      // 验证没有触发卡片的主题选中逻辑 (stopPropagation 生效)
+      expect(handleSelectTheme).not.toHaveBeenCalled();
+    });
+
+    it('automatically transitions active theme to next available template when deleting active item', () => {
+      const handleSelectTheme = vi.fn();
+
+      renderWithI18n(
+        <StyleCenterView
+          presets={initialPresets}
+          activeThemeId="macos"
+          onSelectTheme={handleSelectTheme}
+        />
+      );
+
+      // 删除当前激活的 macos 模版
+      const deleteActiveBtn = screen.getByTestId('delete-template-btn-macos');
+      fireEvent.click(deleteActiveBtn);
+
+      // 验证自动顺延选中下一个可用主题（dark-minimal）
+      expect(handleSelectTheme).toHaveBeenCalledWith('dark-minimal');
+      expect(screen.queryByText('macOS Tahoe Blue')).toBeNull();
+    });
+
+    it('renders empty state when all templates are deleted and allows restoring defaults', () => {
+      const handleRestore = vi.fn();
+      renderWithI18n(
+        <StyleCenterView
+          presets={[initialPresets[0]]}
+          activeThemeId="macos"
+          onSelectTheme={vi.fn()}
+          onRestoreDefaultPresets={handleRestore}
+        />
+      );
+
+      // 删除唯一的项
+      const deleteBtn = screen.getByTestId('delete-template-btn-macos');
+      fireEvent.click(deleteBtn);
+
+      // 验证渲染空状态
+      expect(screen.getByTestId('style-templates-empty-state')).toBeDefined();
+      expect(screen.getByText(/No style templates available/i)).toBeDefined();
+
+      // 点击恢复默认按钮
+      const restoreBtn = screen.getByTestId('restore-default-presets-btn');
+      fireEvent.click(restoreBtn);
+      expect(handleRestore).toHaveBeenCalled();
+    });
   });
 });

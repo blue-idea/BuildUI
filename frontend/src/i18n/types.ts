@@ -84,6 +84,14 @@ export interface I18nDictionary {
     createdTime: string;
     projectPath: string;
     cancel: string;
+    tabAll: string;
+    tabWeb: string;
+    tabDesktop: string;
+    tabApp: string;
+    platformWeb: string;
+    platformDesktop: string;
+    platformApp: string;
+    newProjectPlatformLabel: string;
   };
   chat: {
     newChat: string;
@@ -285,5 +293,9 @@ export interface I18nDictionary {
     appTypeApp: string;
     appTypeDesktop: string;
     filterAll: string;
+    btnDeleteTemplate: string;
+    emptyTitle: string;
+    emptyDesc: string;
+    btnRestoreDefaults: string;
   };
 }

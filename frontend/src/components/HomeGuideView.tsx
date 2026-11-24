@@ -101,32 +101,32 @@ const DEFAULT_STYLE_PRESETS: StyleOption[] = [
       </span>
     ),
   },
-  // App (移动端) 经典风格
+  // App (移动端) 经典风格（明亮浅色优质设计语言）
   {
-    id: 'apple-health',
-    name: 'Apple Health',
+    id: 'ios-clean',
+    name: 'iOS Modern Clean',
     appType: 'app',
-    desc: 'OLED pure black, activity neon rings, and rounded-2xl touch cards',
+    desc: 'Apple HIG light canvas, squircle cards, and crisp system blue',
     stylePrompt:
-      'Design System & Visual Language Specification: Apple Health. Deep OLED black (#000000) with activity red (#ff2d55) and neon green (#a4ff00) rings, fluid touch layout.',
+      'Design System & Visual Language Specification: iOS Modern Clean. Pristine iOS light canvas (#f2f2f7) with solid white cards (#ffffff), system blue (#007aff) accents, and continuous rounded-2xl touch targets.',
     swatch: (
       <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
-        <span className="w-1/2 h-full bg-[#ff2d55]" />
-        <span className="w-1/2 h-full bg-[#a4ff00]" />
+        <span className="w-1/2 h-full bg-[#007aff]" />
+        <span className="w-1/2 h-full bg-[#34c759]" />
       </span>
     ),
   },
   {
-    id: 'threads-mobile',
-    name: 'Threads Mobile',
+    id: 'airbnb-mobile',
+    name: 'Airbnb Mobile',
     appType: 'app',
-    desc: 'Monochrome minimalist dark feed with soft curved edges',
+    desc: 'Boutique lifestyle cards, Rausch coral highlights, and modern rounded flow',
     stylePrompt:
-      'Design System & Visual Language Specification: Threads Mobile. High-density minimalist social feed with monochrome black surface and rounded-2xl cards.',
+      'Design System & Visual Language Specification: Airbnb Mobile. Crisp white background (#ffffff) with elevated neutral cards (#f7f7f7), iconic Rausch coral (#ff385c), and spacious boutique travel aesthetics.',
     swatch: (
       <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
-        <span className="w-1/2 h-full bg-[#101010]" />
-        <span className="w-1/2 h-full bg-[#f3f5f7]" />
+        <span className="w-1/2 h-full bg-[#ff385c]" />
+        <span className="w-1/2 h-full bg-[#008489]" />
       </span>
     ),
   },

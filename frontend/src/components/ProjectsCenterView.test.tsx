@@ -141,7 +141,7 @@ describe('ProjectsCenterView Component', () => {
     const submitBtn = screen.getByTestId('submit-create-project-btn');
     fireEvent.click(submitBtn);
 
-    expect(onCreateNamedApp).toHaveBeenCalledWith('Fitness Tracker');
+    expect(onCreateNamedApp).toHaveBeenCalledWith('Fitness Tracker', 'web');
   });
 
   it('triggers onDeleteApp when clicking delete button', () => {
@@ -240,5 +240,131 @@ describe('ProjectsCenterView Component', () => {
     expect(screen.getByText('工程管理')).toBeDefined();
     expect(screen.getByText('当前激活')).toBeDefined();
     expect(screen.getByTestId('new-project-btn').textContent).toContain('新建工程');
+  });
+
+  describe('Multi-Platform Filtering (Web / Desktop / App) - v27 TDD', () => {
+    const multiPlatformApps: AppItem[] = [
+      {
+        id: 1,
+        name: 'Web SaaS Dashboard',
+        path: '/workspace/web-saas',
+        platform: 'web',
+      },
+      {
+        id: 2,
+        name: 'Desktop Audio Workstation',
+        path: '/workspace/desktop-audio',
+        platform: 'desktop',
+      },
+      {
+        id: 3,
+        name: 'Mobile Crypto App',
+        path: '/workspace/mobile-crypto',
+        platform: 'app',
+      },
+    ];
+
+    it('renders platform category filter pills (All, Web, Desktop, App) with counts', () => {
+      renderWithProviders(
+        <ProjectsCenterView
+          apps={multiPlatformApps}
+          activeAppId={1}
+          onSelectApp={vi.fn()}
+          onCreateApp={vi.fn()}
+          onDeleteApp={vi.fn()}
+        />
+      );
+
+      expect(screen.getByTestId('project-filter-all')).toBeDefined();
+      expect(screen.getByTestId('project-filter-web')).toBeDefined();
+      expect(screen.getByTestId('project-filter-desktop')).toBeDefined();
+      expect(screen.getByTestId('project-filter-app')).toBeDefined();
+    });
+
+    it('filters project cards when clicking Web, Desktop, App tabs', () => {
+      renderWithProviders(
+        <ProjectsCenterView
+          apps={multiPlatformApps}
+          activeAppId={1}
+          onSelectApp={vi.fn()}
+          onCreateApp={vi.fn()}
+          onDeleteApp={vi.fn()}
+        />
+      );
+
+      // 默认 All 显示全部 3 个
+      expect(screen.getByText('Web SaaS Dashboard')).toBeDefined();
+      expect(screen.getByText('Desktop Audio Workstation')).toBeDefined();
+      expect(screen.getByText('Mobile Crypto App')).toBeDefined();
+
+      // 点击 Desktop 过滤
+      fireEvent.click(screen.getByTestId('project-filter-desktop'));
+      expect(screen.getByText('Desktop Audio Workstation')).toBeDefined();
+      expect(screen.queryByText('Web SaaS Dashboard')).toBeNull();
+      expect(screen.queryByText('Mobile Crypto App')).toBeNull();
+
+      // 点击 App 过滤
+      fireEvent.click(screen.getByTestId('project-filter-app'));
+      expect(screen.getByText('Mobile Crypto App')).toBeDefined();
+      expect(screen.queryByText('Desktop Audio Workstation')).toBeNull();
+      expect(screen.queryByText('Web SaaS Dashboard')).toBeNull();
+
+      // 点击 Web 过滤
+      fireEvent.click(screen.getByTestId('project-filter-web'));
+      expect(screen.getByText('Web SaaS Dashboard')).toBeDefined();
+      expect(screen.queryByText('Mobile Crypto App')).toBeNull();
+
+      // 切回 All
+      fireEvent.click(screen.getByTestId('project-filter-all'));
+      expect(screen.getByText('Web SaaS Dashboard')).toBeDefined();
+      expect(screen.getByText('Desktop Audio Workstation')).toBeDefined();
+      expect(screen.getByText('Mobile Crypto App')).toBeDefined();
+    });
+
+    it('renders platform badges on project cards', () => {
+      renderWithProviders(
+        <ProjectsCenterView
+          apps={multiPlatformApps}
+          activeAppId={1}
+          onSelectApp={vi.fn()}
+          onCreateApp={vi.fn()}
+          onDeleteApp={vi.fn()}
+        />
+      );
+
+      expect(screen.getByTestId('project-platform-badge-1')).toBeDefined();
+      expect(screen.getByTestId('project-platform-badge-2')).toBeDefined();
+      expect(screen.getByTestId('project-platform-badge-3')).toBeDefined();
+    });
+
+    it('allows selecting platform when creating a new project', async () => {
+      const onCreateNamedApp = vi.fn();
+      renderWithProviders(
+        <ProjectsCenterView
+          apps={multiPlatformApps}
+          activeAppId={1}
+          onSelectApp={vi.fn()}
+          onCreateApp={vi.fn()}
+          onCreateNamedApp={onCreateNamedApp}
+          onDeleteApp={vi.fn()}
+        />
+      );
+
+      // 打开新建表单
+      fireEvent.click(screen.getByTestId('new-project-btn'));
+
+      // 输入工程名
+      const input = screen.getByTestId('new-project-name-input');
+      fireEvent.change(input, { target: { value: 'Fitness Tracker' } });
+
+      // 选择 App 形态
+      const platformSelectApp = screen.getByTestId('new-project-platform-app');
+      fireEvent.click(platformSelectApp);
+
+      // 提交表单
+      fireEvent.click(screen.getByTestId('submit-create-project-btn'));
+
+      expect(onCreateNamedApp).toHaveBeenCalledWith('Fitness Tracker', 'app');
+    });
   });
 });

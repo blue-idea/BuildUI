@@ -4,7 +4,7 @@ import { QuestionnaireCard, QuestionItem } from './components/QuestionnaireCard'
 import { SettingsModal } from './components/SettingsModal';
 import { ModelSelector } from './components/ModelSelector';
 import { VersionTimelineModal, VersionItem } from './components/VersionTimelineModal';
-import { AppDrawer, AppItem } from './components/AppDrawer';
+import { AppDrawer, AppItem, ProjectPlatform, inferAppPlatform } from './components/AppDrawer';
 import { ExportModal } from './components/ExportModal';
 import { TemplateModal, AppTemplate } from './components/TemplateModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
@@ -63,6 +63,7 @@ export interface AppProps {
 }
 
 const STYLE_TEMPLATES_STORAGE_KEY = 'blot_style_templates';
+const DELETED_PRESETS_STORAGE_KEY = 'blot_deleted_preset_ids';
 
 const loadPersistedStyleTemplates = (): ThemePreset[] => {
   try {
@@ -87,6 +88,76 @@ const savePersistedStyleTemplates = (templates: ThemePreset[]) => {
     console.error('Failed to save persisted style templates:', err);
   }
 };
+
+const loadDeletedPresetIds = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(DELETED_PRESETS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return new Set(parsed);
+    }
+  } catch (err) {
+    console.error('Failed to parse deleted preset ids:', err);
+  }
+  return new Set();
+};
+
+const saveDeletedPresetIds = (deletedIds: Set<string>) => {
+  try {
+    localStorage.setItem(DELETED_PRESETS_STORAGE_KEY, JSON.stringify(Array.from(deletedIds)));
+  } catch (err) {
+    console.error('Failed to save deleted preset ids:', err);
+  }
+};
+
+const getBuiltinThemePresets = (): ThemePreset[] => [
+  {
+    id: 'dark-slate',
+    name: 'Midnight Slate',
+    appType: 'web',
+    primary: '#3b82f6',
+    background: '#020617',
+    stylePrompt:
+      'Design System & Visual Language Specification: Midnight Slate. Primary blue (#3b82f6) on deep dark slate (#020617). High readability with refined borders and clean spacing.',
+  },
+  {
+    id: 'cyberpunk-neon',
+    name: 'Cyberpunk Neon',
+    appType: 'web',
+    primary: '#00ffcc',
+    background: '#0a0a12',
+    stylePrompt:
+      'Design System & Visual Language Specification: Cyberpunk Neon. High energy electric cyan (#00ffcc) on deep pitch black (#0a0a12). Sharp modern edges and glowing highlights.',
+  },
+  {
+    id: 'forest-emerald',
+    name: 'Forest Emerald',
+    appType: 'web',
+    primary: '#10b981',
+    background: '#051b14',
+    stylePrompt:
+      'Design System & Visual Language Specification: Forest Emerald. Calming organic emerald green (#10b981) on deep evergreen obsidian (#051b14). Natural harmonious feel.',
+  },
+  {
+    id: 'sunset-glow',
+    name: 'Sunset Glow',
+    appType: 'web',
+    primary: '#f97316',
+    background: '#1a0f0a',
+    stylePrompt:
+      'Design System & Visual Language Specification: Sunset Glow. Warm radiant orange (#f97316) on rich twilight dusk (#1a0f0a). High warmth and inviting mood.',
+  },
+  {
+    id: 'clean-light',
+    name: 'Minimalist Light',
+    appType: 'web',
+    primary: '#2563eb',
+    background: '#ffffff',
+    stylePrompt:
+      'Design System & Visual Language Specification: Minimalist Light. Clean corporate blue (#2563eb) on pristine crisp white (#ffffff). Generous whitespace and light borders.',
+  },
+  ...getBenchmarkThemePresets(),
+];
 
 const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const { locale, t } = useI18n();
@@ -201,57 +272,12 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   ]);
 
   const [themePresets, setThemePresets] = useState<ThemePreset[]>(() => {
+    const deletedIds = loadDeletedPresetIds();
     const persisted = loadPersistedStyleTemplates();
-    const builtins: ThemePreset[] = [
-      {
-        id: 'dark-slate',
-        name: 'Midnight Slate',
-        appType: 'web',
-        primary: '#3b82f6',
-        background: '#020617',
-        stylePrompt:
-          'Design System & Visual Language Specification: Midnight Slate. Primary blue (#3b82f6) on deep dark slate (#020617). High readability with refined borders and clean spacing.',
-      },
-      {
-        id: 'cyberpunk-neon',
-        name: 'Cyberpunk Neon',
-        appType: 'web',
-        primary: '#00ffcc',
-        background: '#0a0a12',
-        stylePrompt:
-          'Design System & Visual Language Specification: Cyberpunk Neon. High energy electric cyan (#00ffcc) on deep pitch black (#0a0a12). Sharp modern edges and glowing highlights.',
-      },
-      {
-        id: 'forest-emerald',
-        name: 'Forest Emerald',
-        appType: 'web',
-        primary: '#10b981',
-        background: '#051b14',
-        stylePrompt:
-          'Design System & Visual Language Specification: Forest Emerald. Calming organic emerald green (#10b981) on deep evergreen obsidian (#051b14). Natural harmonious feel.',
-      },
-      {
-        id: 'sunset-glow',
-        name: 'Sunset Glow',
-        appType: 'web',
-        primary: '#f97316',
-        background: '#1a0f0a',
-        stylePrompt:
-          'Design System & Visual Language Specification: Sunset Glow. Warm radiant orange (#f97316) on rich twilight dusk (#1a0f0a). High warmth and inviting mood.',
-      },
-      {
-        id: 'clean-light',
-        name: 'Minimalist Light',
-        appType: 'web',
-        primary: '#2563eb',
-        background: '#ffffff',
-        stylePrompt:
-          'Design System & Visual Language Specification: Minimalist Light. Clean corporate blue (#2563eb) on pristine crisp white (#ffffff). Generous whitespace and light borders.',
-      },
-      ...getBenchmarkThemePresets(),
-    ];
+    const builtins = getBuiltinThemePresets();
     const persistedIds = new Set(persisted.map((p) => p.id));
-    return [...persisted, ...builtins.filter((b) => !persistedIds.has(b.id))];
+    const merged = [...persisted, ...builtins.filter((b) => !persistedIds.has(b.id))];
+    return merged.filter((p) => !deletedIds.has(p.id));
   });
   const [activeThemeId, setActiveThemeId] = useState<string>('dark-slate');
 
@@ -267,8 +293,27 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     setThemePresets((prev) => {
       const updated = prev.filter((p) => p.id !== presetId);
       savePersistedStyleTemplates(updated);
+      const deletedIds = loadDeletedPresetIds();
+      deletedIds.add(presetId);
+      saveDeletedPresetIds(deletedIds);
       return updated;
     });
+  };
+
+  const handleRestoreDefaultPresets = () => {
+    try {
+      localStorage.removeItem(DELETED_PRESETS_STORAGE_KEY);
+    } catch (err) {
+      console.error('Failed to clear deleted preset ids:', err);
+    }
+    const persisted = loadPersistedStyleTemplates();
+    const builtins = getBuiltinThemePresets();
+    const persistedIds = new Set(persisted.map((p) => p.id));
+    const merged = [...persisted, ...builtins.filter((b) => !persistedIds.has(b.id))];
+    setThemePresets(merged);
+    if (merged.length > 0 && !merged.some((p) => p.id === activeThemeId)) {
+      setActiveThemeId(merged[0].id);
+    }
   };
 
   const [installedDependencies, setInstalledDependencies] = useState<string[]>(desktop ? [] : ['lucide-react']);
@@ -541,7 +586,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       : templateId
         ? await api.CreateAppFromTemplate({ appName: name, templateId })
         : await api.CreateApp({ name });
-    setApps((previous) => [...previous, { id: created.appId, name: created.name, path: created.path }]);
+    const inferredPlatform = native ? 'app' : inferAppPlatform({ name: created.name, path: created.path });
+    setApps((previous) => [...previous, { id: created.appId, name: created.name, path: created.path, platform: inferredPlatform }]);
     setIsDrawerOpen(false);
     setIsTemplateModalOpen(false);
     setActiveDockTab('builder');
@@ -1262,7 +1308,25 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               }
               setActiveDockTab('builder');
             }}
-            onCreateNamedApp={desktop ? createDesktopProject : undefined}
+            onCreateNamedApp={
+              desktop
+                ? (name: string, platform?: ProjectPlatform) => createDesktopProject(name, undefined, platform === 'app')
+                : async (name: string, platform?: ProjectPlatform) => {
+                    const newId = Date.now();
+                    const baseDir = (settings['workspace.dir'] || workspaceDir || '/workspace').replace(/\/+$/, '');
+                    const slug = name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-|-$/g, '') || `app-${newId}`;
+                    const newApp: AppItem = {
+                      id: newId,
+                      name,
+                      path: `${baseDir}/${slug}`,
+                      createdAt: new Date().toISOString(),
+                      platform: platform || 'web',
+                    };
+                    setApps((prev) => [...prev, newApp]);
+                    setActiveAppId(newId);
+                    setWorkspaceDir(newApp.path);
+                  }
+            }
             onCreateApp={() => {
               const newId = Date.now();
               const nextIndex = apps.length === 1 || apps.some((a) => a.id === 1) ? 2 : apps.length + 1;
@@ -1311,6 +1375,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             onSelectTheme={handleSelectTheme}
             onAddCustomPreset={handleAddCustomPreset}
             onDeleteCustomPreset={handleDeleteCustomPreset}
+            onRestoreDefaultPresets={handleRestoreDefaultPresets}
             settings={settings}
             onOpenSettings={() => setIsSettingsOpen(true)}
             selectedModel={selectedModel}
@@ -1732,7 +1797,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         activeAppId={activeAppId}
         busy={desktop && (isChangingProject || isGenerating || isStartingApp)}
         error={desktop ? projectError : undefined}
-        onCreateNamedApp={desktop ? createDesktopProject : undefined}
+        onCreateNamedApp={desktop ? (name: string, platform?: ProjectPlatform) => createDesktopProject(name, undefined, platform === 'app') : undefined}
         onSelectApp={(id) => {
           if (desktop) {
             setIsDrawerOpen(false);

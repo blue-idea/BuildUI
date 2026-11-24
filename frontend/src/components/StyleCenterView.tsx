@@ -11,6 +11,7 @@ export interface StyleCenterViewProps {
   onSelectTheme: (themeId: string) => void;
   onAddCustomPreset?: (preset: ThemePreset) => void;
   onDeleteCustomPreset?: (presetId: string) => void;
+  onRestoreDefaultPresets?: () => void;
   settings?: Record<string, string>;
   onOpenSettings?: () => void;
   selectedModel?: string;
@@ -23,6 +24,7 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
   onSelectTheme,
   onAddCustomPreset,
   onDeleteCustomPreset,
+  onRestoreDefaultPresets,
   settings,
   onOpenSettings,
   selectedModel,
@@ -60,14 +62,18 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
     onSelectTheme(newPreset.id);
   };
 
-  // 处理删除模版
+  // 处理删除模版（每一项选项均可删除）
   const handleDeleteTemplate = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setTemplates((prev) => prev.filter((t) => t.id !== id));
+    const nextTemplates = templates.filter((t) => t.id !== id);
+    setTemplates(nextTemplates);
     onDeleteCustomPreset?.(id);
-    if (activeThemeId === id && templates.length > 1) {
-      const nextActive = templates.find((t) => t.id !== id);
-      if (nextActive) onSelectTheme(nextActive.id);
+    if (activeThemeId === id) {
+      if (nextTemplates.length > 0) {
+        onSelectTheme(nextTemplates[0].id);
+      } else {
+        onSelectTheme('');
+      }
     }
   };
 
@@ -190,135 +196,168 @@ export const StyleCenterView: React.FC<StyleCenterViewProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {templates
-                .filter((preset) => {
-                  if (selectedFilter === 'all') return true;
-                  const presetAppType = preset.appType || (preset.id === 'macos' ? 'desktop' : 'web');
-                  return presetAppType === selectedFilter;
-                })
-                .map((preset) => {
-                  const isActive = activeThemeId === preset.id;
-                  const isCustom = preset.id.startsWith('style-');
-                  const presetAppType = preset.appType || (preset.id === 'macos' ? 'desktop' : 'web');
+            {(() => {
+              const displayedTemplates = templates.filter((preset) => {
+                if (selectedFilter === 'all') return true;
+                const presetAppType = preset.appType || (preset.id === 'macos' ? 'desktop' : 'web');
+                return presetAppType === selectedFilter;
+              });
 
-                  return (
-                    <div
-                      key={preset.id}
-                      onClick={() => onSelectTheme(preset.id)}
-                      className={`relative p-5 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between gap-4 group ${
-                        isActive
-                          ? 'border-blue-500/80 bg-white dark:bg-zinc-900 shadow-md ring-2 ring-blue-500/20'
-                          : 'border-slate-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/60 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="w-3 h-3 rounded-full shadow-xs shrink-0"
-                              style={{ backgroundColor: preset.primary }}
-                            />
-                            <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
-                              {preset.name}
-                            </h3>
-                          </div>
+              if (displayedTemplates.length === 0) {
+                return (
+                  <div
+                    data-testid="style-templates-empty-state"
+                    className="p-12 text-center rounded-3xl border border-dashed border-slate-300 dark:border-zinc-800 bg-white/40 dark:bg-zinc-900/30 flex flex-col items-center justify-center gap-3"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-400 dark:text-zinc-500">
+                      <Layers className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+                      {t('stylePage.emptyTitle')}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-sm">
+                      {t('stylePage.emptyDesc')}
+                    </p>
+                    {onRestoreDefaultPresets && (
+                      <button
+                        type="button"
+                        data-testid="restore-default-presets-btn"
+                        onClick={onRestoreDefaultPresets}
+                        className="mt-2 px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer shadow-xs"
+                      >
+                        {t('stylePage.btnRestoreDefaults')}
+                      </button>
+                    )}
+                  </div>
+                );
+              }
 
-                          <div className="flex items-center gap-1.5">
-                            {isActive && (
-                              <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200/50 dark:border-blue-800/50">
-                                <Check className="w-3 h-3" />
-                                <span>{t('stylePage.badgeActive')}</span>
-                              </span>
-                            )}
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {displayedTemplates.map((preset) => {
+                    const isActive = activeThemeId === preset.id;
+                    const presetAppType = preset.appType || (preset.id === 'macos' ? 'desktop' : 'web');
 
-                            {isCustom && (
+                    return (
+                      <div
+                        key={preset.id}
+                        onClick={() => onSelectTheme(preset.id)}
+                        className={`relative p-5 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between gap-4 group ${
+                          isActive
+                            ? 'border-blue-500/80 bg-white dark:bg-zinc-900 shadow-md ring-2 ring-blue-500/20'
+                            : 'border-slate-200/80 dark:border-zinc-800/80 bg-white/70 dark:bg-zinc-900/60 hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-3 h-3 rounded-full shadow-xs shrink-0"
+                                style={{ backgroundColor: preset.primary }}
+                              />
+                              <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                                {preset.name}
+                              </h3>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              {isActive && (
+                                <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-full border border-blue-200/50 dark:border-blue-800/50">
+                                  <Check className="w-3 h-3" />
+                                  <span>{t('stylePage.badgeActive')}</span>
+                                </span>
+                              )}
+
+                              {/* 每一项均渲染删除按钮 */}
                               <button
                                 type="button"
+                                data-testid={`delete-template-btn-${preset.id}`}
                                 onClick={(e) => handleDeleteTemplate(preset.id, e)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100"
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors opacity-70 hover:opacity-100 group-hover:opacity-100 cursor-pointer"
                                 title={t('stylePage.btnDeleteTemplate')}
+                                aria-label={`Delete ${preset.name}`}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
-                            )}
+                            </div>
                           </div>
-                        </div>
 
-                        {/* 应用形态 Badge */}
-                        <div className="mt-2">
-                          <span
-                            data-testid={`template-app-type-badge-${preset.id}`}
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                              presetAppType === 'app'
-                                ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border-purple-200/60 dark:border-purple-800/60'
-                                : presetAppType === 'desktop'
-                                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/60'
-                                : 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200/60 dark:border-blue-800/60'
-                            }`}
-                          >
-                            {presetAppType === 'app' ? (
-                              <Smartphone className="w-2.5 h-2.5" />
-                            ) : presetAppType === 'desktop' ? (
-                              <Monitor className="w-2.5 h-2.5" />
-                            ) : (
-                              <Globe className="w-2.5 h-2.5" />
-                            )}
-                            <span>
-                              {presetAppType === 'app'
-                                ? t('stylePage.appTypeApp')
-                                : presetAppType === 'desktop'
-                                ? t('stylePage.appTypeDesktop')
-                                : t('stylePage.appTypeWeb')}
+                          {/* 应用形态 Badge */}
+                          <div className="mt-2">
+                            <span
+                              data-testid={`template-app-type-badge-${preset.id}`}
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                presetAppType === 'app'
+                                  ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border-purple-200/60 dark:border-purple-800/60'
+                                  : presetAppType === 'desktop'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/60'
+                                  : 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200/60 dark:border-blue-800/60'
+                              }`}
+                            >
+                              {presetAppType === 'app' ? (
+                                <Smartphone className="w-2.5 h-2.5" />
+                              ) : presetAppType === 'desktop' ? (
+                                <Monitor className="w-2.5 h-2.5" />
+                              ) : (
+                                <Globe className="w-2.5 h-2.5" />
+                              )}
+                              <span>
+                                {presetAppType === 'app'
+                                  ? t('stylePage.appTypeApp')
+                                  : presetAppType === 'desktop'
+                                  ? t('stylePage.appTypeDesktop')
+                                  : t('stylePage.appTypeWeb')}
+                              </span>
                             </span>
-                          </span>
+                          </div>
+
+                          {preset.description && (
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 line-clamp-2 leading-relaxed">
+                              {preset.description}
+                            </p>
+                          )}
                         </div>
 
-                        {preset.description && (
-                          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2 line-clamp-2 leading-relaxed">
-                            {preset.description}
-                          </p>
-                        )}
+                        {/* 配色微预览条 */}
+                        <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
+                          <div
+                            className="w-4 h-4 rounded-full border border-black/10 shrink-0"
+                            style={{ backgroundColor: preset.primary }}
+                            title={t('stylePage.palettePrimary')}
+                          />
+                          <div
+                            className="w-4 h-4 rounded-full border border-slate-200 dark:border-zinc-700 shrink-0"
+                            style={{ backgroundColor: preset.background }}
+                            title={t('stylePage.paletteBackground')}
+                          />
+                          {preset.surface && (
+                            <div
+                              className="w-4 h-4 rounded-full border border-slate-200 dark:border-zinc-700 shrink-0"
+                              style={{ backgroundColor: preset.surface }}
+                              title={t('stylePage.paletteSurface')}
+                            />
+                          )}
+                          {preset.text && (
+                            <div
+                              className="w-4 h-4 rounded-full border border-black/10 shrink-0"
+                              style={{ backgroundColor: preset.text }}
+                              title={t('stylePage.paletteText')}
+                            />
+                          )}
+                          {preset.border && (
+                            <div
+                              className="w-4 h-4 rounded-full border border-black/10 shrink-0"
+                              style={{ backgroundColor: preset.border }}
+                              title={t('stylePage.paletteBorder')}
+                            />
+                          )}
+                        </div>
                       </div>
-
-                    {/* 配色微预览条 */}
-                    <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-zinc-800/80">
-                      <div
-                        className="w-4 h-4 rounded-full border border-black/10 shrink-0"
-                        style={{ backgroundColor: preset.primary }}
-                        title={t('stylePage.palettePrimary')}
-                      />
-                      <div
-                        className="w-4 h-4 rounded-full border border-slate-200 dark:border-zinc-700 shrink-0"
-                        style={{ backgroundColor: preset.background }}
-                        title={t('stylePage.paletteBackground')}
-                      />
-                      {preset.surface && (
-                        <div
-                          className="w-4 h-4 rounded-full border border-slate-200 dark:border-zinc-700 shrink-0"
-                          style={{ backgroundColor: preset.surface }}
-                          title={t('stylePage.paletteSurface')}
-                        />
-                      )}
-                      {preset.text && (
-                        <div
-                          className="w-4 h-4 rounded-full border border-black/10 shrink-0"
-                          style={{ backgroundColor: preset.text }}
-                          title={t('stylePage.paletteText')}
-                        />
-                      )}
-                      {preset.border && (
-                        <div
-                          className="w-4 h-4 rounded-full border border-black/10 shrink-0"
-                          style={{ backgroundColor: preset.border }}
-                          title={t('stylePage.paletteBorder')}
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <StyleExtractor
