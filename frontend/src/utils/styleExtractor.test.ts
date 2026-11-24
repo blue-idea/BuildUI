@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { extractStyleFromReference, buildDesignSystemPrompt } from './styleExtractor';
+import {
+  extractStyleFromReference,
+  buildDesignSystemPrompt,
+  getBenchmarkThemePresets,
+} from './styleExtractor';
 
 describe('styleExtractor Utility (TDD)', () => {
   it('extracts high-fidelity design system for real benchmark website Linear (name & URL)', () => {
@@ -103,5 +107,60 @@ describe('styleExtractor Utility (TDD)', () => {
     expect(webStyle.appType).toBe('web');
     expect(webStyle.tags).toContain('Web SaaS');
     expect(webStyle.stylePrompt).toContain('[Platform Architecture Directives: Web]');
+  });
+
+  it('includes classic App and Desktop benchmark presets in getBenchmarkThemePresets()', () => {
+    const presets = getBenchmarkThemePresets();
+
+    // 包含经典 App 设计风格
+    const iosHealth = presets.find((p) => p.id === 'benchmark-ios-health');
+    expect(iosHealth).toBeDefined();
+    expect(iosHealth?.appType).toBe('app');
+    expect(iosHealth?.tags).toContain('Mobile App');
+    expect(iosHealth?.stylePrompt).toContain('[Platform Architecture Directives: Mobile App]');
+
+    const threads = presets.find((p) => p.id === 'benchmark-threads');
+    expect(threads).toBeDefined();
+    expect(threads?.appType).toBe('app');
+
+    const duolingo = presets.find((p) => p.id === 'benchmark-duolingo');
+    expect(duolingo).toBeDefined();
+    expect(duolingo?.appType).toBe('app');
+
+    const cashapp = presets.find((p) => p.id === 'benchmark-cashapp');
+    expect(cashapp).toBeDefined();
+    expect(cashapp?.appType).toBe('app');
+
+    // 包含经典 Desktop 客户端设计风格
+    const windowsFluent = presets.find((p) => p.id === 'benchmark-windows-fluent');
+    expect(windowsFluent).toBeDefined();
+    expect(windowsFluent?.appType).toBe('desktop');
+    expect(windowsFluent?.tags).toContain('Desktop Native');
+    expect(windowsFluent?.stylePrompt).toContain('[Platform Architecture Directives: Desktop Workstation]');
+
+    const slack = presets.find((p) => p.id === 'benchmark-slack');
+    expect(slack).toBeDefined();
+    expect(slack?.appType).toBe('desktop');
+
+    const vscode = presets.find((p) => p.id === 'benchmark-vscode');
+    expect(vscode).toBeDefined();
+    expect(vscode?.appType).toBe('desktop');
+
+    const apple = presets.find((p) => p.id === 'benchmark-apple');
+    expect(apple?.appType).toBe('desktop');
+    const raycast = presets.find((p) => p.id === 'benchmark-raycast');
+    expect(raycast?.appType).toBe('desktop');
+  });
+
+  it('matches benchmark preset when extracting classic app or desktop styles by name or alias', () => {
+    const extractedHealth = extractStyleFromReference('Apple Health', false, 'app');
+    expect(extractedHealth.name).toContain('Apple Health');
+    expect(extractedHealth.appType).toBe('app');
+    expect(extractedHealth.stylePrompt).toContain('[Platform Architecture Directives: Mobile App]');
+
+    const extractedFluent = extractStyleFromReference('Windows Fluent', false, 'desktop');
+    expect(extractedFluent.name).toContain('Windows Fluent');
+    expect(extractedFluent.appType).toBe('desktop');
+    expect(extractedFluent.stylePrompt).toContain('[Platform Architecture Directives: Desktop Workstation]');
   });
 });

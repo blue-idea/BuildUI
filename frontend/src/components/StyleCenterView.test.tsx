@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { StyleCenterView } from './StyleCenterView';
 import { ThemePreset } from './ThemeSelector';
+import { getBenchmarkThemePresets } from '../utils/styleExtractor';
 import { I18nProvider } from '../i18n/I18nContext';
 
 const renderWithI18n = (ui: React.ReactElement, initialLocale = 'en' as const) => {
@@ -140,5 +141,35 @@ describe('StyleCenterView Component (TDD)', () => {
     // 切回 Templates Tab 应该能看到 Linear Inspired 模版
     fireEvent.click(screen.getByTestId('style-tab-templates'));
     expect(screen.getByText('Linear Inspired')).toBeDefined();
+  });
+
+  it('correctly renders and filters benchmark presets for classic App and Desktop styles', () => {
+    const benchmarkPresets = getBenchmarkThemePresets();
+    renderWithI18n(
+      <StyleCenterView
+        presets={benchmarkPresets}
+        activeThemeId="benchmark-linear"
+        onSelectTheme={vi.fn()}
+      />
+    );
+
+    // 默认展示全部风格（应包含 Web、App 和 Desktop 经典预设）
+    expect(screen.getByText('Linear Inspired')).toBeDefined();
+    expect(screen.getByText('Apple Health Inspired')).toBeDefined();
+    expect(screen.getByText('Windows Fluent Inspired')).toBeDefined();
+
+    // 筛选 App
+    fireEvent.click(screen.getByTestId('style-filter-app'));
+    expect(screen.getByText('Apple Health Inspired')).toBeDefined();
+    expect(screen.getByText('Threads Mobile Inspired')).toBeDefined();
+    expect(screen.queryByText('Linear Inspired')).toBeNull();
+    expect(screen.queryByText('Windows Fluent Inspired')).toBeNull();
+
+    // 筛选 Desktop
+    fireEvent.click(screen.getByTestId('style-filter-desktop'));
+    expect(screen.getByText('Windows Fluent Inspired')).toBeDefined();
+    expect(screen.getByText('Slack Workstation Inspired')).toBeDefined();
+    expect(screen.queryByText('Apple Health Inspired')).toBeNull();
+    expect(screen.queryByText('Linear Inspired')).toBeNull();
   });
 });

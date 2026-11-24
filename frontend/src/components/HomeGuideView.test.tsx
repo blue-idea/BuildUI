@@ -297,4 +297,85 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     fireEvent.click(ollamaOption);
     expect(onSelectModel).toHaveBeenCalledWith('provider:ollama');
   });
+
+  it('filters style presets by app, desktop, and web category pills inside popover', () => {
+    const customStyleTemplates = [
+      {
+        id: 'style-app-fitness',
+        name: 'Fitness Pro App',
+        appType: 'app' as const,
+        description: 'Dark OLED mobile fitness tracker',
+        primary: '#10b981',
+        background: '#000000',
+        stylePrompt: 'Mobile App design system for fitness',
+      },
+      {
+        id: 'style-desktop-studio',
+        name: 'Studio Desktop Station',
+        appType: 'desktop' as const,
+        description: 'Multi-column desktop editor layout',
+        primary: '#6366f1',
+        background: '#1e1e24',
+        stylePrompt: 'Desktop workstation design system',
+      },
+      {
+        id: 'style-web-saas',
+        name: 'Cloud SaaS Web',
+        appType: 'web' as const,
+        description: 'Clean responsive web dashboard',
+        primary: '#3b82f6',
+        background: '#ffffff',
+        stylePrompt: 'Web responsive SaaS design system',
+      },
+    ];
+
+    renderWithProviders(
+      <HomeGuideView
+        onStartBuilding={vi.fn()}
+        styleTemplates={customStyleTemplates}
+      />
+    );
+
+    // 点击调色板打开风格选择 Popover
+    fireEvent.click(screen.getByTestId('guide-style-btn'));
+
+    // 验证分类筛选胶囊存在且文案为简短文字，顺序依次为 Web、Desktop、App
+    const filterAll = screen.getByTestId('guide-style-filter-all');
+    const filterWeb = screen.getByTestId('guide-style-filter-web');
+    const filterDesktop = screen.getByTestId('guide-style-filter-desktop');
+    const filterApp = screen.getByTestId('guide-style-filter-app');
+    expect(filterAll).toBeDefined();
+    expect(filterWeb.textContent).toBe('Web');
+    expect(filterDesktop.textContent).toBe('Desktop');
+    expect(filterApp.textContent).toBe('App');
+    expect(filterWeb.compareDocumentPosition(filterDesktop) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(filterDesktop.compareDocumentPosition(filterApp) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // 默认或点击 All 时展示所有风格
+    fireEvent.click(filterAll);
+    expect(screen.getByTestId('preset-style-app-fitness')).toBeDefined();
+    expect(screen.getByTestId('preset-style-desktop-studio')).toBeDefined();
+    expect(screen.getByTestId('preset-style-web-saas')).toBeDefined();
+
+    // 点击 App 分类筛选
+    fireEvent.click(filterApp);
+    expect(screen.getByTestId('preset-style-app-fitness')).toBeDefined();
+    expect(screen.queryByTestId('preset-style-desktop-studio')).toBeNull();
+    expect(screen.queryByTestId('preset-style-web-saas')).toBeNull();
+
+    // 点击 Desktop 分类筛选
+    fireEvent.click(filterDesktop);
+    expect(screen.getByTestId('preset-style-desktop-studio')).toBeDefined();
+    expect(screen.queryByTestId('preset-style-app-fitness')).toBeNull();
+    expect(screen.queryByTestId('preset-style-web-saas')).toBeNull();
+
+    // 点击 Web 分类筛选
+    fireEvent.click(filterWeb);
+    expect(screen.getByTestId('preset-style-web-saas')).toBeDefined();
+    expect(screen.queryByTestId('preset-style-app-fitness')).toBeNull();
+    expect(screen.queryByTestId('preset-style-desktop-studio')).toBeNull();
+
+    // 验证每个预设项展示对应的形态标识
+    expect(screen.getByTestId('preset-badge-style-web-saas')).toBeDefined();
+  });
 });

@@ -4,6 +4,7 @@ import type { ThemePreset } from '../components/ThemeSelector';
 export interface PresetDefinition {
   name: string;
   aliases: string[];
+  appType?: StyleAppType;
   palette: ColorPalette;
   tags: string[];
   borderRadius: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
@@ -17,6 +18,7 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
   linear: {
     name: 'Linear',
     aliases: ['linear', 'linear.app', 'https://linear.app', 'http://linear.app'],
+    appType: 'web',
     palette: {
       primary: '#5e6ad2',
       accent: '#8792e8',
@@ -33,6 +35,7 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
   stripe: {
     name: 'Stripe',
     aliases: ['stripe', 'stripe.com', 'https://stripe.com', 'http://stripe.com'],
+    appType: 'web',
     palette: {
       primary: '#635bff',
       accent: '#00d4aa',
@@ -49,6 +52,7 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
   supabase: {
     name: 'Supabase',
     aliases: ['supabase', 'supabase.com', 'https://supabase.com', 'http://supabase.com'],
+    appType: 'web',
     palette: {
       primary: '#3ecf8e',
       accent: '#24b47e',
@@ -65,6 +69,7 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
   vercel: {
     name: 'Vercel',
     aliases: ['vercel', 'vercel.com', 'https://vercel.com', 'http://vercel.com'],
+    appType: 'web',
     palette: {
       primary: '#000000',
       accent: '#0070f3',
@@ -81,6 +86,7 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
   airbnb: {
     name: 'Airbnb',
     aliases: ['airbnb', 'airbnb.com', 'https://airbnb.com', 'http://airbnb.com'],
+    appType: 'web',
     palette: {
       primary: '#ff385c',
       accent: '#e00b41',
@@ -97,6 +103,7 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
   apple: {
     name: 'Apple',
     aliases: ['apple', 'apple.com', 'https://apple.com', 'http://apple.com'],
+    appType: 'desktop',
     palette: {
       primary: '#0071e3',
       accent: '#2997ff',
@@ -113,6 +120,7 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
   github: {
     name: 'GitHub',
     aliases: ['github', 'github.com', 'https://github.com', 'http://github.com'],
+    appType: 'web',
     palette: {
       primary: '#2da44e',
       accent: '#2eaadc',
@@ -129,6 +137,7 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
   notion: {
     name: 'Notion',
     aliases: ['notion', 'notion.so', 'https://notion.so', 'http://notion.so'],
+    appType: 'web',
     palette: {
       primary: '#2eaadc',
       accent: '#0f7b6c',
@@ -145,6 +154,7 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
   raycast: {
     name: 'Raycast',
     aliases: ['raycast', 'raycast.com', 'https://raycast.com', 'http://raycast.com'],
+    appType: 'desktop',
     palette: {
       primary: '#ff6363',
       accent: '#ff8f8f',
@@ -157,6 +167,127 @@ export const BENCHMARK_PRESETS: Record<string, PresetDefinition> = {
     tags: ['Fast Utility', 'Dark Obsidian', 'Keyboard First', 'Vibrant Accent'],
     borderRadius: 'lg',
     typography: 'SF Mono, Menlo, monospace',
+  },
+  // 经典 App (移动端) 标杆设计风格
+  'ios-health': {
+    name: 'Apple Health',
+    aliases: ['apple health', 'ios health', 'fitness app', 'apple fitness', 'health app'],
+    appType: 'app',
+    palette: {
+      primary: '#ff2d55',
+      accent: '#a4ff00',
+      background: '#000000',
+      surface: '#1c1c1e',
+      text: '#ffffff',
+      textMuted: '#8e8e93',
+      border: '#2c2c2e',
+    },
+    tags: ['Mobile App', 'OLED Dark', 'Activity Rings', 'Health & Fitness', 'High Contrast'],
+    borderRadius: '2xl',
+    typography: '-apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif',
+  },
+  threads: {
+    name: 'Threads Mobile',
+    aliases: ['threads', 'threads app', 'threads mobile', 'instagram threads'],
+    appType: 'app',
+    palette: {
+      primary: '#ffffff',
+      accent: '#777777',
+      background: '#101010',
+      surface: '#181818',
+      text: '#f3f5f7',
+      textMuted: '#777777',
+      border: '#262626',
+    },
+    tags: ['Mobile App', 'Minimal Feed', 'Monochrome Dark', 'Curved Cards', 'Social Native'],
+    borderRadius: '2xl',
+    typography: '-apple-system, BlinkMacSystemFont, "SF Pro Rounded", sans-serif',
+  },
+  duolingo: {
+    name: 'Duolingo Mobile',
+    aliases: ['duolingo', 'duolingo app', 'gamified app'],
+    appType: 'app',
+    palette: {
+      primary: '#58cc02',
+      accent: '#ffc800',
+      background: '#ffffff',
+      surface: '#f7f7f7',
+      text: '#4b4b4b',
+      textMuted: '#afafaf',
+      border: '#e5e5e5',
+    },
+    tags: ['Mobile App', 'Gamified UI', 'Playful 3D Flat', 'Chunky Buttons', 'High Vibrancy'],
+    borderRadius: '2xl',
+    typography: 'DIN Next Round, -apple-system, BlinkMacSystemFont, sans-serif',
+  },
+  cashapp: {
+    name: 'Cash App Mobile',
+    aliases: ['cash app', 'cashapp', 'cash app mobile'],
+    appType: 'app',
+    palette: {
+      primary: '#00d632',
+      accent: '#00a827',
+      background: '#000000',
+      surface: '#111111',
+      text: '#ffffff',
+      textMuted: '#666666',
+      border: '#222222',
+    },
+    tags: ['Mobile App', 'Fintech Mobile', 'Neon Cash', 'Giant Typography', 'High Impact'],
+    borderRadius: 'full',
+    typography: '-apple-system, BlinkMacSystemFont, "Cash Market", sans-serif',
+  },
+  // 经典 Desktop (桌面客户端) 标杆设计风格
+  'windows-fluent': {
+    name: 'Windows Fluent',
+    aliases: ['windows fluent', 'fluent design', 'windows 11', 'mica', 'fluent'],
+    appType: 'desktop',
+    palette: {
+      primary: '#0067c0',
+      accent: '#4cc2ff',
+      background: '#f3f3f3',
+      surface: '#ffffff',
+      text: '#1a1a1a',
+      textMuted: '#5d5d5d',
+      border: '#e5e5e5',
+    },
+    tags: ['Desktop Native', 'Fluent Design', 'Mica Acrylic', 'Subtle Layers', 'Window Header'],
+    borderRadius: 'lg',
+    typography: '"Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif',
+  },
+  slack: {
+    name: 'Slack Workstation',
+    aliases: ['slack', 'slack desktop', 'slack app', 'slack workstation'],
+    appType: 'desktop',
+    palette: {
+      primary: '#4a154b',
+      accent: '#1264a3',
+      background: '#ffffff',
+      surface: '#350d36',
+      text: '#1d1c1d',
+      textMuted: '#616061',
+      border: '#dddddd',
+    },
+    tags: ['Desktop Native', 'Sidebar Workstation', 'Multi-Column', 'Productivity Hub', 'High Density'],
+    borderRadius: 'md',
+    typography: 'Slack-Lato, -apple-system, BlinkMacSystemFont, sans-serif',
+  },
+  vscode: {
+    name: 'VS Code Pro Dark',
+    aliases: ['vscode', 'vs code', 'visual studio code', 'ide dark'],
+    appType: 'desktop',
+    palette: {
+      primary: '#007acc',
+      accent: '#0e639c',
+      background: '#1e1e1e',
+      surface: '#252526',
+      text: '#cccccc',
+      textMuted: '#858585',
+      border: '#333333',
+    },
+    tags: ['Desktop Native', 'Developer Workstation', 'Activity Bar', 'Status Bar Hairline', 'High Density'],
+    borderRadius: 'sm',
+    typography: 'Menlo, Monaco, "Courier New", monospace, system-ui',
   },
 };
 
@@ -268,13 +399,19 @@ export const extractStyleFromReference = (
   const rawInput = (referenceInput || '').trim();
   const lowerInput = rawInput.toLowerCase();
 
-  // 1. 尝试匹配标杆知识库
+  // 1. 尝试匹配标杆知识库（最长 alias 匹配优先，避免 "apple health" 被短 alias "apple" 截胡）
   let matchedPreset: PresetDefinition | null = null;
+  const candidates: { preset: PresetDefinition; alias: string }[] = [];
   for (const preset of Object.values(BENCHMARK_PRESETS)) {
-    if (preset.aliases.some((alias) => lowerInput.includes(alias.toLowerCase()))) {
-      matchedPreset = preset;
-      break;
+    for (const alias of preset.aliases) {
+      if (lowerInput.includes(alias.toLowerCase())) {
+        candidates.push({ preset, alias });
+      }
     }
+  }
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => b.alias.length - a.alias.length);
+    matchedPreset = candidates[0].preset;
   }
 
   let finalName: string;
@@ -289,6 +426,9 @@ export const extractStyleFromReference = (
     finalTags = [...matchedPreset.tags];
     finalRadius = matchedPreset.borderRadius;
     finalTypography = matchedPreset.typography;
+    if (appType === 'web' && matchedPreset.appType) {
+      appType = matchedPreset.appType;
+    }
   } else {
     finalName = formatTitleFromInput(rawInput);
     const isDarkKeyword = /dark|night|obsidian|midnight|cyber|neon|black/i.test(lowerInput);
@@ -390,7 +530,7 @@ export const extractStyleFromReference = (
 export const getBenchmarkThemePresets = (): ThemePreset[] => {
   return Object.entries(BENCHMARK_PRESETS).map(([key, item]) => {
     const appType: StyleAppType =
-      key === 'apple' || key === 'raycast' ? 'desktop' : 'web';
+      item.appType || (key === 'apple' || key === 'raycast' ? 'desktop' : 'web');
     return {
       id: `benchmark-${key}`,
       name: `${item.name} Inspired`,

@@ -9,7 +9,7 @@
 ## 当前活跃 Version
 
 ```yaml
-current_version: v22     # → Agent 替换 {{VERSION}} 时取此值
+current_version: v24     # → Agent 替换 {{VERSION}} 时取此值
 ```
 
 ---
@@ -39,7 +39,8 @@ current_version: v22     # → Agent 替换 {{VERSION}} 时取此值
 | v19 | finished | `docs/spec/versions/v19-finished/` | 第十九版本已圆满收官：仿浏览器开发者工具局部编辑审查、点选防跳转拦截与选取区域盒模型框可视化 |
 | v20 | finished | `docs/spec/versions/v20-finished/` | 第二十版本已圆满收官：基于 Vision LLM 的智能风格与多模态设计系统提取、模型选择器与精准生成 |
 | v21 | finished | `docs/spec/versions/v21-finished/` | 第二十一版本：多应用类型（Web / App / Desktop）定制风格提取、专属提示词增强与模版类型标注 |
-| v22 | in_progress | `docs/spec/versions/v22/` | App 的 Expo React Native 生成、构建、修复与预览 |
+| v22 | finished | `docs/spec/versions/v22-finished/` | 第二十二版本已圆满收官：App 的 Expo React Native 生成、构建、修复与预览 |
+| v23 | finished | `docs/spec/versions/v23-finished/` | 第二十三版本已圆满收官：风格与设计中心经典 App/Desktop 风格扩充，首页设计预设按 App/Desktop/Web 分类显示 |
 
 ---
 

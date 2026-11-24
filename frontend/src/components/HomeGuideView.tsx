@@ -47,16 +47,19 @@ export interface HomeGuideViewProps {
 export interface StyleOption {
   id: string;
   name: string;
+  appType?: AppCategory;
   desc: string;
   swatch: React.ReactNode;
   stylePrompt?: string;
 }
 
-// 风格预设列表（精确匹配圆色盘设计系统规范）
+// 风格预设列表（精确匹配圆色盘设计系统规范，覆盖 App / Desktop / Web）
 const DEFAULT_STYLE_PRESETS: StyleOption[] = [
+  // Web 经典风格
   {
     id: 'alexandria',
     name: 'Alexandria',
+    appType: 'web',
     desc: 'Classical Mediterranean balance with sand gold and navy',
     stylePrompt:
       'Design System & Visual Language Specification: Alexandria. Balanced Mediterranean classical aesthetic with deep navy blue (#1e40af) and warm golden sand (#facc15). Clean typography with rounded-xl cards.',
@@ -70,6 +73,7 @@ const DEFAULT_STYLE_PRESETS: StyleOption[] = [
   {
     id: 'bauhaus',
     name: 'Bauhaus',
+    appType: 'web',
     desc: 'Bold primary geometry with sharp red, blue, and black contrast',
     stylePrompt:
       'Design System & Visual Language Specification: Bauhaus. Modernist high-contrast aesthetic with primary geometry, sharp black borders, red (#ef4444) and blue (#3b82f6) accents.',
@@ -86,6 +90,7 @@ const DEFAULT_STYLE_PRESETS: StyleOption[] = [
   {
     id: 'glacier',
     name: 'Glacier',
+    appType: 'web',
     desc: 'Cool pastel blues, frosted lavender, and airy glass gradients',
     stylePrompt:
       'Design System & Visual Language Specification: Glacier. Ethereal cool glass aesthetic with sky blue (#38bdf8), lavender (#c084fc), frosted backdrops, and generous whitespace.',
@@ -96,9 +101,82 @@ const DEFAULT_STYLE_PRESETS: StyleOption[] = [
       </span>
     ),
   },
+  // App (移动端) 经典风格
+  {
+    id: 'apple-health',
+    name: 'Apple Health',
+    appType: 'app',
+    desc: 'OLED pure black, activity neon rings, and rounded-2xl touch cards',
+    stylePrompt:
+      'Design System & Visual Language Specification: Apple Health. Deep OLED black (#000000) with activity red (#ff2d55) and neon green (#a4ff00) rings, fluid touch layout.',
+    swatch: (
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
+        <span className="w-1/2 h-full bg-[#ff2d55]" />
+        <span className="w-1/2 h-full bg-[#a4ff00]" />
+      </span>
+    ),
+  },
+  {
+    id: 'threads-mobile',
+    name: 'Threads Mobile',
+    appType: 'app',
+    desc: 'Monochrome minimalist dark feed with soft curved edges',
+    stylePrompt:
+      'Design System & Visual Language Specification: Threads Mobile. High-density minimalist social feed with monochrome black surface and rounded-2xl cards.',
+    swatch: (
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
+        <span className="w-1/2 h-full bg-[#101010]" />
+        <span className="w-1/2 h-full bg-[#f3f5f7]" />
+      </span>
+    ),
+  },
+  {
+    id: 'duolingo-gamified',
+    name: 'Duolingo Mobile',
+    appType: 'app',
+    desc: 'Vibrant playful green and yellow with chunky tactile controls',
+    stylePrompt:
+      'Design System & Visual Language Specification: Duolingo Mobile. Gamified high-energy UI with feather green (#58cc02) and yellow accents, playful 3D buttons.',
+    swatch: (
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
+        <span className="w-1/2 h-full bg-[#58cc02]" />
+        <span className="w-1/2 h-full bg-[#ffc800]" />
+      </span>
+    ),
+  },
+  // Desktop (桌面客户端) 经典风格
+  {
+    id: 'windows-fluent',
+    name: 'Windows Fluent',
+    appType: 'desktop',
+    desc: 'Mica acrylic frosted glass with high precision window chrome',
+    stylePrompt:
+      'Design System & Visual Language Specification: Windows Fluent. Subtle Mica acrylic translucent depth (#f3f3f3 / #0067c0), 1px hairline dividers and window titlebar.',
+    swatch: (
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
+        <span className="w-1/2 h-full bg-[#0067c0]" />
+        <span className="w-1/2 h-full bg-[#4cc2ff]" />
+      </span>
+    ),
+  },
+  {
+    id: 'slack-workstation',
+    name: 'Slack Workstation',
+    appType: 'desktop',
+    desc: 'Classic multi-column desktop workstation with aubergine sidebar',
+    stylePrompt:
+      'Design System & Visual Language Specification: Slack Workstation. Productivity workstation with aubergine dock (#4a154b), high information density and keyboard shortcuts.',
+    swatch: (
+      <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
+        <span className="w-1/2 h-full bg-[#4a154b]" />
+        <span className="w-1/2 h-full bg-[#1264a3]" />
+      </span>
+    ),
+  },
   {
     id: 'carbon',
-    name: 'Carbon',
+    name: 'Carbon Dark',
+    appType: 'desktop',
     desc: 'Technical dark slate, graphite monochrome, and emerald accents',
     stylePrompt:
       'Design System & Visual Language Specification: Carbon. High-density developer workstation with slate (#2563eb) and emerald (#15803d) accents on deep dark graphite surfaces.',
@@ -112,6 +190,7 @@ const DEFAULT_STYLE_PRESETS: StyleOption[] = [
   {
     id: 'neon-tokyo',
     name: 'Neon Tokyo',
+    appType: 'web',
     desc: 'Cyberpunk neon gradients with electric cyan and hot magenta',
     stylePrompt:
       'Design System & Visual Language Specification: Neon Tokyo. Cyberpunk futuristic aesthetic with electric cyan (#06b6d4) and hot magenta (#ec4899) glowing accents against pitch-black OLED surfaces.',
@@ -125,6 +204,7 @@ const DEFAULT_STYLE_PRESETS: StyleOption[] = [
   {
     id: 'modern-minimalist',
     name: 'Modern Minimalist',
+    appType: 'web',
     desc: 'Quiet monochrome grays with sharp hairline dividers',
     stylePrompt:
       'Design System & Visual Language Specification: Modern Minimalist. Quiet monochrome grays (#f4f4f5 / #71717a) with hairline borders, understated micro-interactions, and spacious layouts.',
@@ -163,6 +243,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   const [internalSelectedStyle, setInternalSelectedStyle] = useState('auto');
   const selectedStyle = activeStyleId ?? internalSelectedStyle;
   const [isStylePopoverOpen, setIsStylePopoverOpen] = useState(false);
+  const [popoverStyleFilter, setPopoverStyleFilter] = useState<'all' | AppCategory>('all');
 
   const handleSelectStyle = (id: string) => {
     setInternalSelectedStyle(id);
@@ -217,27 +298,40 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   // 有效风格列表：若外部传入 styleTemplates 则以此为准，否则使用默认预设
   const effectivePresets = useMemo<StyleOption[]>(() => {
     if (styleTemplates && styleTemplates.length > 0) {
-      return styleTemplates.map((item) => ({
-        id: item.id,
-        name: item.name,
-        desc: item.description || '',
-        stylePrompt: item.stylePrompt,
-        swatch: (
-          <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
-            <span
-              className="w-1/2 h-full"
-              style={{ backgroundColor: item.primary || '#3b82f6' }}
-            />
-            <span
-              className="w-1/2 h-full"
-              style={{ backgroundColor: item.background || '#0f172a' }}
-            />
-          </span>
-        ),
-      }));
+      return styleTemplates.map((item) => {
+        const itemAppType: AppCategory =
+          item.appType || (item.id === 'macos' ? 'desktop' : 'web');
+        return {
+          id: item.id,
+          name: item.name,
+          appType: itemAppType,
+          desc: item.description || '',
+          stylePrompt: item.stylePrompt,
+          swatch: (
+            <span className="w-5 h-5 rounded-full overflow-hidden inline-flex border border-black/10 shrink-0 shadow-2xs">
+              <span
+                className="w-1/2 h-full"
+                style={{ backgroundColor: item.primary || '#3b82f6' }}
+              />
+              <span
+                className="w-1/2 h-full"
+                style={{ backgroundColor: item.background || '#0f172a' }}
+              />
+            </span>
+          ),
+        };
+      });
     }
     return DEFAULT_STYLE_PRESETS;
   }, [styleTemplates]);
+
+  // 根据 Popover 选中的分类（All / App / Desktop / Web）过滤展示风格
+  const filteredStylePresets = useMemo(() => {
+    if (popoverStyleFilter === 'all') return effectivePresets;
+    return effectivePresets.filter(
+      (preset) => (preset.appType || 'web') === popoverStyleFilter
+    );
+  }, [effectivePresets, popoverStyleFilter]);
 
   // 组合生成的构建提示词（精简且无组件库负担，包含风格 Prompt 注入）
   const assembledPrompt = useMemo(() => {
@@ -538,14 +632,72 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                       <span className="font-medium">{t('homeGuide.startWithDesign')}</span>
                     </button>
 
+                    {/* 端形态分类胶囊筛选栏：All | Web | Desktop | App */}
+                    <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700/80 select-none text-[11px]">
+                      <button
+                        type="button"
+                        data-testid="guide-style-filter-all"
+                        onClick={() => setPopoverStyleFilter('all')}
+                        className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                          popoverStyleFilter === 'all'
+                            ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-2xs'
+                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                        }`}
+                      >
+                        {locale === 'zh' ? '全部' : 'All'}
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="guide-style-filter-web"
+                        onClick={() => setPopoverStyleFilter('web')}
+                        className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                          popoverStyleFilter === 'web'
+                            ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-2xs'
+                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                        }`}
+                      >
+                        Web
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="guide-style-filter-desktop"
+                        onClick={() => setPopoverStyleFilter('desktop')}
+                        className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                          popoverStyleFilter === 'desktop'
+                            ? 'bg-white dark:bg-zinc-700 text-emerald-600 dark:text-emerald-400 shadow-2xs'
+                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                        }`}
+                      >
+                        Desktop
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="guide-style-filter-app"
+                        onClick={() => setPopoverStyleFilter('app')}
+                        className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                          popoverStyleFilter === 'app'
+                            ? 'bg-white dark:bg-zinc-700 text-purple-600 dark:text-purple-400 shadow-2xs'
+                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                        }`}
+                      >
+                        App
+                      </button>
+                    </div>
+
                     <div className="border-t border-slate-100 dark:border-zinc-800 pt-2 flex flex-col gap-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500 px-2 mb-1">
-                        {t('homeGuide.stylePresetsTitle')}
-                      </span>
+                      <div className="flex items-center justify-between px-2 mb-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                          {t('homeGuide.stylePresetsTitle')}
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
+                          {filteredStylePresets.length}
+                        </span>
+                      </div>
 
                       <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
-                        {effectivePresets.map((preset) => {
+                        {filteredStylePresets.map((preset) => {
                           const isSelected = selectedStyle === preset.id;
+                          const presetAppType = preset.appType || 'web';
                           return (
                             <button
                               key={preset.id}
@@ -564,7 +716,34 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                               <div className="flex items-center gap-2.5 min-w-0">
                                 {preset.swatch}
                                 <div className="flex flex-col text-left truncate">
-                                  <span className="font-medium truncate">{preset.name}</span>
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    <span className="font-medium truncate">{preset.name}</span>
+                                    <span
+                                      data-testid={`preset-badge-${preset.id}`}
+                                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-medium border shrink-0 ${
+                                        presetAppType === 'app'
+                                          ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200/50 dark:border-purple-800/50'
+                                          : presetAppType === 'desktop'
+                                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
+                                          : 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50'
+                                      }`}
+                                    >
+                                      {presetAppType === 'app' ? (
+                                        <Smartphone className="w-2.5 h-2.5" />
+                                      ) : presetAppType === 'desktop' ? (
+                                        <Monitor className="w-2.5 h-2.5" />
+                                      ) : (
+                                        <Globe className="w-2.5 h-2.5" />
+                                      )}
+                                      <span>
+                                        {presetAppType === 'app'
+                                          ? 'App'
+                                          : presetAppType === 'desktop'
+                                          ? 'Desktop'
+                                          : 'Web'}
+                                      </span>
+                                    </span>
+                                  </div>
                                   {preset.desc && (
                                     <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate max-w-[190px]">
                                       {preset.desc}
