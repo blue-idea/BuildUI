@@ -69,14 +69,15 @@ func NewOpenAIClient(baseURL, apiKey, model string) *OpenAIClient {
 type sseChunk struct {
 	Choices []struct {
 		Delta struct {
-			Content string `json:"content"`
+			Content string      `json:"content"`
+			Tools   []toolDelta `json:"tool_calls"`
 		} `json:"delta"`
 		FinishReason *string `json:"finish_reason"`
 	} `json:"choices"`
 }
 
 // StreamChat 发起流式请求并解析 SSE 数据
-func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk StreamChunkHandler) error {
+func (c *OpenAIClient) streamChatRound(ctx context.Context, req ChatRequest, onChunk StreamChunkHandler, onToolDelta func(toolDelta)) error {
 	modelName := req.Model
 	if modelName == "" {
 		modelName = c.model
@@ -90,6 +91,13 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 	}
 	if req.MaxTokens > 0 {
 		bodyMap["max_tokens"] = req.MaxTokens
+	}
+	if len(req.Tools) != 0 {
+		tools := make([]map[string]any, 0, len(req.Tools))
+		for _, definition := range req.Tools {
+			tools = append(tools, map[string]any{"type": "function", "function": definition})
+		}
+		bodyMap["tools"] = tools
 	}
 	if req.DisableThinking {
 		bodyMap["thinking"] = map[string]string{"type": "disabled"}
@@ -184,6 +192,14 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 
 		if len(chunk.Choices) > 0 {
 			choice := chunk.Choices[0]
+			if onToolDelta != nil {
+				for _, delta := range choice.Delta.Tools {
+					onToolDelta(delta)
+				}
+				if len(choice.Delta.Tools) > 0 && idleTimer != nil {
+					idleTimer.Reset(req.IdleTimeout)
+				}
+			}
 			if choice.Delta.Content != "" {
 				// 工具回调的本地执行时间不计入模型等待时间。
 				if idleTimer != nil && !idleTimer.Stop() {
@@ -200,6 +216,9 @@ func (c *OpenAIClient) StreamChat(ctx context.Context, req ChatRequest, onChunk 
 			if choice.FinishReason != nil && *choice.FinishReason != "" {
 				if *choice.FinishReason == "length" {
 					return ErrOutputLimit
+				}
+				if *choice.FinishReason == "tool_calls" && onToolDelta != nil {
+					return errToolCalls
 				}
 				return nil
 			}

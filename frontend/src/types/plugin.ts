@@ -4,6 +4,7 @@ export interface PluginItem {
   badge?: string; // 如 'OAuth', 'STDIO', 'SSE'
   description: string;
   domain: string;
+  endpoint?: string;
   category: 'featured' | 'ai_media' | 'developer' | 'custom';
   iconColor?: string;
   iconBg?: string;
@@ -18,4 +19,29 @@ export interface CatalogCategory {
   title: string;
   icon?: string;
   plugins: PluginItem[];
+}
+
+export interface PluginConfig {
+  id: number;
+  name: string;
+  description: string;
+  transport: 'http' | 'stdio';
+  endpoint: string;
+  args?: string[] | null;
+  enabled: boolean;
+  catalogId?: string;
+  appId?: number | null;
+}
+
+export interface InstalledPlugin extends PluginConfig {
+  headers?: string[] | null;
+  env?: string[] | null;
+  credentialsUnreadable?: boolean;
+  oauthConnected?: boolean;
+}
+
+export interface PluginTool {
+  name: string;
+  description: string;
+  allowed: boolean;
 }

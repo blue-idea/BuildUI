@@ -78,6 +78,29 @@ CREATE TABLE IF NOT EXISTS build_checkpoints (
 );
 
 -- 辅助索引
+CREATE TABLE IF NOT EXISTS mcp_plugins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    transport TEXT NOT NULL CHECK(transport IN ('http', 'stdio')),
+    endpoint TEXT NOT NULL,
+    args TEXT NOT NULL,
+    enabled INTEGER NOT NULL,
+    catalog_id TEXT UNIQUE,
+    app_id INTEGER REFERENCES apps(id) ON DELETE CASCADE,
+    credentials TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS mcp_tool_permissions (
+    plugin_id INTEGER NOT NULL REFERENCES mcp_plugins(id) ON DELETE CASCADE,
+    tool_name TEXT NOT NULL,
+    PRIMARY KEY(plugin_id, tool_name)
+);
+CREATE TABLE IF NOT EXISTS mcp_plugin_oauth (
+    plugin_id INTEGER PRIMARY KEY REFERENCES mcp_plugins(id) ON DELETE CASCADE,
+    attempt TEXT NOT NULL,
+    credentials TEXT NOT NULL DEFAULT ''
+);
+
 CREATE INDEX IF NOT EXISTS idx_chats_app_id ON chats(app_id);
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
 CREATE INDEX IF NOT EXISTS idx_versions_app_id ON versions(app_id);

@@ -11,24 +11,30 @@ type StreamChunkHandler func(chunk string) error
 
 // ChatMessage 大模型对话消息结构
 type ChatMessage struct {
-	Role    string   `json:"role"`    // system, user, assistant
-	Content string   `json:"content"` // 消息内容
-	Images  []string `json:"-"`
+	Role       string     `json:"role"`    // system, user, assistant
+	Content    string     `json:"content"` // 消息内容
+	Images     []string   `json:"-"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
 }
 
 func (m ChatMessage) MarshalJSON() ([]byte, error) {
 	type message struct {
-		Role    string `json:"role"`
-		Content any    `json:"content"`
+		Role       string     `json:"role"`
+		Content    any        `json:"content"`
+		ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+		ToolCallID string     `json:"tool_call_id,omitempty"`
 	}
+	msg := message{Role: m.Role, Content: m.Content, ToolCalls: m.ToolCalls, ToolCallID: m.ToolCallID}
 	if len(m.Images) == 0 {
-		return json.Marshal(message{Role: m.Role, Content: m.Content})
+		return json.Marshal(msg)
 	}
 	parts := []map[string]any{{"type": "text", "text": m.Content}}
 	for _, url := range m.Images {
 		parts = append(parts, map[string]any{"type": "image_url", "image_url": map[string]string{"url": url}})
 	}
-	return json.Marshal(message{Role: m.Role, Content: parts})
+	msg.Content = parts
+	return json.Marshal(msg)
 }
 
 // ChatRequest 对话补全请求
@@ -40,7 +46,24 @@ type ChatRequest struct {
 	// DisableThinking 仅在支持 DeepSeek 思考模式开关的模型中设置。
 	DisableThinking bool `json:"-"`
 	// IdleTimeout 限制等待模型正文的时间，零值沿用传输层配置。
-	IdleTimeout time.Duration `json:"-"`
+	IdleTimeout time.Duration                                   `json:"-"`
+	Tools       []ToolDefinition                                `json:"-"`
+	OnToolCall  func(context.Context, ToolCall) (string, error) `json:"-"`
+}
+
+type ToolDefinition struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	Parameters  json.RawMessage `json:"parameters"`
+}
+
+type ToolCall struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
 }
 
 // Provider 大模型通用流式接口

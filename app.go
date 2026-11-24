@@ -20,6 +20,7 @@ import (
 	"buildui/internal/errs"
 	"buildui/internal/export"
 	"buildui/internal/inspector"
+	"buildui/internal/plugins"
 	"buildui/internal/settings"
 	"buildui/internal/template"
 	"buildui/internal/theme"
@@ -57,6 +58,7 @@ type App struct {
 	themeService     *theme.ThemeService
 	templateService  *template.TemplateService
 	updaterService   *updater.Service
+	pluginService    *plugins.Service
 }
 
 // NewApp 创建 App 实例
@@ -178,6 +180,8 @@ func (a *App) startup(ctx context.Context) {
 		a.chatService.SetBuildProblems(a.problemsService)
 		a.appService.SetPreviewVerifier(a.chatService.PreparePreview)
 		a.chatService.SetModelRepositories(settingsRepo, a.messageRepo)
+		a.pluginService, _ = plugins.NewService(database, appDataDir)
+		a.chatService.SetPlugins(a.pluginService)
 		a.settingsService = settings.NewSettingsService(settingsRepo)
 		a.versionService = version.NewVersionService(versionRepo, a.appRepo, emitter)
 		a.themeService = theme.NewThemeService(a.appRepo)

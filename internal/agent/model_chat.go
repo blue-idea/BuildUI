@@ -146,7 +146,7 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 			system = nativeBlueprintPrompt + stack
 		}
 	case req.Mode == "plan":
-		system = "Discuss the user's project and describe a plan. Do not emit tools or change any files." + projectStackContext(app.Path)
+		system = "Discuss the user's project and describe a plan. Do not emit file-writing markup or change any files." + projectStackContext(app.Path)
 	default:
 		system = assembler.assembleProjectSystemPrompt(app.Path) + "\nDo not use Markdown fences around tool output. For an app implementation, emit complete files with dyad-write. Use the language of the user's request for the interface and explanations."
 	}
@@ -178,6 +178,7 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	}
 	messages = append(messages, llm.ChatMessage{Role: "user", Content: req.Prompt, Images: req.Attachments})
 	request := llm.ChatRequest{Model: model, Messages: messages, Temperature: 0.2, MaxTokens: config.ModelBlueprintMaxTokens}
+	s.attachPluginTools(ctx, app.ID, req.ChatID, &request)
 	supportsThinking := config.SupportsDeepSeekThinking(model)
 	if bp != nil && bp.Approved && req.Mode != "plan" {
 		unlock, err := s.lockProjectBuild(app.ID)

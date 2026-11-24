@@ -4,6 +4,7 @@
  */
 
 import type { AppItem } from '../components/AppDrawer';
+import type { InstalledPlugin, PluginConfig, PluginTool } from '../types/plugin';
 import type { BlueprintDTO } from '../components/BlueprintCard';
 import type { VersionItem, VersionDiffResult } from '../components/VersionTimelineModal';
 
@@ -84,6 +85,23 @@ export function desktopApp(): DesktopMethods {
   const app = getWailsApp();
   if (!app) throw new Error('The desktop runtime is unavailable.');
   return app as DesktopMethods;
+}
+
+interface PluginMethods {
+  ListPlugins(): Promise<InstalledPlugin[] | null>;
+  SavePlugin(input: PluginConfig): Promise<InstalledPlugin>;
+  DeletePlugin(id: number): Promise<void>;
+  SavePluginCredential(input: { pluginId: number; oldKey: string; key: string; value: string }): Promise<InstalledPlugin>;
+  ListPluginTools(id: number): Promise<PluginTool[] | null>;
+  SetPluginToolPermission(id: number, name: string, allow: boolean): Promise<void>;
+  SignInPlugin(id: number, options: { clientId: string; clientSecret: string; scope: string }): Promise<InstalledPlugin>;
+  DisconnectPlugin(id: number): Promise<InstalledPlugin>;
+  PluginOAuthRedirectURL(): Promise<string>;
+}
+
+export function pluginBridge(): PluginMethods | null {
+  const app = getWailsApp() as Partial<PluginMethods> | null;
+  return app?.ListPlugins ? app as PluginMethods : null;
 }
 
 export function essentialEvent<T>(name: string, handler: (data: T) => void): () => void {

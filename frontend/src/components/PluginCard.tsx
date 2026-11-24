@@ -7,6 +7,7 @@ export interface PluginCardProps {
   plugin: PluginItem;
   onAdd?: (plugin: PluginItem) => void;
   onRemove?: (pluginId: string) => void;
+  onConfigure?: () => void;
 }
 
 /**
@@ -70,7 +71,7 @@ const renderBrandIcon = (plugin: PluginItem) => {
   }
 };
 
-export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove }) => {
+export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove, onConfigure }) => {
   const { t } = useI18n();
   const isInstalled = Boolean(plugin.isInstalled);
 
@@ -110,6 +111,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove 
               <Check className="w-3 h-3" />
               {t('pluginsPage.btnAdded')}
             </span>
+            {onConfigure && <button type="button" onClick={onConfigure} className="font-medium text-blue-700 hover:underline dark:text-blue-400">Configure</button>}
             {onRemove && (
               <button
                 type="button"

@@ -12,6 +12,7 @@ import (
 	"buildui/internal/blueprint"
 	"buildui/internal/db"
 	"buildui/internal/errs"
+	"buildui/internal/plugins"
 	"buildui/internal/verification/tsc"
 )
 
@@ -29,6 +30,7 @@ type ChatService struct {
 	settingsRepo   *db.SettingsRepository
 	messageRepo    *db.MessageRepository
 	buildProblems  *tsc.ProblemsService
+	plugins        *plugins.Service
 	emitter        EventEmitter
 	activeSessions sync.Map
 	activeBuilds   sync.Map
@@ -56,6 +58,10 @@ func (s *ChatService) SetVersionRepo(r *db.VersionRepository) {
 
 func (s *ChatService) SetBuildProblems(problems *tsc.ProblemsService) {
 	s.buildProblems = problems
+}
+
+func (s *ChatService) SetPlugins(plugins *plugins.Service) {
+	s.plugins = plugins
 }
 
 func (s *ChatService) lockProjectBuild(appID int64) (func(), error) {

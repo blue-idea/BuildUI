@@ -1368,6 +1368,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         ) : activeDockTab === 'components' ? (
           <ComponentCenterView
             onGoBack={() => setActiveDockTab(previousDockTab || 'builder')}
+            projects={apps}
           />
         ) : activeDockTab === 'style' ? (
           <StyleCenterView

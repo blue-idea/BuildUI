@@ -1,120 +1,73 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, Plus, Search, Star, Sparkles } from 'lucide-react';
-import { PluginItem, CatalogCategory } from '../types/plugin';
+import type { PluginItem, InstalledPlugin, PluginConfig } from '../types/plugin';
 import { PluginCard } from './PluginCard';
-import { AddPluginModal } from './AddPluginModal';
+import { AddPluginModal, type PluginDraft } from './AddPluginModal';
+import { PluginDetails } from './PluginDetails';
 import { useI18n } from '../i18n/I18nContext';
+import { pluginBridge } from '../services/wailsBridge';
+import { DEFAULT_CATALOG_CATEGORIES } from '../config/plugins';
 
 export interface ComponentCenterViewProps {
   onGoBack?: () => void;
   initialInstalledPlugins?: PluginItem[];
+  projects?: { id: number; name: string }[];
 }
-
-/**
- * 官方预置精选目录数据（严格还原设计图）
- */
-const DEFAULT_CATALOG_CATEGORIES: CatalogCategory[] = [
-  {
-    id: 'featured',
-    title: 'Featured',
-    icon: 'star',
-    plugins: [
-      {
-        id: 'stripe',
-        name: 'Stripe',
-        badge: 'OAuth',
-        description: 'Manage payments, customers, and products',
-        domain: 'mcp.stripe.com',
-        category: 'featured',
-        toolsCount: 8,
-      },
-      {
-        id: 'vercel',
-        name: 'Vercel',
-        badge: 'OAuth',
-        description: 'Manage deployments and projects',
-        domain: 'mcp.vercel.com',
-        category: 'featured',
-        toolsCount: 6,
-      },
-    ],
-  },
-  {
-    id: 'ai_media',
-    title: 'AI & Media',
-    icon: 'sparkles',
-    plugins: [
-      {
-        id: 'huggingface',
-        name: 'Hugging Face',
-        badge: 'OAuth',
-        description: 'Search models, datasets, and papers',
-        domain: 'huggingface.co',
-        category: 'ai_media',
-        toolsCount: 12,
-      },
-      {
-        id: 'heygen',
-        name: 'HeyGen',
-        badge: 'OAuth',
-        description: 'AI avatar videos',
-        domain: 'mcp.heygen.com',
-        category: 'ai_media',
-        toolsCount: 4,
-      },
-      {
-        id: 'higgsfield',
-        name: 'Higgsfield',
-        badge: 'OAuth',
-        description: 'AI video generation',
-        domain: 'mcp.higgsfield.ai',
-        category: 'ai_media',
-        toolsCount: 5,
-      },
-      {
-        id: 'roboflow',
-        name: 'Roboflow',
-        badge: 'OAuth',
-        description: 'Computer vision models',
-        domain: 'mcp.roboflow.com',
-        category: 'ai_media',
-        toolsCount: 7,
-      },
-      {
-        id: 'braintrust',
-        name: 'Braintrust',
-        badge: 'OAuth',
-        description: 'LLM evals and observability',
-        domain: 'api.braintrust.dev',
-        category: 'ai_media',
-        toolsCount: 9,
-      },
-    ],
-  },
-];
 
 export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
   onGoBack,
   initialInstalledPlugins = [],
+  projects = [],
 }) => {
   const { t } = useI18n();
   const [installedPlugins, setInstalledPlugins] = useState<PluginItem[]>(initialInstalledPlugins);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [records, setRecords] = useState<InstalledPlugin[]>([]);
+  const [selectedId, setSelectedId] = useState<number>();
+  const [initialConfig, setInitialConfig] = useState<PluginConfig>();
+  const [toolCounts, setToolCounts] = useState<Record<number, number>>({});
+  const [loadError, setLoadError] = useState('');
+  const api = pluginBridge();
+
+  useEffect(() => {
+    let active = true;
+    if (api) void api.ListPlugins().then((items) => { if (active) setRecords(items ?? []); }).catch((error: unknown) => {
+      if (active) setLoadError(error instanceof Error ? error.message : String(error));
+    });
+    return () => { active = false; };
+  }, [api]);
+
+  function upsert(record: InstalledPlugin) {
+    setRecords((previous) => previous.some((item) => item.id === record.id)
+      ? previous.map((item) => item.id === record.id ? record : item)
+      : [...previous, record]);
+  }
+
+  const selected = records.find((record) => record.id === selectedId);
+  const displayedPlugins: PluginItem[] = api ? records.map((record) => ({
+    id: String(record.id), name: record.name, description: record.description, domain: record.endpoint,
+    badge: record.transport === 'http' ? 'HTTP' : 'STDIO', category: 'custom', isInstalled: true,
+    enabled: record.enabled, toolsCount: record.enabled ? toolCounts[record.id] ?? 0 : 0,
+  })) : installedPlugins;
 
   // 计算已启用插件数和工具数
-  const totalPlugins = installedPlugins.length;
-  const totalTools = useMemo(() => {
-    return installedPlugins.reduce((acc, p) => acc + (p.toolsCount || 1), 0);
-  }, [installedPlugins]);
+  const totalPlugins = displayedPlugins.length;
+  const totalTools = displayedPlugins.reduce((acc, p) => acc + p.toolsCount, 0);
 
   // 判断是否已安装特定插件
   const installedIds = useMemo(() => {
-    return new Set(installedPlugins.map((p) => p.id));
-  }, [installedPlugins]);
+    return new Set(api ? records.map((record) => record.catalogId) : installedPlugins.map((p) => p.id));
+  }, [api, records, installedPlugins]);
 
   // 从目录添加插件
   const handleAddPlugin = (plugin: PluginItem) => {
+    if (api) {
+      setInitialConfig({ id: 0, name: plugin.name, endpoint: plugin.endpoint ?? '',
+        description: plugin.description, transport: 'http', enabled: true, catalogId: plugin.id });
+      setIsAddModalOpen(true);
+      return;
+    }
     if (!installedIds.has(plugin.id)) {
       setInstalledPlugins((prev) => [
         ...prev,
@@ -129,7 +82,16 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
   };
 
   // 添加自定义插件
-  const handleAddCustomPlugin = (customPlugin: Omit<PluginItem, 'id'>) => {
+  const handleAddCustomPlugin = ({ transport, args, ...customPlugin }: PluginDraft) => {
+    if (api) {
+      return api.SavePlugin({ ...initialConfig, id: initialConfig?.id ?? 0, name: customPlugin.name,
+        description: customPlugin.description, transport, endpoint: customPlugin.domain, args,
+        enabled: initialConfig?.enabled ?? true }).then((record) => {
+        upsert(record);
+        setSelectedId(record.id);
+        setToolCounts((current) => ({ ...current, [record.id]: 0 }));
+      });
+    }
     const newPlugin: PluginItem = {
       ...customPlugin,
       id: `custom-${Date.now()}`,
@@ -204,7 +166,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
             <button
               type="button"
               data-testid="btn-open-add-plugin"
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => { setInitialConfig(undefined); setIsAddModalOpen(true); }}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -214,6 +176,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
 
           {/* 插件统计与状态 */}
           <div className="flex flex-col gap-2">
+            {loadError && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{loadError}</p>}
             <div className="text-xs font-medium text-slate-500 dark:text-zinc-400">
               {t('pluginsPage.statusSummary', { plugins: totalPlugins, tools: totalTools })}
             </div>
@@ -224,11 +187,12 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-                {installedPlugins.map((plugin) => (
+                {displayedPlugins.map((plugin) => (
                   <PluginCard
                     key={plugin.id}
                     plugin={plugin}
-                    onRemove={handleRemovePlugin}
+                    onConfigure={api ? () => setSelectedId(Number(plugin.id)) : undefined}
+                    onRemove={api ? undefined : handleRemovePlugin}
                   />
                 ))}
               </div>
@@ -291,7 +255,7 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
                         key={plugin.id}
                         plugin={plugin}
                         onAdd={handleAddPlugin}
-                        onRemove={handleRemovePlugin}
+                        onRemove={api ? undefined : handleRemovePlugin}
                       />
                     ))}
                   </div>
@@ -306,8 +270,13 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
       <AddPluginModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+        initial={initialConfig}
         onSubmit={handleAddCustomPlugin}
       />
+      {selected && !isAddModalOpen && <PluginDetails key={selected.id} plugin={selected} projects={projects}
+        onClose={() => setSelectedId(undefined)} onEdit={() => { setInitialConfig(selected); setIsAddModalOpen(true); }}
+        onUpdate={upsert} onDelete={() => { setRecords((items) => items.filter((item) => item.id !== selected.id)); setSelectedId(undefined); }}
+        onToolCount={(count) => setToolCounts((current) => ({ ...current, [selected.id]: count }))} />}
     </div>
   );
 };

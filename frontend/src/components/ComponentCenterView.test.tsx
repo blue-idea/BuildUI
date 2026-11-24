@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ComponentCenterView } from './ComponentCenterView';
 import { ThemeProvider } from '../context/ThemeContext';
@@ -14,6 +14,23 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe('ComponentCenterView Component (TDD)', () => {
+  it('在插件详情中提交 Header 并使用后端返回的最新键', async () => {
+    const plugin = { id: 1, name: 'Context7', description: '', transport: 'http', endpoint: 'https://mcp.context7.com/mcp', enabled: true, headers: [] };
+    const save = vi.fn().mockResolvedValue({ ...plugin, headers: ['X-Test-Key'] });
+    vi.stubGlobal('go', { main: { App: { ListPlugins: vi.fn().mockResolvedValue([plugin]), SavePluginCredential: save } } });
+    try {
+      renderWithProviders(<ComponentCenterView />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Configure' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add Header' }));
+      const dialog = screen.getByRole('dialog');
+      fireEvent.change(within(dialog).getByLabelText('Key'), { target: { value: 'X-Test-Key' } });
+      fireEvent.change(within(dialog).getByLabelText('Value'), { target: { value: 'fixture' } });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+      expect(await within(dialog).findByText('X-Test-Key')).toBeDefined();
+      expect(save).toHaveBeenCalledWith({ pluginId: 1, oldKey: '', key: 'X-Test-Key', value: 'fixture' });
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it('renders top navigation with Go Back, Plugins title, subtitle, and + Add Plugin button', () => {
     const handleGoBack = vi.fn();
     renderWithProviders(<ComponentCenterView onGoBack={handleGoBack} />);
