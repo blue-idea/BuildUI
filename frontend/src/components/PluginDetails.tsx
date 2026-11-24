@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, KeyRound, Plug, Plus, X } from 'lucide-react';
 import { pluginBridge } from '../services/wailsBridge';
+import { getCatalogPlugin } from '../config/plugins';
 import type { InstalledPlugin, PluginConfig, PluginTool } from '../types/plugin';
 
 interface Props {
@@ -28,6 +29,8 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
   const isHTTP = plugin.transport === 'http';
   const title = isHTTP ? 'Headers' : 'Environment variables';
   const keys = (isHTTP ? plugin.headers : plugin.env) ?? [];
+  const requiredHeader = isHTTP ? getCatalogPlugin(plugin.catalogId)?.requiredHeader : undefined;
+  const missingHeader = requiredHeader && !keys.some((key) => key.toLowerCase() === requiredHeader.toLowerCase());
 
   async function perform(work: (api: NonNullable<ReturnType<typeof pluginBridge>>) => Promise<void>) {
     const api = pluginBridge();
@@ -101,7 +104,7 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
             </select>
           </label>}
 
-          {isHTTP && <section aria-label="OAuth" className="space-y-3 border-b border-slate-200 pb-4 dark:border-zinc-800">
+          {isHTTP && !requiredHeader && <section aria-label="OAuth" className="space-y-3 border-b border-slate-200 pb-4 dark:border-zinc-800">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold">OAuth</h3>
@@ -146,10 +149,11 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
           <section className="space-y-3" aria-label={title}>
             <div className="flex items-center justify-between">
               <h3 className="flex items-center gap-2 text-sm font-semibold"><KeyRound size={15} />{title}</h3>
-              <button type="button" className={action} disabled={busy || !!draft || plugin.credentialsUnreadable} onClick={() => setDraft({ oldKey: '', key: '', value: '' })}><Plus size={13} className="mr-1 inline" />{isHTTP ? 'Add Header' : 'Add Variable'}</button>
+              <button type="button" className={action} disabled={busy || !!draft || plugin.credentialsUnreadable} onClick={() => setDraft({ oldKey: '', key: missingHeader ? requiredHeader : '', value: '' })}><Plus size={13} className="mr-1 inline" />{isHTTP ? 'Add Header' : 'Add Variable'}</button>
             </div>
             {plugin.credentialsUnreadable && <p className="text-sm text-red-700 dark:text-red-300">Saved credentials could not be decrypted.</p>}
-            {!keys.length && !draft && !plugin.credentialsUnreadable && <p className="text-xs text-slate-500 dark:text-zinc-400">{isHTTP ? 'No headers configured.' : 'No environment variables configured.'}</p>}
+            {missingHeader && !draft && <p className="text-xs text-slate-500 dark:text-zinc-400">Add your API key as <code>{requiredHeader}</code> to connect.</p>}
+            {!missingHeader && !keys.length && !draft && !plugin.credentialsUnreadable && <p className="text-xs text-slate-500 dark:text-zinc-400">{isHTTP ? 'No headers configured.' : 'No environment variables configured.'}</p>}
             {keys.map((key) => <div key={key} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-zinc-800/70">
               <code className="min-w-0 flex-1 break-all text-xs">{key}</code>
               <button type="button" className={action} disabled={busy || !!draft} aria-label={'Edit ' + key} onClick={() => setDraft({ oldKey: key, key, value: '' })}>Edit</button>
@@ -170,7 +174,7 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
           <section className="space-y-3 border-t border-slate-200 pt-4 dark:border-zinc-800">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold">Tools</h3>
-              <button type="button" className={action} disabled={busy || !plugin.enabled || plugin.credentialsUnreadable} onClick={discover}>Test connection</button>
+              <button type="button" className={action} disabled={busy || !plugin.enabled || plugin.credentialsUnreadable || !!missingHeader} onClick={discover}>Test connection</button>
             </div>
             {tools === null ? <p className="text-xs text-slate-500 dark:text-zinc-400">Test the connection to discover available tools.</p> : tools.length === 0 ? <p className="text-xs text-slate-500 dark:text-zinc-400">This server returned no tools.</p> : (
               <div className="max-h-52 space-y-2 overflow-y-auto">

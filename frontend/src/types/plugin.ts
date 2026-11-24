@@ -5,6 +5,9 @@ export interface PluginItem {
   description: string;
   domain: string;
   endpoint?: string;
+  transport?: PluginConfig['transport'];
+  args?: string[];
+  requiredHeader?: string;
   category: 'featured' | 'ai_media' | 'developer' | 'custom';
   iconColor?: string;
   iconBg?: string;

@@ -2,6 +2,57 @@ import type { CatalogCategory } from '../types/plugin';
 
 export const DEFAULT_CATALOG_CATEGORIES: CatalogCategory[] = [
   {
+    id: 'developer',
+    title: 'UI Development',
+    plugins: [
+      {
+        id: 'expo',
+        name: 'Expo',
+        badge: 'OAuth',
+        description: 'Look up Expo SDK guidance and work with React Native projects',
+        domain: 'mcp.expo.dev',
+        endpoint: 'https://mcp.expo.dev/mcp',
+        category: 'developer',
+        toolsCount: 0,
+      },
+      {
+        id: 'shadcn',
+        name: 'shadcn/ui',
+        badge: 'STDIO',
+        description: 'Search component registries and find examples for your project',
+        domain: 'ui.shadcn.com',
+        endpoint: 'npx',
+        transport: 'stdio',
+        args: ['-y', 'shadcn@4.23.0', 'mcp'],
+        category: 'developer',
+        toolsCount: 0,
+      },
+      {
+        id: 'playwright',
+        name: 'Playwright',
+        badge: 'STDIO',
+        description: 'Test interactions and inspect the preview in a browser',
+        domain: 'playwright.dev',
+        endpoint: 'npx',
+        transport: 'stdio',
+        args: ['-y', '@playwright/mcp@0.0.86', '--headless', '--isolated'],
+        category: 'developer',
+        toolsCount: 0,
+      },
+      {
+        id: 'stitch',
+        name: 'Google Stitch',
+        badge: 'API key',
+        description: 'Create and inspect UI designs and screens in Google Stitch',
+        domain: 'stitch.googleapis.com',
+        endpoint: 'https://stitch.googleapis.com/mcp',
+        category: 'developer',
+        requiredHeader: 'X-Goog-Api-Key',
+        toolsCount: 0,
+      },
+    ],
+  },
+  {
     id: 'featured',
     title: 'Featured',
     icon: 'star',
@@ -96,3 +147,7 @@ export const DEFAULT_CATALOG_CATEGORIES: CatalogCategory[] = [
     ],
   },
 ];
+
+export function getCatalogPlugin(id?: string) {
+  return DEFAULT_CATALOG_CATEGORIES.flatMap((category) => category.plugins).find((plugin) => plugin.id === id);
+}

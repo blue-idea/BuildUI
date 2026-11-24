@@ -178,7 +178,8 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	}
 	messages = append(messages, llm.ChatMessage{Role: "user", Content: req.Prompt, Images: req.Attachments})
 	request := llm.ChatRequest{Model: model, Messages: messages, Temperature: 0.2, MaxTokens: config.ModelBlueprintMaxTokens}
-	s.attachPluginTools(ctx, app.ID, req.ChatID, &request)
+	closePluginTools := s.attachPluginTools(ctx, app.ID, req.ChatID, app.Path, &request)
+	defer closePluginTools()
 	supportsThinking := config.SupportsDeepSeekThinking(model)
 	if bp != nil && bp.Approved && req.Mode != "plan" {
 		unlock, err := s.lockProjectBuild(app.ID)

@@ -51,7 +51,31 @@ func (a *App) ListPluginTools(id int64) ([]plugins.Tool, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.Tools(a.ctx, id)
+	plugin, err := s.Get(a.ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if plugin.Transport != "stdio" || a.appRepo == nil {
+		return s.Tools(a.ctx, id)
+	}
+	// 连接测试与对话使用相同的项目配置文件。全局插件优先用当前活跃项目。
+	var appID int64
+	if plugin.AppID != nil {
+		appID = *plugin.AppID
+	} else {
+		appID, err = a.appRepo.GetActiveAppID(a.ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if appID == 0 {
+		return s.Tools(a.ctx, id)
+	}
+	project, err := a.appRepo.GetByID(a.ctx, appID)
+	if err != nil {
+		return nil, err
+	}
+	return s.ToolsInProject(a.ctx, id, project.Path)
 }
 
 func (a *App) SetPluginToolPermission(id int64, name string, allow bool) error {

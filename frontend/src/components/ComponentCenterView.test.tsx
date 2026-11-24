@@ -14,6 +14,36 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe('ComponentCenterView Component (TDD)', () => {
+  it.each([
+    ['expo', 'Streamable HTTP', 'https://mcp.expo.dev/mcp'],
+    ['shadcn', 'Standard input/output (stdio)', 'npx'],
+    ['playwright', 'Standard input/output (stdio)', 'npx'],
+    ['stitch', 'Streamable HTTP', 'https://stitch.googleapis.com/mcp'],
+  ])('预填 %s 的传输和连接地址', async (id, transport, endpoint) => {
+    vi.stubGlobal('go', { main: { App: { ListPlugins: vi.fn().mockResolvedValue([]) } } });
+    try {
+      renderWithProviders(<ComponentCenterView />);
+      fireEvent.click(within(await screen.findByTestId('plugin-card-' + id)).getByRole('button', { name: 'Add' }));
+      expect((screen.getByLabelText('Transport') as HTMLSelectElement).selectedOptions[0].text).toBe(transport);
+      expect((screen.getByLabelText(transport.startsWith('Streamable') ? 'Server URL' : 'Command') as HTMLInputElement).value).toBe(endpoint);
+      if (id === 'shadcn' || id === 'playwright') {
+        expect((screen.getByLabelText('Arguments') as HTMLInputElement).value).toContain(id);
+      }
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('展示 Stitch 需要的 Header 名称并留空凭据', async () => {
+    vi.stubGlobal('go', { main: { App: { ListPlugins: vi.fn().mockResolvedValue([
+      { id: 1, name: 'Stitch', catalogId: 'stitch', transport: 'http', endpoint: 'https://stitch.googleapis.com/mcp', enabled: true, headers: [] },
+    ]) } } });
+    try {
+      renderWithProviders(<ComponentCenterView />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Configure' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Add Header' }));
+      expect((screen.getByLabelText('Key') as HTMLInputElement).value).toBe('X-Goog-Api-Key');
+      expect((screen.getByLabelText('Value') as HTMLInputElement).value).toBe('');
+    } finally { vi.unstubAllGlobals(); }
+  });
   it('在插件详情中提交 Header 并使用后端返回的最新键', async () => {
     const plugin = { id: 1, name: 'Context7', description: '', transport: 'http', endpoint: 'https://mcp.context7.com/mcp', enabled: true, headers: [] };
     const save = vi.fn().mockResolvedValue({ ...plugin, headers: ['X-Test-Key'] });

@@ -64,7 +64,8 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
   const handleAddPlugin = (plugin: PluginItem) => {
     if (api) {
       setInitialConfig({ id: 0, name: plugin.name, endpoint: plugin.endpoint ?? '',
-        description: plugin.description, transport: 'http', enabled: true, catalogId: plugin.id });
+        description: plugin.description, transport: plugin.transport ?? 'http', args: plugin.args,
+        enabled: true, catalogId: plugin.id });
       setIsAddModalOpen(true);
       return;
     }
