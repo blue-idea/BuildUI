@@ -3,6 +3,7 @@ import { PluginItem } from '../types/plugin';
 import { Check } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { PluginIcon } from './PluginIcon';
+import { openExternalUrl } from '../services/wailsBridge';
 
 export interface PluginCardProps {
   plugin: PluginItem;
@@ -62,6 +63,17 @@ export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove,
               </button>
             )}
           </div>
+        ) : plugin.migrationUrl ? (
+          <a
+            href={plugin.migrationUrl}
+            onClick={(event) => {
+              event.preventDefault();
+              openExternalUrl(event.currentTarget.href);
+            }}
+            className="shrink-0 font-medium text-blue-700 hover:underline dark:text-blue-400"
+          >
+            Migration guide
+          </a>
         ) : (
           <button
             type="button"

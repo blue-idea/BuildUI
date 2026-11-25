@@ -7,6 +7,8 @@ export interface PluginItem {
   endpoint?: string;
   transport?: PluginConfig['transport'];
   args?: string[];
+  migrationUrl?: string;
+  supportsOAuth?: boolean;
   credential?: {
     transport: PluginConfig['transport'];
     name: string;

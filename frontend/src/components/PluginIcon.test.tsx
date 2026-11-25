@@ -6,9 +6,8 @@ import { DEFAULT_CATALOG_CATEGORIES } from '../config/plugins';
 describe('PluginIcon Component (TDD)', () => {
   const allPresetPlugins = DEFAULT_CATALOG_CATEGORIES.flatMap((c) => c.plugins);
 
-  it('renders a real site icon for all 18 preset plugins without fallback text initials', () => {
-    // 确保包含所有 18 个预设项
-    expect(allPresetPlugins.length).toBe(18);
+  it('renders a site icon for every preset plugin without fallback text initials', () => {
+    expect(allPresetPlugins.map(({ id }) => id)).toEqual(expect.arrayContaining(['remotion', 'figma', 'lucide-icons']));
 
     for (const plugin of allPresetPlugins) {
       const { unmount } = render(<PluginIcon plugin={plugin} />);

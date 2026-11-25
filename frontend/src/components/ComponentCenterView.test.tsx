@@ -15,6 +15,8 @@ const renderWithProviders = (ui: React.ReactElement) => {
 
 describe('ComponentCenterView Component (TDD)', () => {
   it.each([
+    ['figma', 'Streamable HTTP', 'http://127.0.0.1:3845/mcp'],
+    ['lucide-icons', 'Standard input/output (stdio)', 'npx', ['-y', 'lucide-icons-mcp@0.1.67', '--stdio']],
     ['expo', 'Streamable HTTP', 'https://mcp.expo.dev/mcp'],
     ['shadcn', 'Standard input/output (stdio)', 'npx'],
     ['playwright', 'Standard input/output (stdio)', 'npx'],
@@ -25,7 +27,7 @@ describe('ComponentCenterView Component (TDD)', () => {
     ['github', 'Streamable HTTP', 'https://api.githubcopilot.com/mcp/'],
     ['cloudflare', 'Streamable HTTP', 'https://mcp.cloudflare.com/mcp'],
     ['snyk', 'Standard input/output (stdio)', 'npx'],
-  ])('预填 %s 的传输和连接地址', async (id, transport, endpoint) => {
+  ])('预填 %s 的传输和连接地址', async (id, transport, endpoint, expectedArgs?: string[]) => {
     vi.stubGlobal('go', { main: { App: { ListPlugins: vi.fn().mockResolvedValue([]) } } });
     try {
       renderWithProviders(<ComponentCenterView />);
@@ -33,12 +35,23 @@ describe('ComponentCenterView Component (TDD)', () => {
       expect((screen.getByLabelText('Transport') as HTMLSelectElement).selectedOptions[0].text).toBe(transport);
       expect((screen.getByLabelText(transport.startsWith('Streamable') ? 'Server URL' : 'Command') as HTMLInputElement).value).toBe(endpoint);
       if (transport.includes('stdio')) {
-        expect((screen.getByLabelText('Arguments') as HTMLInputElement).value).toContain(id);
+        const args = (screen.getByLabelText('Arguments') as HTMLInputElement).value;
+        expect(args).toContain(id);
+        if (expectedArgs) expect(JSON.parse(args)).toEqual(expectedArgs);
       }
     } finally { vi.unstubAllGlobals(); }
   });
 
+  it('显示 Remotion MCP 停用说明与官方迁移链接', () => {
+    renderWithProviders(<ComponentCenterView />);
+    const card = within(screen.getByTestId('plugin-card-remotion'));
+    expect(card.getByText('Discontinued')).toBeDefined();
+    expect(card.queryByRole('button', { name: 'Add' })).toBeNull();
+    expect(card.getByRole('link', { name: 'Migration guide' }).getAttribute('href')).toBe('https://www.remotion.dev/docs/ai/skills');
+  });
+
   it.each([
+    ['figma', 'http', 'http://127.0.0.1:3845/mcp', 'Add Header', '', false, false],
     ['mobbin', 'http', 'https://api.mobbin.com/mcp', 'Add Header', '', false, true],
     ['stitch', 'http', 'https://stitch.googleapis.com/mcp', 'Add Header', 'X-Goog-Api-Key', true, false],
     ['github', 'http', 'https://api.githubcopilot.com/mcp/', 'Add Header', 'Authorization', true, false],

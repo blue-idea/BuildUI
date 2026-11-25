@@ -1,4 +1,7 @@
 import type { CatalogCategory } from '../types/plugin';
+import figmaIcon from '../assets/plugins/figma.svg';
+import lucideIcon from '../assets/plugins/lucide.svg';
+import remotionIcon from '../assets/plugins/remotion.png';
 
 export const DEFAULT_CATALOG_CATEGORIES: CatalogCategory[] = [
   {
@@ -86,6 +89,43 @@ export const DEFAULT_CATALOG_CATEGORIES: CatalogCategory[] = [
         endpoint: 'npx',
         transport: 'stdio',
         args: ['--prefer-offline', '-y', 'awwwards-mcp@1.22.0'],
+        category: 'developer',
+        toolsCount: 0,
+      },
+      {
+        id: 'remotion',
+        name: 'Remotion',
+        badge: 'Discontinued',
+        description: 'The hosted MCP server has shut down. Use the Remotion Docs skill instead.',
+        domain: 'remotion.dev',
+        migrationUrl: 'https://www.remotion.dev/docs/ai/skills',
+        iconUrl: remotionIcon,
+        category: 'developer',
+        toolsCount: 0,
+      },
+      {
+        id: 'figma',
+        name: 'Figma',
+        badge: 'Desktop',
+        description: 'Read design context from Figma Desktop. Enable its MCP server in Dev Mode.',
+        domain: 'figma.com',
+        endpoint: 'http://127.0.0.1:3845/mcp',
+        transport: 'http',
+        supportsOAuth: false,
+        iconUrl: figmaIcon,
+        category: 'developer',
+        toolsCount: 0,
+      },
+      {
+        id: 'lucide-icons',
+        name: 'Lucide Icons',
+        badge: 'Community',
+        description: 'Search Lucide icons and find React usage examples. Requires Node.js 22.16 or later.',
+        domain: 'lucide.dev',
+        endpoint: 'npx',
+        transport: 'stdio',
+        args: ['-y', 'lucide-icons-mcp@0.1.67', '--stdio'],
+        iconUrl: lucideIcon,
         category: 'developer',
         toolsCount: 0,
       },

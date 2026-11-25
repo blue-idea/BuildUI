@@ -114,7 +114,7 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
             </select>
           </label>}
 
-          {isHTTP && !credential?.required && <section aria-label="OAuth" className="space-y-3 border-b border-slate-200 pb-4 dark:border-zinc-800">
+          {isHTTP && !credential?.required && catalogPlugin?.supportsOAuth !== false && <section aria-label="OAuth" className="space-y-3 border-b border-slate-200 pb-4 dark:border-zinc-800">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold">{t('pluginsPage.detailsOauthTitle')}</h3>
