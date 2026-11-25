@@ -15,6 +15,8 @@ const (
 	NextTemplatePage         = "src/app/page.tsx"
 	NextTemplateLayout       = "src/app/layout.tsx"
 	NextTemplateConfig       = "next.config.ts"
+	NextBuildTimeout         = 3 * time.Minute
+	NextBuildDiagnosticLimit = 8 << 10
 	ReactTemplateDir         = "template"
 	ReactTemplatePackageName = "vite_react_shadcn_ts"
 	NativeTemplateDir        = "native-template"

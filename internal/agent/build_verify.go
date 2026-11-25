@@ -120,6 +120,11 @@ func (s *ChatService) verifyProjectBuild(ctx context.Context, appID int64, root,
 			report("Checking Expo Metro bundles…")
 			return checkNativeBundle(ctx, root, bundlePlatform)
 		})
+	} else if workspace.UsesNext(root) {
+		checkBundle = append(checkBundle, func(ctx context.Context) ([]tsc.DiagnosticItem, error) {
+			report("Checking Next.js production build")
+			return checkNextBuild(ctx, root)
+		})
 	}
 	report("Checking project TypeScript…")
 	result, err := s.buildProblems.RunSelfHealingLoop(ctx, appID, nil, config.ModelBuildRepairAttempts, func(ctx context.Context, problems []tsc.DiagnosticItem) error {

@@ -273,7 +273,7 @@ func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, ap
 	if err != nil {
 		return err
 	}
-	if changed && workspace.UsesExpo(root) {
+	if changed && (workspace.UsesExpo(root) || workspace.UsesNext(root)) {
 		if err := s.verifyPlannedBuild(ctx, req.ChatID, appID, root, client, request); err != nil {
 			return err
 		}
