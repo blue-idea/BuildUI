@@ -199,6 +199,27 @@ func (previewTestTsc) RunTsc(_ context.Context, root string) (string, error) {
 
 type previewTestLauncher struct{ launches, killed int }
 
+// v29.REQ-019：桌面应用退出时停止其托管的预览。
+func TestAppShutdownStopsManagedPreviews(t *testing.T) {
+	t.Setenv("BLOT_DEV_USER_DATA_DIR", t.TempDir())
+	a := NewApp()
+	a.startup(t.Context())
+	launcher := &previewTestLauncher{}
+	a.appService.SetRunner(runner.NewAppRunnerWithLauncher(launcher, nil))
+	projectID, err := a.appRepo.Create(t.Context(), &db.AppEntity{Name: "Sample AI App", Path: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := a.RunApp(runner.RunAppRequest{AppID: projectID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.shutdown(t.Context())
+	if launcher.killed != response.ProcessID {
+		t.Fatalf("shutdown did not stop managed preview %d", response.ProcessID)
+	}
+}
+
 func (l *previewTestLauncher) Launch(_ context.Context, _ string, onOutput func(string), _ func(error)) (int, error) {
 	l.launches++
 	onOutput("  ➜  Local:   http://127.0.0.1:8080/\n")

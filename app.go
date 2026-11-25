@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -208,6 +209,11 @@ func (a *App) startup(ctx context.Context) {
 
 // shutdown 在应用退出时调用
 func (a *App) shutdown(ctx context.Context) {
+	if a.appService != nil {
+		if err := a.appService.Shutdown(ctx); err != nil {
+			log.Printf("Could not stop all managed previews: %v", err)
+		}
+	}
 	if a.db != nil {
 		_ = a.db.Close()
 	}

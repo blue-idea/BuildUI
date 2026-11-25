@@ -18,6 +18,7 @@ const (
 	NextBuildTimeout         = 3 * time.Minute
 	NextBuildDiagnosticLimit = 8 << 10
 	NextPreviewTimeout       = 90 * time.Second
+	NextPreviewReuseTimeout  = 15 * time.Second
 	NextPreviewRetryInterval = 200 * time.Millisecond
 	NextPreviewLogLimit      = 4 << 10
 	ReactTemplateDir         = "template"

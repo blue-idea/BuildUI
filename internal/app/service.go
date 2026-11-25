@@ -325,6 +325,18 @@ func (s *AppService) RunApp(ctx context.Context, req runner.RunAppRequest) (*run
 	return response, nil
 }
 
+// Shutdown 停止托管预览，并取消尚未完成的预览检查。
+func (s *AppService) Shutdown(ctx context.Context) error {
+	s.activePreviews.Range(func(_, cancel any) bool {
+		cancel.(context.CancelFunc)()
+		return true
+	})
+	if s.runner == nil {
+		return nil
+	}
+	return s.runner.Shutdown(ctx)
+}
+
 // StopApp 停止应用的开发服务器
 func (s *AppService) StopApp(ctx context.Context, req runner.StopAppRequest) error {
 	if req.AppID <= 0 {

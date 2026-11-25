@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -121,5 +122,47 @@ func TestNextPreviewReportsStartupExitAfterURL(t *testing.T) {
 	}
 	if got := r.PreviewURL(1); got != "" {
 		t.Fatalf("exited process kept a preview URL: %s", got)
+	}
+}
+
+// v29.REQ-019：冲突时只复用同一项目的可访问预览，且不接管外部进程。
+func TestNextPreviewReusesExistingProjectServer(t *testing.T) {
+	projectDir := nextPreviewFixture(t)
+	for _, sameProject := range []bool{true, false} {
+		t.Run(fmt.Sprintf("sameProject=%t", sameProject), func(t *testing.T) {
+			reportedDir := projectDir
+			if !sameProject {
+				reportedDir = t.TempDir()
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+			r := NewAppRunnerWithLauncher(nextPreviewLauncher{func(_ context.Context, output func(string), exit func(error)) {
+				output("  - Local: http://127.0.0.1:2734")
+				output("✓ Ready in 477ms")
+				output("⨯ Another next dev server is already running.")
+				output("- Local:        " + server.URL)
+				output("- PID:          7732")
+				output("- Dir:          " + reportedDir)
+				exit(errors.New("exit status 1"))
+			}}, nil)
+			response, err := r.StartApp(t.Context(), 1, projectDir)
+			if !sameProject {
+				if err == nil || response != nil {
+					t.Fatalf("accepted a server from a different project: %+v, %v", response, err)
+				}
+				return
+			}
+			if err != nil || response == nil || response.PreviewURL != server.URL || response.ProcessID != 0 {
+				t.Fatalf("expected existing URL without taking ownership: %+v, %v", response, err)
+			}
+			if err := r.StopApp(t.Context(), 1); err != nil {
+				t.Fatal(err)
+			}
+			if r.IsRunning(1) {
+				t.Fatal("the external process must not be recorded as a managed preview")
+			}
+		})
 	}
 }

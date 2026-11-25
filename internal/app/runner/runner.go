@@ -3,6 +3,7 @@ package runner
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -109,6 +110,7 @@ type activeInstance struct {
 	err        error
 	stopping   bool
 	startupLog string
+	conflict   bool
 }
 
 // AppRunner 负责本地开发服务器的监管、端口捕获与关停
@@ -117,6 +119,7 @@ type AppRunner struct {
 	emitter  EventEmitter
 	mu       sync.RWMutex
 	active   map[int64]*activeInstance
+	closing  bool
 }
 
 // NewAppRunner 创建 AppRunner 实例
@@ -139,6 +142,10 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 		return nil, err
 	}
 	r.mu.Lock()
+	if r.closing {
+		r.mu.Unlock()
+		return nil, errs.NewPreconditionError("The preview runner is shutting down.", nil)
+	}
 	if inst, exists := r.active[appID]; exists {
 		if inst.stopping {
 			r.mu.Unlock()
@@ -176,9 +183,12 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 				if len(inst.startupLog) > config.NextPreviewLogLimit {
 					inst.startupLog = strings.ToValidUTF8(inst.startupLog[len(inst.startupLog)-config.NextPreviewLogLimit:], "")
 				}
+				inst.conflict = inst.conflict || isNextPreviewConflict(clean)
+				if !inst.conflict {
+					url = nextPreviewURL(clean)
+				}
 			}
 			r.mu.Unlock()
-			url = nextPreviewURL(clean)
 		} else {
 			url = ExtractPreviewURL(text)
 		}
@@ -220,9 +230,12 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 	r.mu.Lock()
 	inst.pid = pid
 	if r.active[appID] != inst {
+		stopped := inst.stopping
 		r.mu.Unlock()
-		_ = r.launcher.Kill(pid)
-		return nil, errs.NewExternalError("The preview exited during startup.", inst.err)
+		if stopped {
+			_ = r.launcher.Kill(pid)
+		}
+		return r.previewStartupExit(ctx, inst, appPath)
 	}
 	r.mu.Unlock()
 
@@ -243,9 +256,8 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 	case url := <-ready:
 		r.mu.Lock()
 		if r.active[appID] != inst || inst.stopping {
-			exitErr := inst.err
 			r.mu.Unlock()
-			return nil, errs.NewExternalError("The preview exited during startup.", exitErr)
+			return r.previewStartupExit(ctx, inst, appPath)
 		}
 		inst.previewURL = url
 		inst.startupLog = ""
@@ -256,7 +268,7 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 			Status:     "running",
 		}, nil
 	case <-inst.done:
-		return nil, errs.NewExternalError("The preview exited during startup.", inst.err)
+		return r.previewStartupExit(ctx, inst, appPath)
 	case <-timer.C:
 		_ = r.StopApp(context.Background(), appID)
 		if next {
@@ -267,6 +279,45 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 		_ = r.StopApp(context.Background(), appID)
 		return nil, ctx.Err()
 	}
+}
+
+func (r *AppRunner) previewStartupExit(ctx context.Context, inst *activeInstance, appPath string) (*RunAppResponse, error) {
+	r.mu.RLock()
+	log, cause, stopped := inst.startupLog, inst.err, inst.stopping
+	r.mu.RUnlock()
+	if !stopped && cause != nil {
+		if address := existingNextPreviewURL(appPath, log); address != "" {
+			probeCtx, cancel := context.WithTimeout(ctx, config.NextPreviewReuseTimeout)
+			defer cancel()
+			if nextPreviewResponds(probeCtx, address) && ctx.Err() == nil {
+				// 只返回可用地址，外部进程不纳入 StopApp 的管理范围。
+				return &RunAppResponse{PreviewURL: address, Status: "running"}, nil
+			}
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return nil, errs.NewExternalError("The preview exited during startup.", cause)
+}
+
+// Shutdown 禁止新的预览启动，并关闭当前会话托管的进程。
+func (r *AppRunner) Shutdown(ctx context.Context) error {
+	r.mu.Lock()
+	r.closing = true
+	appIDs := make([]int64, 0, len(r.active))
+	for appID := range r.active {
+		appIDs = append(appIDs, appID)
+	}
+	r.mu.Unlock()
+
+	var stopErrors []error
+	for _, appID := range appIDs {
+		if err := r.StopApp(ctx, appID); err != nil {
+			stopErrors = append(stopErrors, err)
+		}
+	}
+	return errors.Join(stopErrors...)
 }
 
 // StopApp 停止子应用开发服务器并释放端口
