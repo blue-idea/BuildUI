@@ -56,7 +56,6 @@ type App struct {
 	settingsService  *settings.SettingsService
 	versionService   *version.VersionService
 	themeService     *theme.ThemeService
-	templateService  *template.TemplateService
 	updaterService   *updater.Service
 	pluginService    *plugins.Service
 }
@@ -170,6 +169,7 @@ func (a *App) startup(ctx context.Context) {
 		}
 
 		a.appService = app.NewAppService(a.appRepo, database)
+		a.appService.SetTemplateCacheRoot(appDataDir)
 		a.appService.SetWorkspaceRoot(defaultRoot)
 		a.appService.SetRunner(runner.NewAppRunner(emitter))
 		a.blueprintService = blueprint.NewBlueprintService(a.bpRepo, a.appRepo, database)
@@ -186,7 +186,6 @@ func (a *App) startup(ctx context.Context) {
 		a.versionService = version.NewVersionService(versionRepo, a.appRepo, emitter)
 		a.themeService = theme.NewThemeService(a.appRepo)
 		a.themeService.SetSettingsRepo(settingsRepo)
-		a.templateService = template.NewTemplateService()
 
 		a.updaterService = updater.NewService(updater.Config{
 			Emitter: func(ctx context.Context, eventName string, result updater.UpdateCheckResult) {
@@ -535,38 +534,30 @@ func (a *App) ExtractStyle(req theme.ExtractStyleRequest) (*theme.ExtractedStyle
 	return a.themeService.ExtractStyle(a.ctx, req)
 }
 
-// GetAppTemplates 暴露给前端的获取内置模版清单 RPC 方法
+// GetAppTemplates 返回内置模板及可用的社区目录。
 func (a *App) GetAppTemplates() []template.AppTemplate {
-	if a.templateService == nil {
+	if a.appService == nil {
 		return template.GetDefaultTemplates()
 	}
-	return a.templateService.GetTemplates()
+	return a.appService.ListTemplates(a.ctx)
 }
 
-// CreateAppFromTemplate 暴露给前端的基于模版一键初始化应用 RPC 方法
-func (a *App) CreateAppFromTemplate(req template.CreateFromTemplateRequest) (*app.CreateAppResponse, error) {
-	if a.templateService == nil {
-		a.templateService = template.NewTemplateService()
-	}
-	if req.DestPath == "" && a.appService != nil {
-		root := a.appService.GetWorkspaceRoot(a.ctx)
-		slug := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(req.AppName), " ", "-"))
-		req.DestPath = filepath.Join(root, slug)
-	}
-	inst, err := a.templateService.InstantiateTemplate(a.ctx, req)
-	if err != nil {
-		return nil, err
-	}
+// SelectProjectTemplate 保存模板中心的选中项与可选的社区代码授权。
+func (a *App) SelectProjectTemplate(id string, acceptCommunity bool) error {
 	if a.appService == nil {
-		return &app.CreateAppResponse{
-			AppID: 1,
-			Name:  inst.AppName,
-			Path:  inst.DestPath,
-		}, nil
+		return errors.New("The project service is unavailable.")
 	}
-	return a.appService.CreateApp(a.ctx, app.CreateAppRequest{
-		Name:       inst.AppName,
-		TemplateID: inst.TemplateID,
-		CustomPath: inst.DestPath,
+	return a.appService.SelectTemplate(a.ctx, id, acceptCommunity)
+}
+
+// CreateAppFromTemplate 保留旧调用入口，共用一次项目创建流程。
+func (a *App) CreateAppFromTemplate(req template.CreateFromTemplateRequest) (*app.CreateAppResponse, error) {
+	if a.appService == nil {
+		return nil, errors.New("The project service is unavailable.")
+	}
+	return a.CreateApp(app.CreateAppRequest{
+		Name:       req.AppName,
+		TemplateID: req.TemplateID,
+		CustomPath: req.DestPath,
 	})
 }

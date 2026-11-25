@@ -6,12 +6,19 @@ import { ModelSelector } from './components/ModelSelector';
 import { VersionTimelineModal, VersionItem } from './components/VersionTimelineModal';
 import { AppDrawer, AppItem, ProjectPlatform, inferAppPlatform } from './components/AppDrawer';
 import { ExportModal } from './components/ExportModal';
-import { TemplateModal, AppTemplate } from './components/TemplateModal';
+import type { AppTemplate } from './components/TemplateModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
 import { UpdateNotifier } from './components/UpdateNotifier';
 import { MacOSWindowHeader } from './components/MacOSWindowHeader';
 import { LeftDock, DockTab } from './components/LeftDock';
-import { NATIVE_APP_TEMPLATE } from './config/projectTemplates';
+import {
+  BLANK_PROJECT_TEMPLATE,
+  COMMUNITY_TEMPLATE_CONSENT_KEY,
+  DEFAULT_PROJECT_TEMPLATE,
+  LOCAL_PROJECT_TEMPLATES,
+  NATIVE_APP_TEMPLATE,
+  SELECTED_TEMPLATE_KEY,
+} from './config/projectTemplates';
 import { HomeGuideView, GuideCustomizationOptions } from './components/HomeGuideView';
 import { TemplateCenterView } from './components/TemplateCenterView';
 import { ComponentCenterView } from './components/ComponentCenterView';
@@ -245,7 +252,6 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isInspectMode, setIsInspectMode] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>(desktop ? [] : [
     {
@@ -321,131 +327,27 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const [installedDependencies, setInstalledDependencies] = useState<string[]>(desktop ? [] : ['lucide-react']);
   const [installingDeps, setInstallingDeps] = useState<string | null>(null);
 
-  const [templates] = useState<AppTemplate[]>([
-    // Web 模版
-    {
-      id: 'saas-dashboard',
-      name: 'SaaS Analytics Dashboard',
-      description: 'Production-ready metrics dashboard featuring revenue KPI cards, charts, and telemetry',
-      category: 'Analytics',
-      platform: 'web',
-      tags: ['Charts', 'KPIs', 'Metrics', 'SaaS'],
-      icon: '📊',
-      themeId: 'dark-slate',
-    },
-    {
-      id: 'landing-page',
-      name: 'Modern Product Landing Page',
-      description: 'Clean landing page featuring sticky navigation, hero section, and pricing tables',
-      category: 'Marketing',
-      platform: 'web',
-      tags: ['Landing', 'SaaS', 'Pricing', 'Hero'],
-      icon: '🚀',
-      themeId: 'clean-light',
-    },
-    {
-      id: 'storefront',
-      name: 'E-Commerce Showcase',
-      description: 'Warm twilight storefront with product cards, filter drawer, and checkout cart',
-      category: 'Commerce',
-      platform: 'web',
-      tags: ['Shop', 'Catalog', 'Cart', 'Checkout'],
-      icon: '🛍️',
-      themeId: 'sunset-glow',
-    },
-    {
-      id: 'docs-hub',
-      name: 'Developer Documentation Hub',
-      description: 'Searchable developer documentation portal with sidebar navigation and markdown syntax',
-      category: 'Documentation',
-      platform: 'web',
-      tags: ['Docs', 'Search', 'Syntax', 'API'],
-      icon: '📚',
-      themeId: 'clean-light',
-    },
-    // Desktop 模版
-    {
-      id: 'devtools-workstation',
-      name: 'Developer Workstation',
-      description: 'Dual-pane code inspector, file tree navigation, and live diagnostic console',
-      category: 'Developer',
-      platform: 'desktop',
-      tags: ['IDE', 'Code', 'Terminal', 'Diagnostics'],
-      icon: '💻',
-      themeId: 'dark-slate',
-    },
-    {
-      id: 'sqlite-studio',
-      name: 'SQLite Database Studio',
-      description: 'Native desktop SQL query workbench with table data viewer, schema inspector, and export',
-      category: 'Database',
-      platform: 'desktop',
-      tags: ['SQL', 'Database', 'Tables', 'Schema'],
-      icon: '🗄️',
-      themeId: 'dark-slate',
-    },
-    {
-      id: 'markdown-notes',
-      name: 'Markdown Knowledge Graph',
-      description: 'Fast local-first Markdown notes manager with tag links and live preview pane',
-      category: 'Productivity',
-      platform: 'desktop',
-      tags: ['Notes', 'Markdown', 'Graph', 'Local'],
-      icon: '📝',
-      themeId: 'clean-light',
-    },
-    {
-      id: 'system-monitor',
-      name: 'Native System Monitor',
-      description: 'Real-time CPU, RAM, and network telemetry tracker with process kill actions',
-      category: 'System',
-      platform: 'desktop',
-      tags: ['System', 'Telemetry', 'CPU', 'Wails'],
-      icon: '⚡',
-      themeId: 'cyberpunk-neon',
-    },
-    // App 移动端模版
-    {
-      id: 'fitness-tracker',
-      name: 'Fitness & Workout Tracker',
-      description: 'Mobile fitness companion with daily movement rings, workout timers, and calorie log',
-      category: 'Health',
-      platform: 'app',
-      tags: ['Fitness', 'Rings', 'Timer', 'Habits'],
-      icon: '🏃',
-      themeId: 'clean-light',
-    },
-    {
-      id: 'crypto-wallet',
-      name: 'Crypto & Token Wallet',
-      description: 'Mobile decentralized wallet interface with token watchlists, send/receive modals, and balance history',
-      category: 'Fintech',
-      platform: 'app',
-      tags: ['Crypto', 'Wallet', 'Tokens', 'DeFi'],
-      icon: '🪙',
-      themeId: 'cyberpunk-neon',
-    },
-    {
-      id: 'pocket-pantry',
-      name: 'Pantry Recipe Planner',
-      description: 'Pocket inventory manager with grocery ingredients list and smart dinner suggestions',
-      category: 'Lifestyle',
-      platform: 'app',
-      tags: ['Recipes', 'Pantry', 'Meals', 'Inventory'],
-      icon: '🥫',
-      themeId: 'clean-light',
-    },
-    {
-      id: 'social-feed',
-      name: 'Mobile Social Stories & Feed',
-      description: 'Mobile social platform featuring user story circles, card feed, and instant reactions',
-      category: 'Social',
-      platform: 'app',
-      tags: ['Social', 'Feed', 'Stories', 'Cards'],
-      icon: '📱',
-      themeId: 'sunset-glow',
-    },
-  ]);
+  const [templates, setTemplates] = useState<AppTemplate[]>(LOCAL_PROJECT_TEMPLATES);
+  const [communityStatus, setCommunityStatus] = useState<'loading' | 'unavailable'>();
+  const selectedTemplateId = settings[SELECTED_TEMPLATE_KEY] || DEFAULT_PROJECT_TEMPLATE;
+
+  const loadTemplateCatalog = useCallback(async () => {
+    if (!desktop) return;
+    const list = desktopApp().GetAppTemplates;
+    if (!list) return;
+    setCommunityStatus('loading');
+    try {
+      const community = (await list()).filter((entry) => entry.source === 'community');
+      setTemplates([...LOCAL_PROJECT_TEMPLATES, ...community]);
+      setCommunityStatus(community.length ? undefined : 'unavailable');
+    } catch {
+      setCommunityStatus('unavailable');
+    }
+  }, [desktop]);
+
+  useEffect(() => {
+    if (activeDockTab === 'templates') void loadTemplateCatalog();
+  }, [activeDockTab, loadTemplateCatalog]);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -581,20 +483,18 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     }
   };
 
-  const createDesktopProject = (name: string, templateId?: string, native = false): Promise<void> => updateProject(async () => {
-    const api = desktopApp();
-    const created = native
-      ? await api.CreateApp({ name, templateId: NATIVE_APP_TEMPLATE })
-      : templateId
-        ? await api.CreateAppFromTemplate({ appName: name, templateId })
-        : await api.CreateApp({ name });
-    const inferredPlatform = native ? 'app' : inferAppPlatform({ name: created.name, path: created.path });
-    setApps((previous) => [...previous, { id: created.appId, name: created.name, path: created.path, platform: inferredPlatform }]);
+  const createAndOpenDesktopProject = async (name: string, templateId?: string, projectPlatform?: ProjectPlatform) => {
+    const created = await desktopApp().CreateApp(templateId ? { name, templateId } : { name });
+    const templatePlatform = templates.find((entry) => entry.id === templateId)?.platform;
+    const platform = projectPlatform ?? templatePlatform ?? inferAppPlatform({ name: created.name, path: created.path });
+    setApps((previous) => [...previous, { id: created.appId, name: created.name, path: created.path, platform }]);
     setIsDrawerOpen(false);
-    setIsTemplateModalOpen(false);
     setActiveDockTab('builder');
     await activateProject(created.appId);
-  });
+  };
+
+  const createDesktopProject = (name: string, platform: ProjectPlatform = 'web', templateId?: string): Promise<void> =>
+    updateProject(() => createAndOpenDesktopProject(name, templateId ?? (platform === 'app' ? NATIVE_APP_TEMPLATE : undefined), platform));
 
   const runDesktopTurn = async (
     prompt: string,
@@ -680,7 +580,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   useEffect(() => {
     (desktop ? desktopApp().GetSettings() : fetchSettings()).then((cfg) => {
       if (cfg && Object.keys(cfg).length > 0) {
-        setSettings(cfg);
+        setSettings((previous) => ({ ...cfg, ...previous }));
       }
     }).catch(reportError);
 
@@ -959,9 +859,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       if (turn.current) return;
       // 首页点击开始生成按钮，自动创建新项目并直接开始构建，无需再次点击发送指令
       const appName = generateSafeAppName(options?.userInput || prompt, apps.map((a) => a.name));
-      const templateId = options?.template && options.template !== 'blank' ? options.template : undefined;
+      const templateId = options?.template === BLANK_PROJECT_TEMPLATE ? undefined : options?.template;
       const previousAppId = projectID.current;
-      await createDesktopProject(appName, templateId, options?.category === 'app');
+      await createDesktopProject(appName, options?.category, templateId);
       if (!chatID.current || projectID.current === previousAppId) return;
 
       const userMsg: ChatMessage = {
@@ -1086,36 +986,47 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     ]);
   };
 
-  const handleSelectTemplate = (templateId: string) => {
-    const tmpl = templates.find((t) => t.id === templateId);
-    if (!tmpl) return;
+  const handleSelectTemplate = async (templateId: string, acceptCommunity = false) => {
+    const changes: Record<string, string> = { [SELECTED_TEMPLATE_KEY]: templateId };
+    if (acceptCommunity) changes[COMMUNITY_TEMPLATE_CONSENT_KEY] = 'true';
     if (desktop) {
-      if (!isChangingProject && !isGenerating) {
-        void createDesktopProject(tmpl.name, templateId);
-        setActiveDockTab('builder');
+      const api = desktopApp();
+      if (api.SelectProjectTemplate) await api.SelectProjectTemplate(templateId, acceptCommunity);
+      else await api.SaveSettings(changes);
+    } else {
+      await saveSettings({ ...settings, ...changes });
+    }
+    setSettings((previous) => ({ ...previous, ...changes }));
+  };
+
+  const handleCreateFromTemplate = async (name: string, templateId: string) => {
+    if (desktop) {
+      setIsChangingProject(true);
+      setProjectError('');
+      try {
+        await createAndOpenDesktopProject(name, templateId);
+      } finally {
+        setIsChangingProject(false);
       }
       return;
     }
 
-    const newId = Date.now();
+    if (apps.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
+      throw new Error(t('templatesPage.nameExists'));
+    }
+    const selected = templates.find((entry) => entry.id === templateId);
     const newApp: AppItem = {
-      id: newId,
-      name: tmpl.name,
-      path: `/workspace/${tmpl.id}`,
+      id: Date.now(),
+      name,
+      path: '/workspace/' + generateSafeAppName(name, []).toLowerCase().replace(/ /g, '-'),
+      platform: selected?.platform,
       createdAt: new Date().toISOString(),
     };
-    setApps((prev) => [...prev, newApp]);
-    setActiveAppId(newId);
+    setApps((previous) => [...previous, newApp]);
+    setActiveAppId(newApp.id);
     setWorkspaceDir(newApp.path);
-    setIsTemplateModalOpen(false);
+    setMessages([]);
     setActiveDockTab('builder');
-    setMessages([
-      {
-        id: String(Date.now()),
-        sender: 'assistant',
-        content: `Instantiated new application from template "${tmpl.name}". Initial codebase scaffolded and loaded into workspace.`,
-      },
-    ]);
   };
 
   const handleInspectFile = (path: string) => {
@@ -1316,7 +1227,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             }}
             onCreateNamedApp={
               desktop
-                ? (name: string, platform?: ProjectPlatform) => createDesktopProject(name, undefined, platform === 'app')
+                ? createDesktopProject
                 : async (name: string, platform?: ProjectPlatform) => {
                     const newId = Date.now();
                     const baseDir = (settings['workspace.dir'] || workspaceDir || '/workspace').replace(/\/+$/, '');
@@ -1368,7 +1279,13 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         ) : activeDockTab === 'templates' ? (
           <TemplateCenterView
             templates={templates}
+            selectedTemplateId={selectedTemplateId}
+            acceptedCommunityCode={settings[COMMUNITY_TEMPLATE_CONSENT_KEY] === 'true'}
             onSelectTemplate={handleSelectTemplate}
+            onCreateProject={handleCreateFromTemplate}
+            communityStatus={communityStatus}
+            onRetryCommunity={() => void loadTemplateCatalog()}
+            busy={desktop && (isChangingProject || isGenerating)}
           />
         ) : activeDockTab === 'components' ? (
           <ComponentCenterView
@@ -1760,7 +1677,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         defaultWorkspaceDir={workspaceDir}
         onSave={async (newCfg) => {
           await (desktop ? desktopApp().SaveSettings(newCfg) : saveSettings(newCfg));
-          setSettings(newCfg);
+          setSettings((previous) => ({ ...previous, ...newCfg }));
           if (newCfg['workspace.dir']) {
             setWorkspaceDir(newCfg['workspace.dir']);
           }
@@ -1804,7 +1721,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         activeAppId={activeAppId}
         busy={desktop && (isChangingProject || isGenerating || isStartingApp)}
         error={desktop ? projectError : undefined}
-        onCreateNamedApp={desktop ? (name: string, platform?: ProjectPlatform) => createDesktopProject(name, undefined, platform === 'app') : undefined}
+        onCreateNamedApp={desktop ? createDesktopProject : undefined}
         onSelectApp={(id) => {
           if (desktop) {
             setIsDrawerOpen(false);
@@ -1855,13 +1772,6 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         appName={activeApp?.name ?? 'No project selected'}
         onExportZip={() => desktop ? desktopApp().ExportAppZip(activeAppId, '') : exportAppZip(activeAppId)}
         onRevealInFileManager={desktop ? (path) => desktopApp().OpenInFileManager(path) : openInFileManager}
-      />
-
-      <TemplateModal
-        isOpen={isTemplateModalOpen}
-        onClose={() => setIsTemplateModalOpen(false)}
-        templates={templates}
-        onSelectTemplate={handleSelectTemplate}
       />
 
       <CommandPalette

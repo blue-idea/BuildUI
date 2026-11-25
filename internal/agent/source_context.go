@@ -28,6 +28,8 @@ func requestedSourcePaths(root, prompt string) []string {
 		} else {
 			paths = append(paths, "index.ts")
 		}
+	} else if workspace.UsesNext(root) {
+		paths = []string{config.NextTemplatePage, config.NextTemplateLayout, "package.json"}
 	}
 	for _, match := range sourceMention.FindAllStringSubmatch(prompt+" ", 5) {
 		paths = append([]string{match[1]}, paths...)

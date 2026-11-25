@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TemplateCenterView } from './TemplateCenterView';
 import { AppTemplate } from './TemplateModal';
@@ -53,6 +53,38 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe('TemplateCenterView - Normal Page with Web, Desktop, App Categories', () => {
+  it('选择默认模板与提交创建相互独立', async () => {
+    const onSelectTemplate = vi.fn();
+    const onCreateProject = vi.fn().mockResolvedValue(undefined);
+    const props = { templates: mockTemplates, onSelectTemplate, onCreateProject, selectedTemplateId: 'web-saas' };
+    renderWithProviders(<TemplateCenterView {...props} />);
+
+    await act(async () => { fireEvent.click(screen.getByTestId('use-template-web-landing')); });
+    expect(onSelectTemplate).toHaveBeenCalledWith('web-landing');
+    expect(onCreateProject).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Create App' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Project name' }), { target: { value: '  Sample AI App  ' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Create project' })); });
+    expect(onCreateProject).toHaveBeenCalledWith('Sample AI App', 'web-saas');
+  });
+
+  it('首次选择社区模板需要显式确认', async () => {
+    const onSelectTemplate = vi.fn();
+    const props = {
+      templates: [{ ...mockTemplates[0], id: 'jeff-kazzee/dyad-template-angular', source: 'community' as const }],
+      onSelectTemplate,
+    };
+    renderWithProviders(<TemplateCenterView {...props} />);
+
+    fireEvent.click(screen.getByTestId('use-template-jeff-kazzee/dyad-template-angular'));
+    expect(onSelectTemplate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onSelectTemplate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('use-template-jeff-kazzee/dyad-template-angular'));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Accept and select' })); });
+    expect(onSelectTemplate).toHaveBeenCalledWith('jeff-kazzee/dyad-template-angular', true);
+  });
+
   it('renders the template center page header and 3 main platform tabs plus all', () => {
     renderWithProviders(
       <TemplateCenterView
@@ -117,7 +149,7 @@ describe('TemplateCenterView - Normal Page with Web, Desktop, App Categories', (
     expect(screen.queryByText('Fitness & Workout Tracker')).toBeNull();
   });
 
-  it('calls onSelectTemplate when clicking Use Template on a template card', () => {
+  it('calls onSelectTemplate when clicking Use Template on a template card', async () => {
     const onSelectTemplate = vi.fn();
     renderWithProviders(
       <TemplateCenterView
@@ -127,7 +159,7 @@ describe('TemplateCenterView - Normal Page with Web, Desktop, App Categories', (
     );
 
     const useBtn = screen.getByTestId('use-template-web-saas');
-    fireEvent.click(useBtn);
+    await act(async () => { fireEvent.click(useBtn); });
 
     expect(onSelectTemplate).toHaveBeenCalledWith('web-saas');
   });

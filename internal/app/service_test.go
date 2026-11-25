@@ -13,6 +13,77 @@ import (
 	"buildui/internal/db"
 )
 
+func TestCreateAppWithExplicitNextTemplate(t *testing.T) {
+	ctx := context.Background()
+	database, err := db.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	svc := app.NewAppService(db.NewAppRepository(database), database)
+	svc.SetWorkspaceRoot(t.TempDir())
+	if err := svc.SelectTemplate(ctx, "react-native", false); err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.CreateApp(ctx, app.CreateAppRequest{Name: "Sample AI App", TemplateID: "next"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range []string{"src/app/page.tsx", "src/app/layout.tsx", "next.config.ts"} {
+		if _, err := os.Stat(filepath.Join(result.Path, file)); err != nil {
+			t.Fatalf("expected Next.js scaffold file %s: %v", file, err)
+		}
+	}
+	manifest, err := os.ReadFile(filepath.Join(result.Path, "package.json"))
+	if err != nil || !strings.Contains(string(manifest), `"name": "sample-ai-app"`) || !strings.Contains(string(manifest), `"dev": "next dev"`) {
+		t.Fatalf("unexpected Next.js manifest: %s (%v)", manifest, err)
+	}
+}
+
+func TestRegularCreateIgnoresTemplateCenterSelection(t *testing.T) {
+	ctx := context.Background()
+	for _, templateID := range []string{"next", "react-native"} {
+		t.Run(templateID, func(t *testing.T) {
+			database, err := db.OpenMemory(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = database.Close() })
+			svc := app.NewAppService(db.NewAppRepository(database), database)
+			svc.SetWorkspaceRoot(t.TempDir())
+			if err := svc.SelectTemplate(ctx, templateID, false); err != nil {
+				t.Fatal(err)
+			}
+			created, err := svc.CreateApp(ctx, app.CreateAppRequest{Name: "Sample AI App"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := os.Stat(filepath.Join(created.Path, "vite.config.ts")); err != nil {
+				t.Fatalf("expected the React scaffold after selecting %s: %v", templateID, err)
+			}
+		})
+	}
+}
+
+func TestCreateAppRequiresCommunityConsent(t *testing.T) {
+	ctx := context.Background()
+	database, err := db.OpenMemory(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	svc := app.NewAppService(db.NewAppRepository(database), database)
+	root := t.TempDir()
+	svc.SetWorkspaceRoot(root)
+	_, err = svc.CreateApp(ctx, app.CreateAppRequest{Name: "Angular", TemplateID: "jeff-kazzee/dyad-template-angular"})
+	if err == nil || !strings.Contains(err.Error(), "Accept the community code notice") {
+		t.Fatalf("expected community consent requirement, got %v", err)
+	}
+	if entries, err := os.ReadDir(root); err != nil || len(entries) != 0 {
+		t.Fatalf("a rejected community request must not create any files: %v (%v)", entries, err)
+	}
+}
+
 // v1.REQ-001-AC-001 & v1.REQ-001-AC-002: AppService.CreateApp 基础脚手架展开与应用创建测试
 func TestAppService_CreateApp(t *testing.T) {
 	ctx := context.Background()

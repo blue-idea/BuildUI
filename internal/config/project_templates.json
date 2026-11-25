@@ -1,0 +1,14 @@
+{
+  "defaultId": "react",
+  "selectionKey": "templates.selectedId",
+  "consentKey": "templates.communityAccepted",
+  "templates": [
+    { "id": "react", "name": "React", "description": "A client-side web app with React, Vite, TypeScript, and shadcn/ui.", "category": "Web", "platform": "web", "tags": ["React", "Vite", "TypeScript"], "icon": "React", "themeId": "default", "source": "official" },
+    { "id": "react-native", "name": "React Native (Expo)", "description": "A mobile app with Expo Router, React Native, and NativeWind.", "category": "Mobile", "platform": "app", "tags": ["Expo", "React Native", "NativeWind"], "icon": "Expo", "themeId": "default", "source": "official" },
+    { "id": "next", "name": "Next.js", "description": "A full-stack web app with the Next.js App Router, TypeScript, and Tailwind CSS.", "category": "Web", "platform": "web", "tags": ["Next.js", "App Router", "TypeScript"], "icon": "Next.js", "themeId": "default", "source": "official" },
+    { "id": "saas-dashboard", "name": "SaaS Analytics Dashboard", "description": "A metrics dashboard with revenue KPIs and activity charts.", "category": "Analytics", "platform": "web", "tags": ["Charts", "KPIs", "Metrics"], "icon": "📊", "themeId": "dark-slate", "source": "example" },
+    { "id": "portfolio", "name": "Creative Developer Portfolio", "description": "A portfolio layout with a hero and project showcase.", "category": "Personal", "platform": "web", "tags": ["Portfolio", "Projects"], "icon": "⚡", "themeId": "cyberpunk-neon", "source": "example" },
+    { "id": "landing-page", "name": "Modern Product Landing Page", "description": "A product landing page with a hero and call to action.", "category": "Marketing", "platform": "web", "tags": ["Landing", "SaaS"], "icon": "🚀", "themeId": "clean-light", "source": "example" },
+    { "id": "storefront", "name": "E-Commerce Showcase", "description": "A storefront starter with a warm palette and cart badge.", "category": "Commerce", "platform": "web", "tags": ["Shop", "Catalog", "Cart"], "icon": "🛍️", "themeId": "sunset-glow", "source": "example" }
+  ]
+}

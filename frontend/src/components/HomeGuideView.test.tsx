@@ -13,6 +13,80 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
+  it('定制模板默认关闭，开启后单选，关闭后恢复平台默认', () => {
+    const onStartBuilding = vi.fn();
+    renderWithProviders(<HomeGuideView onStartBuilding={onStartBuilding} />);
+
+    const toggle = screen.getByRole('switch', { name: 'Custom template' });
+    const style = screen.getByTestId('guide-style-btn');
+    expect(toggle.compareDocumentPosition(style) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const submit = screen.getByTestId<HTMLButtonElement>('guide-submit-btn');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(screen.queryByRole('dialog', { name: 'Custom template' })).toBeNull();
+    fireEvent.click(submit);
+    expect(onStartBuilding.mock.lastCall?.[1].template).toBe('blank');
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    const trigger = screen.getByRole('button', { name: 'Starter template' });
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(submit.disabled).toBe(true);
+    fireEvent.keyDown(screen.getByTestId('guide-user-input'), { key: 'Enter' });
+    expect(onStartBuilding).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('radio', { name: 'SaaS Analytics Dashboard' }));
+    const next = screen.getByRole('radio', { name: 'Next.js' });
+    fireEvent.click(next);
+    expect(screen.getAllByRole('radio', { checked: true })).toEqual([next]);
+    fireEvent.keyDown(next, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Custom template' })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    fireEvent.click(submit);
+    expect(onStartBuilding).toHaveBeenLastCalledWith(
+      expect.stringContaining('Next.js App Router'), expect.objectContaining({ template: 'next' }), expect.anything(),
+    );
+
+    fireEvent.click(screen.getByTestId('guide-blank-project-btn'));
+    expect(onStartBuilding.mock.lastCall?.[1].template).toBe('blank');
+    fireEvent.click(trigger);
+    expect(screen.getByRole('radio', { name: 'Next.js', checked: true })).toBeDefined();
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    expect(screen.queryByRole('dialog', { name: 'Custom template' })).toBeNull();
+    fireEvent.click(submit);
+    expect(onStartBuilding.mock.lastCall?.[1].template).toBe('blank');
+  });
+
+  it('切换到 App 后清除不兼容的 Next.js 并提供 Expo', () => {
+    const onStartBuilding = vi.fn();
+    renderWithProviders(<HomeGuideView onStartBuilding={onStartBuilding} />);
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Custom template' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Next.js' }));
+    fireEvent.click(screen.getByTestId('guide-tab-desktop'));
+    expect(screen.getByRole('radio', { name: 'Next.js', checked: true })).toBeDefined();
+    fireEvent.click(screen.getByTestId('guide-tab-app'));
+    expect(screen.queryByRole('radio', { checked: true })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Next.js' })).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: 'React Native (Expo)' }));
+    fireEvent.click(screen.getByTestId('guide-submit-btn'));
+    expect(onStartBuilding.mock.lastCall?.[1]).toMatchObject({ template: 'react-native', category: 'app' });
+  });
+
+  it('点击外部关闭定制模板菜单，打开设计系统预设时只显示其菜单', () => {
+    renderWithProviders(<HomeGuideView onStartBuilding={vi.fn()} />);
+    const toggle = screen.getByRole('switch', { name: 'Custom template' });
+    fireEvent.click(toggle);
+    const trigger = screen.getByRole('button', { name: 'Starter template' });
+    expect(screen.getByRole('dialog', { name: 'Custom template' })).toBeDefined();
+    fireEvent.mouseDown(screen.getByTestId('guide-user-input'));
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByTestId('guide-style-btn'));
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByTestId('guide-style-filter-all')).toBeDefined();
+  });
+
   it('只选择可用于新项目的已启用插件，并提交开关和多选状态', async () => {
     const onStartBuilding = vi.fn();
     vi.stubGlobal('go', { main: { App: { ListPlugins: vi.fn().mockResolvedValue([

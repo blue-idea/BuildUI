@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useId } from 'react';
 import {
   Globe,
   Monitor,
@@ -7,17 +7,33 @@ import {
   Palette,
   ArrowUp,
   Check,
+  LayoutTemplate,
 } from 'lucide-react';
-import { NATIVE_APP_STACK } from '../config/projectTemplates';
+import {
+  BLANK_PROJECT_TEMPLATE,
+  isProjectTemplateCompatible,
+  LOCAL_PROJECT_TEMPLATES,
+  NATIVE_APP_STACK,
+  NEXT_APP_STACK,
+  NEXT_APP_TEMPLATE,
+} from '../config/projectTemplates';
 import { useI18n } from '../i18n/I18nContext';
 import { pluginBridge } from '../services/wailsBridge';
 import type { InstalledPlugin, PluginAutomation } from '../types/plugin';
 import { HomePluginPicker } from './HomePluginPicker';
 import { ModelSelector } from './ModelSelector';
 import type { AttachmentItem } from '../App';
+import type { ProjectPlatform } from './AppDrawer';
 import type { ThemePreset } from './ThemeSelector';
 
-export type AppCategory = 'app' | 'desktop' | 'web';
+export type AppCategory = ProjectPlatform;
+
+const presetPopoverClass = 'absolute bottom-11 right-0 z-30 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-2xl dark:border-zinc-800 dark:bg-zinc-900';
+const presetRowClass = (selected: boolean) => `flex cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs transition-colors ${
+  selected
+    ? 'bg-blue-50 font-medium text-blue-600 dark:bg-blue-950/40 dark:text-blue-400'
+    : 'text-slate-800 hover:bg-slate-100 dark:text-zinc-200 dark:hover:bg-zinc-800'
+}`;
 
 export interface GuideCustomizationOptions {
   category: AppCategory;
@@ -262,7 +278,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   // 3. 风格选择（优先从风格页模版列表获取，支持受控与非受控）
   const [internalSelectedStyle, setInternalSelectedStyle] = useState('auto');
   const selectedStyle = activeStyleId ?? internalSelectedStyle;
-  const [isStylePopoverOpen, setIsStylePopoverOpen] = useState(false);
+  const [activePresetPopover, setActivePresetPopover] = useState<'style' | 'template' | null>(null);
   const [popoverStyleFilter, setPopoverStyleFilter] = useState<'all' | AppCategory>('all');
 
   const handleSelectStyle = (id: string) => {
@@ -270,26 +286,48 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
     onSelectStyleId?.(id);
   };
 
-  // 4. 模版选择
-  const [selectedTemplate, setSelectedTemplate] = useState('blank');
+  // null 表示关闭定制，空字符串表示已开启但尚未选择模板。
+  const [customTemplateId, setCustomTemplateId] = useState<string | null>(null);
+  const customTemplateEnabled = customTemplateId !== null;
+  const templateOptions = LOCAL_PROJECT_TEMPLATES.filter((template) => isProjectTemplateCompatible(template, category));
+  const selectedTemplate = templateOptions.find((template) => template.id === customTemplateId);
+  const canStart = !customTemplateEnabled || !!selectedTemplate;
+
+  const handleCategoryChange = (platform: AppCategory) => {
+    setCategory(platform);
+    if (selectedTemplate && !isProjectTemplateCompatible(selectedTemplate, platform)) {
+      setCustomTemplateId('');
+    }
+  };
 
   // 5. 附件上传列表与引用
   const [attachments, setAttachments] = useState<AttachmentItem[]>(initialAttachments);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stylePopoverRef = useRef<HTMLDivElement>(null);
+  const templatePopoverRef = useRef<HTMLDivElement>(null);
+  const templatePopoverId = useId();
+  const stylePopoverId = useId();
 
-  // 点击外部关闭弹层
+  // 两个预设菜单共用关闭逻辑，Esc 将焦点还给打开菜单的按钮。
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (stylePopoverRef.current && !stylePopoverRef.current.contains(target)) {
-        setIsStylePopoverOpen(false);
-      }
+    if (!activePresetPopover) return;
+    const popover = activePresetPopover === 'template' ? templatePopoverRef.current : stylePopoverRef.current;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (event.target instanceof Node && !popover?.contains(event.target)) setActivePresetPopover(null);
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      popover?.querySelector<HTMLButtonElement>('button[aria-expanded="true"]')?.focus();
+      setActivePresetPopover(null);
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [activePresetPopover]);
 
   // 复用构建页的附件选择处理
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -353,8 +391,8 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
     );
   }, [effectivePresets, popoverStyleFilter]);
 
-  // 组合生成的构建提示词（精简且无组件库负担，包含风格 Prompt 注入）
-  const assembledPrompt = useMemo(() => {
+  // 提交时使用选中的脚手架和风格组装构建提示词。
+  const assemblePrompt = () => {
     const platformLabel =
       category === 'app'
         ? 'Native Mobile App (iOS / Android touch viewport)'
@@ -369,13 +407,17 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
       userInput.trim() ||
       `Design an elegant, user-friendly ${category.toUpperCase()} application with modern layouts and polished interactions.`;
 
+    const stack = category === 'app'
+      ? NATIVE_APP_STACK
+      : selectedTemplate?.id === NEXT_APP_TEMPLATE ? NEXT_APP_STACK : 'React 19 + Tailwind CSS';
+
     let prompt = `Create a high-quality ${platformLabel}:
 • Core Goal: ${coreGoal}
 • Platform: ${platformLabel}
 • Design System & Palette: ${styleName}
-• Base Starter Template: ${selectedTemplate === 'blank' ? 'Blank Canvas' : selectedTemplate}
+• Base Starter Template: ${selectedTemplate?.name ?? 'Blank Canvas'}
 • Implementation Requirements:
-  - Clean modular ${category === 'app' ? NATIVE_APP_STACK : 'React 19 + Tailwind CSS'}
+  - Clean modular ${stack}
   - ${category === 'app' ? 'Phone-first screens with a visible primary action, native navigation, and device safe areas' : 'Responsive design adapting dynamically to both Light and Dark themes'}
   - Accessible controls, polished micro-interactions, and crisp typography`;
 
@@ -385,7 +427,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
     }
 
     return prompt;
-  }, [category, userInput, selectedStyle, selectedTemplate, effectivePresets]);
+  };
 
   // 根据当前类别切换默认 placeholder
   const inputPlaceholder = useMemo(() => {
@@ -412,11 +454,13 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
     }, attachments);
   };
 
-  const handleStart = () => startProject(assembledPrompt, selectedTemplate, userInput);
+  const handleStart = () => {
+    if (!canStart) return;
+    startProject(assemblePrompt(), selectedTemplate?.id ?? BLANK_PROJECT_TEMPLATE, userInput);
+  };
 
   const handleBlankProject = () => {
-    setSelectedTemplate('blank');
-    startProject(`Create a new blank project for ${category.toUpperCase()} application. (Blank Canvas)`, 'blank', '');
+    startProject(`Create a new blank project for ${category.toUpperCase()} application. (Blank Canvas)`, BLANK_PROJECT_TEMPLATE, '');
   };
 
   const activeStyleObj = effectivePresets.find((s) => s.id === selectedStyle);
@@ -437,7 +481,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                 if (onOpenStyleCenter) {
                   onOpenStyleCenter();
                 } else {
-                  setIsStylePopoverOpen(true);
+                  setActivePresetPopover('style');
                 }
               }}
               className="text-xs font-medium px-3.5 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:border-slate-300 dark:hover:border-zinc-700 shadow-2xs transition-all flex items-center gap-1.5"
@@ -557,7 +601,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                   role="tab"
                   data-testid="guide-tab-app"
                   aria-selected={category === 'app'}
-                  onClick={() => setCategory('app')}
+                  onClick={() => handleCategoryChange('app')}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
                     category === 'app'
                       ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-2xs'
@@ -573,7 +617,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                   role="tab"
                   data-testid="guide-tab-desktop"
                   aria-selected={category === 'desktop'}
-                  onClick={() => setCategory('desktop')}
+                  onClick={() => handleCategoryChange('desktop')}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
                     category === 'desktop'
                       ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-2xs'
@@ -589,7 +633,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                   role="tab"
                   data-testid="guide-tab-web"
                   aria-selected={category === 'web'}
-                  onClick={() => setCategory('web')}
+                  onClick={() => handleCategoryChange('web')}
                   className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
                     category === 'web'
                       ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-2xs'
@@ -602,15 +646,82 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
               </div>
             </div>
 
-            {/* 右侧：🎨 调色板设计系统图标 + 模型选择器 + 提交按钮 */}
+            {/* 右侧：模板、设计系统、模型和提交 */}
             <div className="flex items-center gap-2 relative">
+              <div ref={templatePopoverRef} className="relative flex items-center gap-1">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={customTemplateEnabled}
+                  title={t('homeGuide.customTemplate')}
+                  aria-label={t('homeGuide.customTemplate')}
+                  aria-controls={activePresetPopover === 'template' ? templatePopoverId : undefined}
+                  onClick={() => {
+                    setCustomTemplateId(customTemplateEnabled ? null : '');
+                    setActivePresetPopover(customTemplateEnabled ? null : 'template');
+                  }}
+                  className="group flex items-center gap-1.5 rounded-full p-2 text-xs font-medium text-slate-600 hover:bg-slate-300/40 focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  <span aria-hidden="true" className="relative h-4 w-7 shrink-0 rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3 after:w-3 after:rounded-full after:bg-white after:transition-transform group-aria-checked:bg-blue-600 group-aria-checked:after:translate-x-3 dark:bg-zinc-700" />
+                  {!customTemplateEnabled && <span className="hidden whitespace-nowrap md:block">{t('homeGuide.customTemplate')}</span>}
+                </button>
+                {customTemplateEnabled && (
+                  <button
+                    type="button"
+                    data-testid="guide-template-btn"
+                    title={t('homeGuide.starterTemplate')}
+                    aria-label={t('homeGuide.starterTemplate')}
+                    aria-expanded={activePresetPopover === 'template'}
+                    aria-haspopup="dialog"
+                    aria-controls={activePresetPopover === 'template' ? templatePopoverId : undefined}
+                    onClick={() => setActivePresetPopover((current) => current === 'template' ? null : 'template')}
+                    className="flex items-center gap-1.5 rounded-full bg-slate-300/50 p-2 text-blue-600 hover:bg-slate-300/70 dark:bg-zinc-800 dark:text-blue-400"
+                  >
+                    <LayoutTemplate aria-hidden="true" className="h-4 w-4 shrink-0" />
+                    <span className="hidden max-w-28 truncate text-[11px] font-medium md:block">{selectedTemplate?.name ?? t('homeGuide.starterTemplate')}</span>
+                  </button>
+                )}
+                {customTemplateEnabled && activePresetPopover === 'template' && (
+                  <div id={templatePopoverId} role="dialog" aria-label={t('homeGuide.customTemplate')} className={presetPopoverClass}>
+                    <p className="px-2 text-xs font-semibold text-slate-700 dark:text-zinc-300">{t('homeGuide.starterTemplate')}</p>
+                    <div role="radiogroup" aria-label={t('homeGuide.starterTemplate')} className="flex max-h-56 flex-col gap-1 overflow-y-auto border-t border-slate-100 pt-2 dark:border-zinc-800">
+                      {templateOptions.map(({ id, name, description, platform }) => {
+                        const isSelected = id === customTemplateId;
+                        const PlatformIcon = platform === 'app' ? Smartphone : platform === 'desktop' ? Monitor : Globe;
+                        return (
+                          <label key={id} className={`${presetRowClass(isSelected)} relative has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-blue-500`}>
+                            <input
+                              type="radio"
+                              name={templatePopoverId}
+                              value={id}
+                              aria-label={name}
+                              checked={isSelected}
+                              onChange={() => setCustomTemplateId(id)}
+                              className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
+                            />
+                            <PlatformIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+                            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <span className="truncate font-medium">{name}</span>
+                              <span className="truncate text-[10px] text-slate-500 dark:text-zinc-400">{description}</span>
+                            </span>
+                            {isSelected && <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
               {/* 风格 Popover 容器与触发按钮 */}
               <div ref={stylePopoverRef} className="relative">
                 <button
                   type="button"
                   data-testid="guide-style-btn"
                   title={t('homeGuide.stylePresetsTitle')}
-                  onClick={() => setIsStylePopoverOpen((prev) => !prev)}
+                  aria-expanded={activePresetPopover === 'style'}
+                  aria-haspopup="dialog"
+                  aria-controls={activePresetPopover === 'style' ? stylePopoverId : undefined}
+                  onClick={() => setActivePresetPopover((current) => current === 'style' ? null : 'style')}
                   className={`flex items-center gap-1.5 p-2 rounded-full transition-all ${
                     activeStyleObj && selectedStyle !== 'auto'
                       ? 'bg-slate-300/50 dark:bg-zinc-800 text-blue-600 dark:text-blue-400'
@@ -629,9 +740,12 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                 </button>
 
                 {/* 风格 Popover 弹层 */}
-                {isStylePopoverOpen && (
+                {activePresetPopover === 'style' && (
                   <div
-                    className="absolute bottom-11 right-0 z-30 w-80 p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-100 select-none text-left"
+                    id={stylePopoverId}
+                    role="dialog"
+                    aria-label={t('homeGuide.stylePresetsTitle')}
+                    className={presetPopoverClass}
                   >
                     <p className="text-xs text-slate-500 dark:text-zinc-400 leading-snug">
                       {t('homeGuide.styleAutoHint')}
@@ -642,10 +756,10 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                       onClick={() => {
                         if (onOpenStyleCenter) {
                           onOpenStyleCenter();
-                          setIsStylePopoverOpen(false);
+                          setActivePresetPopover(null);
                         } else {
                           handleSelectStyle('auto');
-                          setIsStylePopoverOpen(false);
+                          setActivePresetPopover(null);
                         }
                       }}
                       className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
@@ -727,13 +841,9 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                               data-testid={`preset-${preset.id}`}
                               onClick={() => {
                                 handleSelectStyle(preset.id);
-                                setIsStylePopoverOpen(false);
+                                setActivePresetPopover(null);
                               }}
-                              className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors cursor-pointer ${
-                                isSelected
-                                  ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-medium'
-                                  : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-800 dark:text-zinc-200'
-                              }`}
+                              className={presetRowClass(isSelected)}
                             >
                               <div className="flex items-center gap-2.5 min-w-0">
                                 {preset.swatch}
@@ -801,7 +911,8 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                 data-testid="guide-submit-btn"
                 title={t('homeGuide.enterBuilder')}
                 onClick={handleStart}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-900 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 flex items-center justify-center shadow-sm hover:shadow transition-all active:scale-95 cursor-pointer shrink-0"
+                disabled={!canStart}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-900 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 flex items-center justify-center shadow-sm hover:shadow transition-all active:scale-95 enabled:cursor-pointer disabled:opacity-40 shrink-0"
               >
                 <ArrowUp className="w-4 h-4 stroke-[2.5]" />
               </button>

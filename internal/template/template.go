@@ -2,11 +2,11 @@ package template
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"buildui/internal/errs"
+	"buildui/internal/scaffold"
 )
 
 // AppTemplate 应用预置模版元数据
@@ -18,21 +18,15 @@ type AppTemplate struct {
 	Tags        []string `json:"tags"`
 	Icon        string   `json:"icon"`
 	ThemeID     string   `json:"themeId"`
-	StarterCode string   `json:"starterCode"`
+	Source      string   `json:"source"`
+	Platform    string   `json:"platform"`
+	GitHubURL   string   `json:"githubUrl,omitempty"`
+	ImageURL    string   `json:"imageUrl,omitempty"`
 }
 
-// GetDefaultTemplates 返回系统内置的高质量应用模版清单
-func GetDefaultTemplates() []AppTemplate {
-	return []AppTemplate{
-		{
-			ID:          "saas-dashboard",
-			Name:        "SaaS Analytics Dashboard",
-			Description: "Production-ready metrics dashboard featuring revenue KPI cards, active users chart, and tabular data view.",
-			Category:    "Analytics",
-			Tags:        []string{"Charts", "KPIs", "Metrics", "Tailwind"},
-			Icon:        "📊",
-			ThemeID:     "dark-slate",
-			StarterCode: `import React from 'react';
+// 示例代码叠加到完整的 React 脚手架中。
+var exampleSources = map[string]string{
+	"saas-dashboard": `import React from 'react';
 
 export default function App() {
   return (
@@ -65,16 +59,7 @@ export default function App() {
     </div>
   );
 }`,
-		},
-		{
-			ID:          "portfolio",
-			Name:        "Creative Developer Portfolio",
-			Description: "High-contrast personal portfolio layout with glowing neon bio hero, project showcase cards, and skills matrix.",
-			Category:    "Personal",
-			Tags:        []string{"Cyberpunk", "Hero", "Projects", "Showcase"},
-			Icon:        "⚡",
-			ThemeID:     "cyberpunk-neon",
-			StarterCode: `import React from 'react';
+	"portfolio": `import React from 'react';
 
 export default function App() {
   return (
@@ -89,16 +74,7 @@ export default function App() {
     </div>
   );
 }`,
-		},
-		{
-			ID:          "landing-page",
-			Name:        "Modern Product Landing Page",
-			Description: "Clean, ultra-crisp landing page featuring sticky navigation, hero with CTA, feature grid, and pricing cards.",
-			Category:    "Marketing",
-			Tags:        []string{"Landing", "SaaS", "Pricing", "Conversion"},
-			Icon:        "🚀",
-			ThemeID:     "clean-light",
-			StarterCode: `import React from 'react';
+	"landing-page": `import React from 'react';
 
 export default function App() {
   return (
@@ -113,16 +89,7 @@ export default function App() {
     </div>
   );
 }`,
-		},
-		{
-			ID:          "storefront",
-			Name:        "E-Commerce Showcase",
-			Description: "Warm twilight storefront with product cards, category filters, interactive cart badge, and checkout drawer.",
-			Category:    "Commerce",
-			Tags:        []string{"Shop", "Catalog", "Cart", "Checkout"},
-			Icon:        "🛍️",
-			ThemeID:     "sunset-glow",
-			StarterCode: `import React from 'react';
+	"storefront": `import React from 'react';
 
 export default function App() {
   return (
@@ -134,8 +101,6 @@ export default function App() {
     </div>
   );
 }`,
-		},
-	}
 }
 
 // CreateFromTemplateRequest 从模版创建应用请求结构
@@ -153,88 +118,30 @@ type TemplateInstanceResult struct {
 	ThemeID    string `json:"themeId"`
 }
 
-// TemplateService 负责应用模版管理与实例化生成
-type TemplateService struct{}
-
-// NewTemplateService 创建模版服务
-func NewTemplateService() *TemplateService {
-	return &TemplateService{}
-}
-
-// GetTemplates 获取全部内置模版
-func (s *TemplateService) GetTemplates() []AppTemplate {
-	return GetDefaultTemplates()
-}
-
-// InstantiateTemplate 根据模版在目标目录生成基础工程文件
+// InstantiateTemplate ?????????????????
 func (s *TemplateService) InstantiateTemplate(ctx context.Context, req CreateFromTemplateRequest) (*TemplateInstanceResult, error) {
-	if req.TemplateID == "" {
-		return nil, errs.NewValidationError("template ID cannot be empty", nil)
-	}
 	if req.DestPath == "" {
 		return nil, errs.NewValidationError("destination path cannot be empty", nil)
 	}
-
-	templates := GetDefaultTemplates()
-	var selected *AppTemplate
-	for _, t := range templates {
-		if t.ID == req.TemplateID {
-			selected = &t
-			break
+	entry, err := s.Lookup(ctx, req.TemplateID)
+	if err != nil {
+		return nil, err
+	}
+	if entry.Source == SourceCommunity {
+		err = s.copyCommunity(ctx, entry, req.DestPath)
+	} else {
+		err = scaffold.ExtractForTemplate(req.DestPath, req.AppName, entry.ID)
+		if code, ok := exampleSources[entry.ID]; ok && err == nil {
+			err = os.WriteFile(filepath.Join(req.DestPath, "src", "App.tsx"), []byte(code), 0644)
 		}
 	}
-	if selected == nil {
-		return nil, errs.NewValidationError(fmt.Sprintf("unknown template ID: %s", req.TemplateID), nil)
+	if err != nil {
+		return nil, err
 	}
-
-	// 创建目标工作空间目录及 src 目录
-	srcDir := filepath.Join(req.DestPath, "src")
-	if err := os.MkdirAll(srcDir, 0755); err != nil {
-		return nil, errs.NewInternalError("failed to create template workspace directory", err)
-	}
-
-	// 写入 App.tsx
-	appTsxPath := filepath.Join(srcDir, "App.tsx")
-	starterCode := selected.StarterCode
-	if starterCode == "" {
-		starterCode = "// Blank starter\nexport default function App() { return <div>App</div>; }"
-	}
-	if err := os.WriteFile(appTsxPath, []byte(starterCode), 0644); err != nil {
-		return nil, errs.NewInternalError("failed to write template App.tsx", err)
-	}
-
-	// 写入基础 package.json
-	pkgJSON := fmt.Sprintf(`{
-  "name": "%s",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
-  "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.4",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.5"
-  }
-}`, req.AppName)
-	pkgPath := filepath.Join(req.DestPath, "package.json")
-	if err := os.WriteFile(pkgPath, []byte(pkgJSON), 0644); err != nil {
-		return nil, errs.NewInternalError("failed to write template package.json", err)
-	}
-
 	return &TemplateInstanceResult{
-		TemplateID: selected.ID,
+		TemplateID: entry.ID,
 		AppName:    req.AppName,
 		DestPath:   req.DestPath,
-		ThemeID:    selected.ThemeID,
+		ThemeID:    entry.ThemeID,
 	}, nil
 }

@@ -2,10 +2,50 @@ package template
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 )
+
+func TestCatalogKeepsOfficialTemplatesAndRetriesCommunity(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if requests.Add(1) == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte(`[{"githubOrg":"jeff-kazzee","githubRepo":"dyad-template-angular","title":"Angular"}]`))
+	}))
+	t.Cleanup(server.Close)
+	svc := NewTemplateService()
+	svc.catalogURL = server.URL
+	ctx := context.Background()
+	if offline := svc.List(ctx); len(offline) != len(GetDefaultTemplates()) {
+		t.Fatal("built-in templates must stay available when the community request fails")
+	}
+	entry, err := svc.Lookup(ctx, "jeff-kazzee/dyad-template-angular")
+	if err != nil || entry.Source != SourceCommunity || entry.GitHubURL != "https://github.com/jeff-kazzee/dyad-template-angular" {
+		t.Fatalf("unexpected community template: %+v (%v)", entry, err)
+	}
+	if entries := svc.List(ctx); len(entries) != len(GetDefaultTemplates())+1 || requests.Load() != 2 {
+		t.Fatalf("successful catalog should be reused, got %d templates and %d requests", len(entries), requests.Load())
+	}
+}
+
+func TestOfficialTemplateCatalog(t *testing.T) {
+	var list []string
+	for _, entry := range GetDefaultTemplates() {
+		if entry.ID == "react" || entry.ID == "react-native" || entry.ID == "next" {
+			list = append(list, entry.ID)
+		}
+	}
+	if got := len(list); got != 3 {
+		t.Fatalf("expected 3 official framework templates, got %v", list)
+	}
+}
 
 func TestTemplate_DefaultTemplates(t *testing.T) {
 	templates := GetDefaultTemplates()

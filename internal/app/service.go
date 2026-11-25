@@ -12,8 +12,8 @@ import (
 	"buildui/internal/app/runner"
 	"buildui/internal/db"
 	"buildui/internal/errs"
-	"buildui/internal/scaffold"
 	"buildui/internal/sysutil"
+	"buildui/internal/template"
 	"buildui/internal/verification/tsc"
 	"buildui/internal/workspace"
 )
@@ -21,7 +21,7 @@ import (
 // CreateAppRequest 创建新应用请求
 type CreateAppRequest struct {
 	Name       string `json:"name"`       // 应用名称 (非空)
-	TemplateID string `json:"templateId"` // 模板标识，默认 "react"，App 使用 "react-native"
+	TemplateID string `json:"templateId"` // 未指定时使用 React，移动端入口显式传入 Expo
 	CustomPath string `json:"customPath"` // 用户自定义路径 (可选)
 }
 
@@ -39,6 +39,7 @@ type AppDTO struct {
 	Name              string `json:"name"`
 	Path              string `json:"path"`
 	NeedsAppBlueprint bool   `json:"needsAppBlueprint"`
+	Platform          string `json:"platform,omitempty"`
 }
 
 // ActiveAppResponse 活跃应用状态响应
@@ -60,6 +61,8 @@ type AppService struct {
 	workspaceRoot  string
 	verifyPreview  func(context.Context, *db.AppEntity) (*tsc.RemediationResult, error)
 	activePreviews sync.Map
+	templates      *template.TemplateService
+	createMu       sync.Mutex
 }
 
 // SetWorkspaceRoot 定位新建项目的默认目录。
@@ -89,10 +92,47 @@ func (s *AppService) GetWorkspaceRoot(ctx context.Context) string {
 // NewAppService 创建 AppService 实例
 func NewAppService(appRepo *db.AppRepository, database *db.DB) *AppService {
 	return &AppService{
-		appRepo: appRepo,
-		db:      database,
-		runner:  runner.NewAppRunner(nil),
+		appRepo:   appRepo,
+		db:        database,
+		runner:    runner.NewAppRunner(nil),
+		templates: template.NewTemplateService(),
 	}
+}
+
+func (s *AppService) SetTemplateCacheRoot(root string) { s.templates.SetCacheRoot(root) }
+
+func (s *AppService) ListTemplates(ctx context.Context) []template.AppTemplate {
+	return s.templates.List(ctx)
+}
+
+// SelectTemplate 同一次设置写入同时记录授权和选择，避免保存半完成状态。
+func (s *AppService) SelectTemplate(ctx context.Context, id string, acceptCommunity bool) error {
+	settings := db.NewSettingsRepository(s.db)
+	if template.IsCommunityID(id) && !acceptCommunity {
+		if err := requireCommunityConsent(ctx, settings); err != nil {
+			return err
+		}
+	}
+	entry, err := s.templates.Lookup(ctx, id)
+	if err != nil {
+		return err
+	}
+	changes := map[string]string{template.SelectionKey(): entry.ID}
+	if entry.Source == template.SourceCommunity && acceptCommunity {
+		changes[template.ConsentKey()] = "true"
+	}
+	return settings.SetMany(ctx, changes)
+}
+
+func requireCommunityConsent(ctx context.Context, settings *db.SettingsRepository) error {
+	consent, err := settings.Get(ctx, template.ConsentKey())
+	if err != nil {
+		return err
+	}
+	if consent != "true" {
+		return errs.NewPreconditionError("Accept the community code notice before using this template.", nil)
+	}
+	return nil
 }
 
 // SetRunner 设置自定义 AppRunner 实例
@@ -110,6 +150,18 @@ func (s *AppService) CreateApp(ctx context.Context, req CreateAppRequest) (*Crea
 	if name == "" {
 		return nil, errs.NewValidationError("app name cannot be empty", nil)
 	}
+	templateID := req.TemplateID
+	if templateID == "" {
+		// 普通创建沿用 React；模板中心的选择由其创建入口显式传入。
+		templateID = template.DefaultID()
+	}
+	if template.IsCommunityID(templateID) {
+		if err := requireCommunityConsent(ctx, db.NewSettingsRepository(s.db)); err != nil {
+			return nil, err
+		}
+	}
+	s.createMu.Lock()
+	defer s.createMu.Unlock()
 
 	targetPath := req.CustomPath
 	if targetPath == "" {
@@ -121,13 +173,34 @@ func (s *AppService) CreateApp(ctx context.Context, req CreateAppRequest) (*Crea
 		targetPath = filepath.Join(root, slug)
 	}
 
-	// 检查目标路径是否已被非空占用
-	if entries, err := os.ReadDir(targetPath); err == nil && len(entries) > 0 {
+	// 只回收本次成功取得的目录，保留用户原有目录。
+	entries, readErr := os.ReadDir(targetPath)
+	if readErr == nil && len(entries) > 0 {
 		return nil, errs.NewPreconditionError(fmt.Sprintf("target path %s is not empty", targetPath), nil)
 	}
+	createdDir := os.IsNotExist(readErr)
+	if createdDir {
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			return nil, err
+		}
+		if err := os.Mkdir(targetPath, 0755); err != nil {
+			return nil, err
+		}
+	} else if readErr != nil {
+		return nil, readErr
+	}
+	registered := false
+	defer func() {
+		if createdDir && !registered {
+			_ = os.RemoveAll(targetPath)
+		}
+	}()
 
-	// 1. 展开脚手架模板
-	if err := scaffold.ExtractForTemplate(targetPath, name, req.TemplateID); err != nil {
+	// 1. 一次展开模板。
+	instance, err := s.templates.InstantiateTemplate(ctx, template.CreateFromTemplateRequest{
+		TemplateID: templateID, AppName: name, DestPath: targetPath,
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -142,7 +215,7 @@ func (s *AppService) CreateApp(ctx context.Context, req CreateAppRequest) (*Crea
 	appEntity := &db.AppEntity{
 		Name:              name,
 		Path:              targetPath,
-		ThemeID:           "default",
+		ThemeID:           instance.ThemeID,
 		NeedsAppBlueprint: true,
 		TestingEnabled:    false,
 		InstallCommand:    "pnpm install",
@@ -155,6 +228,7 @@ func (s *AppService) CreateApp(ctx context.Context, req CreateAppRequest) (*Crea
 	if err != nil {
 		return nil, err
 	}
+	registered = true
 	if _, err := db.NewVersionRepository(s.db).Create(ctx, &db.VersionEntity{
 		AppID: appID, CommitHash: commitHash, Message: "Initial commit from Blot scaffold", CreatedAt: now,
 	}); err != nil {
@@ -187,11 +261,16 @@ func (s *AppService) ListApps(ctx context.Context) ([]AppDTO, error) {
 
 	dtos := make([]AppDTO, 0, len(apps))
 	for _, a := range apps {
+		platform := ""
+		if workspace.UsesExpo(a.Path) {
+			platform = "app"
+		}
 		dtos = append(dtos, AppDTO{
 			ID:                a.ID,
 			Name:              a.Name,
 			Path:              a.Path,
 			NeedsAppBlueprint: a.NeedsAppBlueprint,
+			Platform:          platform,
 		})
 	}
 

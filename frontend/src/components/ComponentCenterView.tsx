@@ -242,11 +242,15 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
                       <Sparkles className="w-3.5 h-3.5 text-slate-400" />
                     )}
                     <span>
-                      {category.id === 'featured'
-                        ? t('pluginsPage.catFeatured')
-                        : category.id === 'ai_media'
-                          ? t('pluginsPage.catAiMedia')
-                          : category.title}
+                      {category.id === 'developer'
+                        ? t('pluginsPage.catDeveloper')
+                        : category.id === 'project-tooling'
+                          ? t('pluginsPage.catProjectTooling')
+                          : category.id === 'featured'
+                            ? t('pluginsPage.catFeatured')
+                            : category.id === 'ai_media'
+                              ? t('pluginsPage.catAiMedia')
+                              : category.title}
                     </span>
                   </div>
 

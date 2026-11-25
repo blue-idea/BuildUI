@@ -51,7 +51,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove,
               <Check className="w-3 h-3" />
               {t('pluginsPage.btnAdded')}
             </span>
-            {onConfigure && <button type="button" onClick={onConfigure} className="font-medium text-blue-700 hover:underline dark:text-blue-400">Configure</button>}
+            {onConfigure && <button type="button" onClick={onConfigure} className="font-medium text-blue-700 hover:underline dark:text-blue-400">{t('pluginsPage.btnConfigure')}</button>}
             {onRemove && (
               <button
                 type="button"

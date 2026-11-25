@@ -11,6 +11,9 @@ export interface AppTemplate {
   icon: string;
   themeId?: string;
   starterPrompt?: string;
+  source?: 'official' | 'community' | 'example';
+  githubUrl?: string;
+  imageUrl?: string;
 }
 
 export interface TemplateModalProps {

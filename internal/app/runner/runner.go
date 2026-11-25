@@ -26,14 +26,20 @@ type defaultProcessLauncher struct{}
 
 func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onOutput func(string), onExit func(error)) (int, error) {
 	native := workspace.UsesExpo(appPath)
+	next := !native && workspace.UsesNext(appPath)
 	var commands []string
 	if native {
 		commands = append(commands, "expo")
+	} else if next {
+		commands = append(commands, "next")
 	}
 	if err := workspace.EnsureProjectDependencies(ctx, appPath, commands...); err != nil {
 		return 0, err
 	}
 	cmd := workspace.PnpmCommand(ctx, appPath, "run", "dev", "--host", "127.0.0.1")
+	if next {
+		cmd = workspace.PnpmCommand(ctx, appPath, "exec", "next", "dev", "--hostname", "127.0.0.1", "--port", "0")
+	}
 	cleanup := func() {}
 	if native {
 		previewConfig, removeAssets, err := scaffold.PrepareExpoPreview(appPath)

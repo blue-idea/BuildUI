@@ -132,11 +132,17 @@ describe('App Guided Mode Home & Navigation', () => {
   });
 
   // v22.REQ-001-AC-001：三个平台通过同一个首页生成入口选择脚手架。
-  it.each(['app', 'desktop', 'web'] as const)('首页 %s 选择对应构建路线', async (category) => {
+  it.each([
+    { category: 'app', template: undefined, effectiveTemplate: 'react-native', stack: 'Expo + React Native + NativeWind + Expo Router + Font Awesome' },
+    { category: 'desktop', template: undefined, effectiveTemplate: undefined, stack: 'React 19 + Tailwind CSS' },
+    { category: 'web', template: undefined, effectiveTemplate: undefined, stack: 'React 19 + Tailwind CSS' },
+    { category: 'web', template: 'next', effectiveTemplate: 'next', stack: 'Next.js App Router' },
+    { category: 'desktop', template: 'saas-dashboard', effectiveTemplate: 'saas-dashboard', stack: 'React 19 + Tailwind CSS' },
+  ] as const)('首页 $category 创建使用对应脚手架 ($template)', async ({ category, template, effectiveTemplate, stack }) => {
     const create = vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' });
     const streamChat = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('go', { main: { App: {
-      GetSettings: vi.fn().mockResolvedValue({}),
+      GetSettings: vi.fn().mockResolvedValue({ 'templates.selectedId': 'react-native' }),
       ListApps: vi.fn().mockResolvedValue([]),
       CreateApp: create,
       SwitchApp: vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' }),
@@ -148,12 +154,18 @@ describe('App Guided Mode Home & Navigation', () => {
     try {
       render(<App />);
       fireEvent.click(screen.getByTestId(`guide-tab-${category}`));
+      if (template) {
+        fireEvent.click(screen.getByRole('switch', { name: 'Custom template' }));
+        fireEvent.click(screen.getByRole('radio', { name: template === 'next' ? 'Next.js' : 'SaaS Analytics Dashboard' }));
+      }
       fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: 'Fitness Check-in' } });
       fireEvent.click(screen.getByTestId('guide-submit-btn'));
       await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(1));
-      const stack = category === 'app' ? 'Expo + React Native + NativeWind + Expo Router + Font Awesome' : 'React 19 + Tailwind CSS';
       expect(streamChat.mock.calls[0][0].prompt).toContain(stack);
-      expect(create.mock.calls[0][0].templateId).toBe(category === 'app' ? 'react-native' : undefined);
+      expect(create.mock.calls[0][0].templateId).toBe(effectiveTemplate);
+      fireEvent.click(screen.getByTestId('dock-projects'));
+      const badge = { app: 'App', desktop: 'Desktop', web: 'Web' }[category];
+      expect((await screen.findByTestId('project-platform-badge-41')).textContent).toBe(badge);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -594,7 +606,7 @@ describe('App Main Split Layout & Workflow', () => {
     expect(screen.queryByPlaceholderText(/type a command or search/i)).toBeNull();
   });
 
-  it('opens template center from project management page and instantiates project', () => {
+  it('从项目中心打开模板目录并以 Next.js 模板命名创建', async () => {
     renderBuilder();
 
     // 点击顶栏 Manage App 进入工程管理页面
@@ -608,12 +620,14 @@ describe('App Main Split Layout & Workflow', () => {
     expect(screen.getByText('Application Templates')).toBeDefined();
     expect(screen.getByText('SaaS Analytics Dashboard')).toBeDefined();
 
-    // 点击使用模版
-    const useBtns = screen.getAllByRole('button', { name: /use template/i });
-    fireEvent.click(useBtns[0]);
+    fireEvent.click(screen.getByTestId('use-template-next'));
+    const create = await within(screen.getByTestId('template-card-next')).findByRole('button', { name: 'Create App' });
+    fireEvent.click(create);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Project name' }), { target: { value: 'Sample AI App' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
 
     // 模版中心使用后进入构建区
-    expect(screen.getByText(/Chat & Blueprint/i)).toBeDefined();
+    expect(await screen.findByText(/Chat & Blueprint/i)).toBeDefined();
   });
 
   it('supports selecting and previewing image attachments before sending', async () => {

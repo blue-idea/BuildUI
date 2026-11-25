@@ -1,4 +1,5 @@
 import { Plug } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 import type { InstalledPlugin, PluginAutomation } from '../types/plugin';
 
 interface HomePluginPickerProps {
@@ -9,11 +10,13 @@ interface HomePluginPickerProps {
 }
 
 export function HomePluginPicker({ selection, plugins, loadError, onChange }: HomePluginPickerProps) {
+  const { t } = useI18n();
+
   return (
     <section aria-label="Plugin automation" className="mt-2 space-y-2">
       <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-700 dark:text-zinc-300">
         <Plug aria-hidden="true" className="h-3.5 w-3.5 text-slate-500 dark:text-zinc-400" />
-        <span>Automatically use plugins</span>
+        <span>{t('pluginsPage.autoUsePlugins')}</span>
         <input
           type="checkbox"
           role="switch"
@@ -52,7 +55,7 @@ export function HomePluginPicker({ selection, plugins, loadError, onChange }: Ho
           </div>
         ) : (
           <p role="status" className="text-xs text-slate-600 dark:text-zinc-400">
-            {loadError ? 'Could not load plugins.' : plugins ? 'No plugins enabled. Enable plugins in Plugins.' : 'Loading plugins…'}
+            {loadError ? t('pluginsPage.loadPluginsError') : plugins ? t('pluginsPage.noPluginsEnabledHint') : t('pluginsPage.loadingPlugins')}
           </p>
         )
       )}

@@ -147,7 +147,10 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	switch {
 	case bp == nil || !bp.Approved:
 		if stack := projectStackContext(app.Path); stack != "" {
-			system = nativeBlueprintPrompt + stack
+			if workspace.UsesExpo(app.Path) {
+				system = nativeBlueprintPrompt
+			}
+			system += stack
 		}
 	case req.Mode == "plan":
 		system = "Discuss the user's project and describe a plan. Do not emit file-writing markup or change any files." + projectStackContext(app.Path)

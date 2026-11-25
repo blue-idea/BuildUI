@@ -44,6 +44,9 @@ const nativeDesign = `<mobile_design>
 
 func projectStackContext(root string) string {
 	if !workspace.UsesExpo(root) {
+		if workspace.UsesNext(root) {
+			return nextScaffold
+		}
 		return ""
 	}
 	routing := legacyNativeScaffold
@@ -52,3 +55,13 @@ func projectStackContext(root string) string {
 	}
 	return "\n" + nativeScaffold + routing + nativeDesign
 }
+
+const nextScaffold = `
+<scaffold_baseline>
+- Preserve Next.js App Router, React, TypeScript, and Tailwind CSS.
+- Build the home route in src/app/page.tsx and keep src/app/layout.tsx as the root layout.
+- Use Server Components by default. Add 'use client' where browser state, effects, or event handlers are needed.
+- Inspect and reuse existing components; add a dependency or component before importing it if it is missing.
+- Keep pnpm dev and pnpm build functional. Use App Router route handlers for API endpoints.
+</scaffold_baseline>
+`

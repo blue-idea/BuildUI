@@ -12,20 +12,24 @@ import (
 	"buildui/internal/errs"
 )
 
-//go:embed all:template all:native-template
+//go:embed all:template all:native-template all:next-template
 var templateFS embed.FS
 
 // Extract 将嵌入的脚手架模板解压写入目标目录
 func Extract(targetDir string, appName string) error {
-	return extract(targetDir, appName, "template", "vite_react_shadcn_ts")
+	return extract(targetDir, appName, config.ReactTemplateDir, config.ReactTemplatePackageName)
 }
 
 // ExtractForTemplate 根据创建请求选择脚手架，保留旧请求的默认行为。
 func ExtractForTemplate(targetDir, appName, templateID string) error {
-	if templateID == config.NativeAppTemplate {
-		return extract(targetDir, appName, "native-template", config.NativeAppPackageName)
+	switch templateID {
+	case config.NativeAppTemplate:
+		return extract(targetDir, appName, config.NativeTemplateDir, config.NativeAppPackageName)
+	case config.NextTemplateID:
+		return extract(targetDir, appName, config.NextTemplateDir, config.NextTemplatePackageName)
+	default:
+		return Extract(targetDir, appName)
 	}
-	return Extract(targetDir, appName)
 }
 
 func extract(targetDir, appName, templateDir, originalName string) error {

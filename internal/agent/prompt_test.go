@@ -1,9 +1,22 @@
 package agent
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestNextProjectUsesAppRouterPrompt(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "next.config.ts"), []byte("export default {};"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	prompt := NewPromptAssembler().assembleProjectSystemPrompt(root)
+	if !strings.Contains(prompt, "src/app/page.tsx") || strings.Contains(prompt, "TypeScript + Vite") {
+		t.Fatal("Next.js generation must target its App Router entry and preserve its framework")
+	}
+}
 
 // v1.REQ-003-AC-001 & v12.REQ-002 & v12.REQ-003: Agent 提示词装配与零占位符保障
 func TestPromptAssembler_AssembleSystemPrompt(t *testing.T) {

@@ -68,7 +68,7 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
         if (!Array.isArray(list) || list.some((item) => typeof item !== 'string')) throw new Error();
         parsedArgs = list;
       } catch {
-        setErrorMessage('Arguments must be a JSON array of strings.');
+        setErrorMessage(t('pluginsPage.errorArgsJson'));
         return;
       }
     }
@@ -107,7 +107,7 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
             </div>
             <div>
               <h3 id="plugin-form-title" className="text-base font-bold text-slate-900 dark:text-zinc-100">
-                {initial?.id ? 'Edit Plugin' : t('pluginsPage.modalTitle')}
+                {initial?.id ? t('pluginsPage.modalEditTitle') : t('pluginsPage.modalTitle')}
               </h3>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
                 {t('pluginsPage.modalDesc')}
@@ -152,16 +152,16 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
           </div>
 
           <label className="block space-y-1 text-xs font-semibold">
-            <span>Transport</span>
+            <span>{t('pluginsPage.modalTransportLabel')}</span>
             <select value={transport} onChange={(e) => { setTransport(e.target.value as PluginConfig['transport']); setDomain(''); }} className="block w-full rounded-xl border border-slate-200 p-2 dark:border-zinc-700 dark:bg-zinc-800">
-              <option value="http">Streamable HTTP</option>
-              <option value="stdio">Standard input/output (stdio)</option>
+              <option value="http">{t('pluginsPage.modalTransportHttp')}</option>
+              <option value="stdio">{t('pluginsPage.modalTransportStdio')}</option>
             </select>
           </label>
 
           <div>
             <label htmlFor="plugin-endpoint" className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
-              {transport === 'stdio' ? 'Command' : 'Server URL'}
+              {transport === 'stdio' ? t('pluginsPage.modalCommandLabel') : t('pluginsPage.modalServerUrlLabel')}
             </label>
             <input
               type="text"
@@ -177,7 +177,7 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
           </div>
 
           {transport === 'stdio' && <label className="block space-y-1 text-xs font-semibold">
-            <span>Arguments</span>
+            <span>{t('pluginsPage.modalArgsLabel')}</span>
             <input value={args} onChange={(e) => setArgs(e.target.value)} placeholder='["-y", "your-mcp-server"]' className="block w-full rounded-xl border border-slate-200 p-2 dark:border-zinc-700 dark:bg-zinc-800" />
           </label>}
 
@@ -209,7 +209,7 @@ export const AddPluginModal: React.FC<AddPluginModalProps> = ({
               data-testid="btn-submit-plugin"
               className="px-4 py-2 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-colors"
             >
-              {saving ? 'Saving…' : initial?.id ? 'Save' : t('pluginsPage.modalSubmit')}
+              {saving ? t('pluginsPage.modalSaving') : initial?.id ? t('pluginsPage.modalSave') : t('pluginsPage.modalSubmit')}
             </button>
           </div>
         </form>
