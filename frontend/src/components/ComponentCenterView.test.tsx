@@ -15,6 +15,7 @@ const renderWithProviders = (ui: React.ReactElement) => {
 
 describe('ComponentCenterView Component (TDD)', () => {
   it.each([
+    ['remotion', 'Standard input/output (stdio)', 'npx', ['@remotion/mcp@latest']],
     ['figma', 'Streamable HTTP', 'http://127.0.0.1:3845/mcp'],
     ['lucide-icons', 'Standard input/output (stdio)', 'npx', ['-y', 'lucide-icons-mcp@0.1.67', '--stdio']],
     ['expo', 'Streamable HTTP', 'https://mcp.expo.dev/mcp'],
@@ -40,14 +41,6 @@ describe('ComponentCenterView Component (TDD)', () => {
         if (expectedArgs) expect(JSON.parse(args)).toEqual(expectedArgs);
       }
     } finally { vi.unstubAllGlobals(); }
-  });
-
-  it('显示 Remotion MCP 停用说明与官方迁移链接', () => {
-    renderWithProviders(<ComponentCenterView />);
-    const card = within(screen.getByTestId('plugin-card-remotion'));
-    expect(card.getByText('Discontinued')).toBeDefined();
-    expect(card.queryByRole('button', { name: 'Add' })).toBeNull();
-    expect(card.getByRole('link', { name: 'Migration guide' }).getAttribute('href')).toBe('https://www.remotion.dev/docs/ai/skills');
   });
 
   it.each([
