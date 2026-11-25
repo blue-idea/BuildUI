@@ -17,6 +17,9 @@ const (
 	NextTemplateConfig       = "next.config.ts"
 	NextBuildTimeout         = 3 * time.Minute
 	NextBuildDiagnosticLimit = 8 << 10
+	NextPreviewTimeout       = 90 * time.Second
+	NextPreviewRetryInterval = 200 * time.Millisecond
+	NextPreviewLogLimit      = 4 << 10
 	ReactTemplateDir         = "template"
 	ReactTemplatePackageName = "vite_react_shadcn_ts"
 	NativeTemplateDir        = "native-template"

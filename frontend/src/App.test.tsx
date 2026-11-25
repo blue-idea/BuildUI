@@ -42,6 +42,46 @@ it('手动启动预览时显示后端检查进度，修复完成后刷新源码�
   }
 });
 
+// v29.REQ-018 / AC-018-03：快速重开项目时等待上次预览停止。
+it('重开项目时不恢复正在关闭的预览地址', async () => {
+  const project = { appId: 41, name: 'Sample AI App', path: '/sample-ai-app', blueprintApproved: true };
+  const oldAddress = 'http://127.0.0.1:8081';
+  let stopPending = true;
+  let finishStop!: () => void;
+  const stopApp = vi.fn(() => new Promise<void>((resolve) => {
+    finishStop = () => {
+      stopPending = false;
+      resolve();
+    };
+  }));
+  const switchApp = vi.fn(async () => ({ ...project, previewUrl: stopPending ? oldAddress : '' }));
+  vi.stubGlobal('go', { main: { App: {
+    GetSettings: vi.fn().mockResolvedValue({}),
+    ListApps: vi.fn().mockResolvedValue([{ id: 41, name: project.name, path: project.path }]),
+    GetActiveApp: vi.fn().mockResolvedValue(project),
+    SwitchApp: switchApp,
+    GetProjectChat: vi.fn().mockResolvedValue({ chatId: 7, messages: [] }),
+    GetVersions: vi.fn().mockResolvedValue([]),
+    ListProjectFiles: vi.fn().mockResolvedValue([]),
+    StopApp: stopApp,
+  } } });
+  try {
+    render(<App initialDockTab="builder" />);
+    expect((await screen.findByTitle('App live preview')).getAttribute('src')).toBe(oldAddress);
+    fireEvent.click(screen.getByTestId('close-project-tab'));
+    expect(stopApp).toHaveBeenCalledWith({ appId: 41 });
+    fireEvent.click(screen.getByTestId('dock-projects'));
+    await act(async () => { fireEvent.click(await screen.findByTestId('open-project-btn-41')); });
+    expect(switchApp).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTitle('App live preview')).toBeNull();
+    await act(async () => finishStop());
+    expect(switchApp).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole('button', { name: 'Start preview' })).toBeDefined();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
 // v12.REQ-004-AC-002 验证重开会话后展示检查点并请求续建。
 it('从桌面会话恢复已保存的阶段并发送续建请求', async () => {
   const project = { appId: 41, name: 'Subscription SaaS', path: '/saas', blueprintApproved: true };

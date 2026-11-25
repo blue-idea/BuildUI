@@ -243,6 +243,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const [isStartingApp, setIsStartingApp] = useState(false);
   const [previewProgress, setPreviewProgress] = useState('');
   const previewRequest = useRef<{ appId: number } | null>(null);
+  const pendingPreviewStops = useRef(new Map<number, Promise<void>>());
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [generationProgress, setGenerationProgress] = useState('');
   const [buildProgress, setBuildProgress] = useState<BuildProgress | null>(null);
@@ -414,7 +415,13 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
 
   const handleCloseProject = () => {
     if (desktop && activeAppId) {
-      void desktopApp().StopApp?.({ appId: activeAppId }).catch(() => {});
+      const stopping = desktopApp().StopApp?.({ appId: activeAppId });
+      if (stopping) {
+        const done = stopping.catch(() => {}).finally(() => {
+          pendingPreviewStops.current.delete(activeAppId);
+        });
+        pendingPreviewStops.current.set(activeAppId, done);
+      }
     }
     setActiveAppId(0);
     setNativePreview(false);
@@ -441,6 +448,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   };
 
   const activateProject = async (id: number) => {
+    // 同一项目重开时先等旧服务停止，否则切换接口可能返回即将关闭的端口。
+    const stopping = pendingPreviewStops.current.get(id);
+    if (stopping) await stopping;
     const active = await desktopApp().SwitchApp(id);
     projectID.current = id;
     chatID.current = 0;
@@ -1199,17 +1209,6 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             activeAppId={activeAppId}
             busy={desktop && (isChangingProject || isGenerating || isStartingApp)}
             error={desktop ? projectError : undefined}
-            onSelectApp={(id) => {
-              if (desktop) {
-                void updateProject(() => activateProject(id));
-                return;
-              }
-              setActiveAppId(id);
-              const target = apps.find((a) => a.id === id);
-              if (target) {
-                setWorkspaceDir(target.path);
-              }
-            }}
             onOpenProject={(id) => {
               if (desktop) {
                 void updateProject(async () => {

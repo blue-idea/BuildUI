@@ -108,6 +108,7 @@ type activeInstance struct {
 	done       chan struct{}
 	err        error
 	stopping   bool
+	startupLog string
 }
 
 // AppRunner 负责本地开发服务器的监管、端口捕获与关停
@@ -161,11 +162,27 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 	r.active[appID] = inst
 	r.mu.Unlock()
 
+	next := workspace.UsesNext(appPath) && !workspace.UsesExpo(appPath)
 	onOutput := func(text string) {
 		r.HandleProcessOutput(appID, text)
 
 		// 尝试从日志中提取 URL
-		if url := ExtractPreviewURL(text); url != "" {
+		var url string
+		if next {
+			clean := ansiRegex.ReplaceAllString(text, "")
+			r.mu.Lock()
+			if inst.previewURL == "" {
+				inst.startupLog = strings.TrimSpace(inst.startupLog + "\n" + clean)
+				if len(inst.startupLog) > config.NextPreviewLogLimit {
+					inst.startupLog = strings.ToValidUTF8(inst.startupLog[len(inst.startupLog)-config.NextPreviewLogLimit:], "")
+				}
+			}
+			r.mu.Unlock()
+			url = nextPreviewURL(clean)
+		} else {
+			url = ExtractPreviewURL(text)
+		}
+		if url != "" {
 			select {
 			case inst.readyChan <- url:
 			default:
@@ -178,6 +195,13 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 		if r.active[appID] == inst {
 			delete(r.active, appID)
 			inst.err = err
+			if inst.startupLog != "" {
+				if err == nil {
+					inst.err = fmt.Errorf("%s", inst.startupLog)
+				} else {
+					inst.err = fmt.Errorf("%w\n%s", err, inst.startupLog)
+				}
+			}
 			close(inst.done)
 		}
 		r.mu.Unlock()
@@ -202,15 +226,29 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 	}
 	r.mu.Unlock()
 
-	// 等待端口捕获就绪或超时
+	timeout := 15 * time.Second
+	ready := inst.readyChan
+	if next {
+		timeout = config.NextPreviewTimeout
+		probeCtx, stopProbe := context.WithCancel(ctx)
+		defer stopProbe()
+		ready = make(chan string, 1)
+		go waitForNextPreview(probeCtx, inst.readyChan, ready)
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	// Next.js 的启动日志早于路由初始化，使用 HTTP 响应作为就绪信号。
 	select {
-	case url := <-inst.readyChan:
+	case url := <-ready:
 		r.mu.Lock()
-		if r.active[appID] != inst {
+		if r.active[appID] != inst || inst.stopping {
+			exitErr := inst.err
 			r.mu.Unlock()
-			return nil, errs.NewExternalError("The preview exited during startup.", inst.err)
+			return nil, errs.NewExternalError("The preview exited during startup.", exitErr)
 		}
 		inst.previewURL = url
+		inst.startupLog = ""
 		r.mu.Unlock()
 		return &RunAppResponse{
 			PreviewURL: url,
@@ -219,8 +257,11 @@ func (r *AppRunner) StartApp(ctx context.Context, appID int64, appPath string) (
 		}, nil
 	case <-inst.done:
 		return nil, errs.NewExternalError("The preview exited during startup.", inst.err)
-	case <-time.After(15 * time.Second):
+	case <-timer.C:
 		_ = r.StopApp(context.Background(), appID)
+		if next {
+			return nil, errs.NewExternalError("The Next.js preview did not respond before the startup timeout.", nil)
+		}
 		return nil, errs.NewExternalError("The preview did not report a listening URL.", nil)
 	case <-ctx.Done():
 		_ = r.StopApp(context.Background(), appID)

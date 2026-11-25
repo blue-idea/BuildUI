@@ -24,7 +24,7 @@ import { useI18n } from '../i18n/I18nContext';
 export interface ProjectsCenterViewProps {
   apps: AppItem[];
   activeAppId: number;
-  onSelectApp: (id: number) => void;
+  onSelectApp?: (id: number) => void;
   onOpenProject?: (id: number) => void;
   onCreateApp: () => void;
   onCreateNamedApp?: (name: string, platform?: ProjectPlatform) => Promise<void> | void;
@@ -92,7 +92,7 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
   }, [apps]);
 
   const handleOpen = (appId: number) => {
-    onSelectApp(appId);
+    onSelectApp?.(appId);
     onOpenProject?.(appId);
   };
 
