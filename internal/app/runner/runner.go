@@ -57,7 +57,6 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 			cleanup()
 		}
 	}()
-	configurePreviewProcess(cmd)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -68,7 +67,8 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 		return 0, err
 	}
 
-	if err := cmd.Start(); err != nil {
+	releaseProcess, err := startPreviewProcess(cmd)
+	if err != nil {
 		return 0, err
 	}
 	started = true
@@ -88,6 +88,7 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 		}
 		readers.Wait()
 		err := cmd.Wait()
+		releaseProcess()
 		cleanup()
 		onExit(err)
 	}()
@@ -292,6 +293,9 @@ func (r *AppRunner) previewStartupExit(ctx context.Context, inst *activeInstance
 			if nextPreviewResponds(probeCtx, address) && ctx.Err() == nil {
 				// 只返回可用地址，外部进程不纳入 StopApp 的管理范围。
 				return &RunAppResponse{PreviewURL: address, Status: "running"}, nil
+			}
+			if ctx.Err() == nil {
+				return nil, errs.NewExternalError(fmt.Sprintf("The existing Next.js server at %s is holding the project lock but did not respond. Stop that server, then start the preview again.", address), cause)
 			}
 		}
 	}

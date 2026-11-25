@@ -8,8 +8,12 @@ import (
 	"syscall"
 )
 
-func configurePreviewProcess(cmd *exec.Cmd) {
+func startPreviewProcess(cmd *exec.Cmd) (func(), error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	return func() {}, nil
 }
 
 func killPreviewProcess(pid int) error {

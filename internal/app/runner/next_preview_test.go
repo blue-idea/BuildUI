@@ -166,3 +166,23 @@ func TestNextPreviewReusesExistingProjectServer(t *testing.T) {
 		})
 	}
 }
+
+// v29.REQ-020 / AC-020-02：监听端口可连接但没有 HTTP 响应时，应说明旧进程仍持锁。
+func TestNextPreviewReportsUnresponsiveExistingServer(t *testing.T) {
+	dir := nextPreviewFixture(t)
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+		<-req.Context().Done()
+	}))
+	defer server.Close()
+	r := NewAppRunnerWithLauncher(nextPreviewLauncher{func(_ context.Context, output func(string), exit func(error)) {
+		output("⨯ Another next dev server is already running.")
+		output("- Local:        " + server.URL)
+		output("- Dir:          " + dir)
+		exit(errors.New("exit status 1"))
+	}}, nil)
+	response, err := r.StartApp(t.Context(), 1, dir)
+	if response != nil || err == nil || !strings.Contains(err.Error(), "did not respond") ||
+		!strings.Contains(err.Error(), server.URL) {
+		t.Fatalf("expected an actionable error for the existing service: %+v, %v", response, err)
+	}
+}
