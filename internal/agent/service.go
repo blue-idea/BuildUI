@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +12,7 @@ import (
 	"buildui/internal/db"
 	"buildui/internal/errs"
 	"buildui/internal/plugins"
+	"buildui/internal/sysutil"
 	"buildui/internal/verification/tsc"
 )
 
@@ -269,11 +269,11 @@ func (s *ChatService) emitEnd(chatID int64, commitHash string) {
 
 // commitWorkspaceChanges 自动将轮次改动执行 Git 提交并持久化至 versions 表
 func (s *ChatService) commitWorkspaceChanges(ctx context.Context, chatID int64, appPath string) string {
-	statusCmd := exec.CommandContext(ctx, "git", "status", "--porcelain")
+	statusCmd := sysutil.CommandContext(ctx, "git", "status", "--porcelain")
 	statusCmd.Dir = appPath
 	statusOut, err := statusCmd.Output()
 	if err != nil || len(strings.TrimSpace(string(statusOut))) == 0 {
-		revCmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+		revCmd := sysutil.CommandContext(ctx, "git", "rev-parse", "HEAD")
 		revCmd.Dir = appPath
 		if out, err := revCmd.Output(); err == nil {
 			return strings.TrimSpace(string(out))
@@ -281,15 +281,15 @@ func (s *ChatService) commitWorkspaceChanges(ctx context.Context, chatID int64, 
 		return ""
 	}
 
-	addCmd := exec.CommandContext(ctx, "git", "add", "-A")
+	addCmd := sysutil.CommandContext(ctx, "git", "add", "-A")
 	addCmd.Dir = appPath
 	_ = addCmd.Run()
 
-	commitCmd := exec.CommandContext(ctx, "git", "commit", "-m", "Turn update from Agent: automated commit")
+	commitCmd := sysutil.CommandContext(ctx, "git", "commit", "-m", "Turn update from Agent: automated commit")
 	commitCmd.Dir = appPath
 	_ = commitCmd.Run()
 
-	revCmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+	revCmd := sysutil.CommandContext(ctx, "git", "rev-parse", "HEAD")
 	revCmd.Dir = appPath
 	hashBytes, err := revCmd.Output()
 	if err != nil {

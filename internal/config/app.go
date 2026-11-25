@@ -3,7 +3,7 @@ package config
 import "time"
 
 const (
-	AppVersion        = "0.1.0"
+	AppVersion        = "0.1.1"
 	ReleaseRepository = "blue-idea/BuildUI"
 	HTTPTotalTimeout  = 10 * time.Second
 

@@ -258,7 +258,12 @@ func assetScore(name string, goos string, arch string) int {
 			return 70
 		}
 	case "linux":
-		if !strings.Contains(lower, "linux") || !matchesArch(lower, arch) {
+		if strings.Contains(lower, "windows") || strings.Contains(lower, "darwin") || strings.Contains(lower, "macos") ||
+			strings.HasSuffix(lower, ".exe") || strings.HasSuffix(lower, ".dmg") || strings.HasSuffix(lower, ".msi") || strings.HasSuffix(lower, ".pkg") {
+			return -1
+		}
+		isLinuxPackage := strings.HasSuffix(lower, ".deb") || strings.HasSuffix(lower, ".rpm") || strings.HasSuffix(lower, ".appimage")
+		if (!strings.Contains(lower, "linux") && !isLinuxPackage && !strings.HasPrefix(lower, "buildui-")) || !matchesArch(lower, arch) {
 			return -1
 		}
 		if strings.HasSuffix(lower, ".appimage") {
@@ -273,6 +278,7 @@ func assetScore(name string, goos string, arch string) int {
 		if strings.HasSuffix(lower, ".tar.gz") || strings.HasSuffix(lower, ".tgz") {
 			return 70
 		}
+		return 60
 	}
 	return -1
 }

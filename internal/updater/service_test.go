@@ -57,6 +57,23 @@ func TestSelectAssetForPlatform(t *testing.T) {
 		t.Fatalf("expected buildui-windows-amd64.exe for windows, got %v (ok=%v)", winAsset, ok)
 	}
 
+	// Linux 通用二进制测试
+	linuxBinAsset, ok := updater.SelectAssetForPlatform(assets, "linux", "amd64")
+	if !ok || linuxBinAsset.Name != "buildui-amd64" {
+		t.Fatalf("expected buildui-amd64 for linux, got %v (ok=%v)", linuxBinAsset, ok)
+	}
+
+	// Linux DEB / RPM 包优先匹配测试
+	linuxPackages := []updater.ReleaseAsset{
+		{Name: "buildui-amd64", BrowserDownloadURL: "https://example.com/buildui-amd64"},
+		{Name: "buildui-0.1.1-1.x86_64.rpm", BrowserDownloadURL: "https://example.com/buildui.rpm"},
+		{Name: "buildui_0.1.1_amd64.deb", BrowserDownloadURL: "https://example.com/buildui.deb"},
+	}
+	debAsset, ok := updater.SelectAssetForPlatform(linuxPackages, "linux", "amd64")
+	if !ok || debAsset.Name != "buildui_0.1.1_amd64.deb" {
+		t.Fatalf("expected buildui_0.1.1_amd64.deb for linux amd64, got %v (ok=%v)", debAsset, ok)
+	}
+
 	// 无匹配平台测试
 	_, ok = updater.SelectAssetForPlatform(assets, "unknown_os", "amd64")
 	if ok {

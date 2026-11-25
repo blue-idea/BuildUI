@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"buildui/internal/errs"
+	"buildui/internal/sysutil"
 )
 
 // GitCommandRunner 抽象 Git 命令执行接口
@@ -18,7 +19,7 @@ type GitCommandRunner interface {
 type defaultGitRunner struct{}
 
 func (d *defaultGitRunner) RunGit(ctx context.Context, dir string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := sysutil.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	return string(out), err
@@ -33,7 +34,7 @@ type BuildCommandRunner interface {
 type defaultBuildRunner struct{}
 
 func (d *defaultBuildRunner) RunBuild(ctx context.Context, dir string) (string, int, error) {
-	cmd := exec.CommandContext(ctx, "pnpm", "run", "build")
+	cmd := sysutil.CommandContext(ctx, "pnpm", "run", "build")
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	exitCode := 0

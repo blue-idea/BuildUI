@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
 
 	"buildui/internal/db"
 	"buildui/internal/errs"
+	"buildui/internal/sysutil"
 )
 
 var gitHash = regexp.MustCompile(`^[0-9a-f]{7,64}$`)
@@ -68,7 +68,7 @@ func (s *VersionService) GetVersionDiff(ctx context.Context, appID int64, commit
 	}
 
 	// 提取该 commit 的提交信息
-	msgCmd := exec.CommandContext(ctx, "git", "log", "-1", "--format=%s", commitHash)
+	msgCmd := sysutil.CommandContext(ctx, "git", "log", "-1", "--format=%s", commitHash)
 	msgCmd.Dir = app.Path
 	msgOut, err := msgCmd.Output()
 	msg := ""
@@ -77,7 +77,7 @@ func (s *VersionService) GetVersionDiff(ctx context.Context, appID int64, commit
 	}
 
 	// 提取统一 patch diff
-	diffCmd := exec.CommandContext(ctx, "git", "show", "--patch", "--format=", commitHash, "--")
+	diffCmd := sysutil.CommandContext(ctx, "git", "show", "--patch", "--format=", commitHash, "--")
 	diffCmd.Dir = app.Path
 	diffOut, err := diffCmd.Output()
 	if err != nil {
@@ -103,14 +103,14 @@ func (s *VersionService) RollbackVersion(ctx context.Context, appID int64, commi
 		return err
 	}
 
-	status := exec.CommandContext(ctx, "git", "-C", app.Path, "status", "--porcelain", "--untracked-files=no")
+	status := sysutil.CommandContext(ctx, "git", "-C", app.Path, "status", "--porcelain", "--untracked-files=no")
 	if out, err := status.Output(); err != nil {
 		return errs.NewInternalError("Failed to check project changes.", err)
 	} else if len(out) > 0 {
 		return errs.NewPreconditionError("Commit or discard tracked local changes before restoring a version.", nil)
 	}
 	// restore 默认删除目标版本里不存在的已跟踪文件，索引与工作区保持一致。
-	restore := exec.CommandContext(ctx, "git", "-C", app.Path, "restore", "--source="+commitHash, "--staged", "--worktree", "--", ".")
+	restore := sysutil.CommandContext(ctx, "git", "-C", app.Path, "restore", "--source="+commitHash, "--staged", "--worktree", "--", ".")
 	if out, err := restore.CombinedOutput(); err != nil {
 		return errs.NewInternalError("Failed to restore project files: "+string(out), err)
 	}
@@ -121,7 +121,7 @@ func (s *VersionService) RollbackVersion(ctx context.Context, appID int64, commi
 	}
 	rollbackMsg := fmt.Sprintf("Rollback to version %s", shortHash)
 
-	commitCmd := exec.CommandContext(ctx, "git", "commit", "-m", rollbackMsg)
+	commitCmd := sysutil.CommandContext(ctx, "git", "commit", "-m", rollbackMsg)
 	commitCmd.Dir = app.Path
 	if out, err := commitCmd.CombinedOutput(); err != nil {
 		// 如果内容与 HEAD 刚好一致没有改动，无需报错
@@ -132,7 +132,7 @@ func (s *VersionService) RollbackVersion(ctx context.Context, appID int64, commi
 	}
 
 	// 提取最新的 HEAD commit
-	revCmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
+	revCmd := sysutil.CommandContext(ctx, "git", "rev-parse", "HEAD")
 	revCmd.Dir = app.Path
 	newHeadBytes, err := revCmd.Output()
 	newHead := strings.TrimSpace(string(newHeadBytes))

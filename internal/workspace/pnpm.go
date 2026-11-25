@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"buildui/internal/sysutil"
 )
 
 var projectInstalls sync.Map
@@ -108,5 +110,6 @@ func PnpmCommand(ctx context.Context, dir string, args ...string) *exec.Cmd {
 		cmd = exec.CommandContext(ctx, "pnpm", args...)
 	}
 	cmd.Dir = dir
+	sysutil.HideWindow(cmd)
 	return cmd
 }

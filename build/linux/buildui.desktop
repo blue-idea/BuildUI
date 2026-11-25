@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Blot-UI
+Comment=AI App Builder
+Exec=/usr/bin/buildui %U
+Icon=buildui
+Terminal=false
+Categories=Development;IDE;
+StartupWMClass=buildui
+MimeType=x-scheme-handler/buildui;

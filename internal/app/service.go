@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 	"buildui/internal/db"
 	"buildui/internal/errs"
 	"buildui/internal/scaffold"
+	"buildui/internal/sysutil"
 	"buildui/internal/verification/tsc"
 	"buildui/internal/workspace"
 )
@@ -291,7 +291,7 @@ func (s *AppService) SwitchApp(ctx context.Context, targetAppID int64) (*ActiveA
 	// 读取当前工程最新 Commit Hash
 	commitHash := ""
 	if entries, err := os.ReadDir(filepath.Join(appEntity.Path, ".git")); err == nil && len(entries) > 0 {
-		cmd := exec.Command("git", "rev-parse", "HEAD")
+		cmd := sysutil.Command("git", "rev-parse", "HEAD")
 		cmd.Dir = appEntity.Path
 		if out, err := cmd.Output(); err == nil {
 			commitHash = strings.TrimSpace(string(out))
@@ -365,32 +365,32 @@ func (s *AppService) GetActiveApp(ctx context.Context) (*ActiveAppResponse, erro
 // initGitRepository 初始化 Git 仓库、安全配置临时身份并提交初始状态
 func (s *AppService) initGitRepository(targetDir string) (string, error) {
 	// git init
-	initCmd := exec.Command("git", "init")
+	initCmd := sysutil.Command("git", "init")
 	initCmd.Dir = targetDir
 	if err := initCmd.Run(); err != nil {
 		return "", fmt.Errorf("git init failed: %w", err)
 	}
 
 	// 配置本地 user.name / user.email 防御全局未配置 Git 的环境
-	_ = exec.Command("git", "-C", targetDir, "config", "user.name", "Blot-UI").Run()
-	_ = exec.Command("git", "-C", targetDir, "config", "user.email", "blot@local").Run()
+	_ = sysutil.Command("git", "-C", targetDir, "config", "user.name", "Blot-UI").Run()
+	_ = sysutil.Command("git", "-C", targetDir, "config", "user.email", "blot@local").Run()
 
 	// git add -A
-	addCmd := exec.Command("git", "add", "-A")
+	addCmd := sysutil.Command("git", "add", "-A")
 	addCmd.Dir = targetDir
 	if err := addCmd.Run(); err != nil {
 		return "", fmt.Errorf("git add failed: %w", err)
 	}
 
 	// git commit -m "Initial commit from Blot scaffold"
-	commitCmd := exec.Command("git", "commit", "-m", "Initial commit from Blot scaffold")
+	commitCmd := sysutil.Command("git", "commit", "-m", "Initial commit from Blot scaffold")
 	commitCmd.Dir = targetDir
 	if out, err := commitCmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("git commit failed: %w (%s)", err, strings.TrimSpace(string(out)))
 	}
 
 	// git rev-parse HEAD
-	revCmd := exec.Command("git", "rev-parse", "HEAD")
+	revCmd := sysutil.Command("git", "rev-parse", "HEAD")
 	revCmd.Dir = targetDir
 	hashBytes, err := revCmd.Output()
 	if err != nil {

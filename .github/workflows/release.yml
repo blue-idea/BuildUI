@@ -113,14 +113,28 @@ jobs:
         if: matrix.os == 'linux'
         run: cp build/bin/buildui build/bin/buildui-${{ matrix.deb_arch }}
 
+      - name: Package Linux (DEB and RPM)
+        if: matrix.os == 'linux'
+        env:
+          CLEAN_VERSION: ${{ env.CLEAN_VERSION }}
+          ARCH: ${{ matrix.deb_arch }}
+        run: |
+          go run github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.3 pkg --config build/linux/nfpm.yaml --packager deb --target build/bin/
+          go run github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.3 pkg --config build/linux/nfpm.yaml --packager rpm --target build/bin/
+
       - name: Verify release artifacts (Linux)
         if: matrix.os == 'linux'
-        run: test -x "build/bin/buildui-${{ matrix.deb_arch }}"
+        run: |
+          test -x "build/bin/buildui-${{ matrix.deb_arch }}"
+          deb_file="$(ls build/bin/*.deb 2>/dev/null | head -n 1)"
+          rpm_file="$(ls build/bin/*.rpm 2>/dev/null | head -n 1)"
+          test -n "$deb_file" && test -f "$deb_file"
+          test -n "$rpm_file" && test -f "$rpm_file"
 
       - name: Build Wails desktop app (Windows)
         if: matrix.os == 'windows'
         shell: bash
-        run: go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build -clean -platform ${{ matrix.platform }}
+        run: go run github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }} build -clean -platform ${{ matrix.platform }} -ldflags "-H windowsgui -s -w"
 
       - name: Verify release artifacts (Windows)
         if: matrix.os == 'windows'
@@ -148,7 +162,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "${{ env.RELEASE_TAG }}" >/dev/null 2>&1 || gh release create "${{ env.RELEASE_TAG }}" --generate-notes || true
-          gh release upload "${{ env.RELEASE_TAG }}" build/bin/buildui-${{ matrix.deb_arch }} --clobber
+          gh release upload "${{ env.RELEASE_TAG }}" build/bin/buildui-${{ matrix.deb_arch }} build/bin/*.deb build/bin/*.rpm --clobber
 
       - name: Upload Windows artifacts
         if: matrix.os == 'windows'

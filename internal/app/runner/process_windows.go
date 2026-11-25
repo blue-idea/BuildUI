@@ -3,10 +3,15 @@ package runner
 import (
 	"os/exec"
 	"strconv"
+
+	"buildui/internal/sysutil"
 )
 
-func configurePreviewProcess(_ *exec.Cmd) {}
+func configurePreviewProcess(cmd *exec.Cmd) {
+	sysutil.HideWindow(cmd)
+}
 
 func killPreviewProcess(pid int) error {
-	return exec.Command("taskkill", "/PID", strconv.Itoa(pid), "/T", "/F").Run()
+	cmd := sysutil.Command("taskkill", "/PID", strconv.Itoa(pid), "/T", "/F")
+	return cmd.Run()
 }
