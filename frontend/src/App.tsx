@@ -44,6 +44,7 @@ import {
   DiagnosticItem,
 } from './services/wailsBridge';
 import { Plus, Send, Square, Hammer, ChevronDown } from 'lucide-react';
+import type { PluginAutomation } from './types/plugin';
 
 export interface AttachmentItem {
   id: string;
@@ -599,9 +600,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     prompt: string,
     images: string[],
     mode: 'build' | 'plan',
-    options: { approve?: boolean; chatId?: number; resume?: boolean } = {},
+    options: { approve?: boolean; chatId?: number; resume?: boolean; pluginAutomation?: PluginAutomation } = {},
   ) => {
-    const { approve = false, chatId: id = chatID.current, resume } = options;
+    const { approve = false, chatId: id = chatID.current, resume, pluginAutomation } = options;
     if (!id || turn.current) return;
     const currentAppId = projectID.current;
     const current = { id: `turn-${Date.now()}`, commit: '', cancelled: false };
@@ -636,6 +637,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         provider: reqProvider,
         model: reqModel,
         resume,
+        ...(pluginAutomation && { pluginAutomation }),
       });
       if (id !== chatID.current || currentAppId !== projectID.current) return;
       if (mode === 'build') setBuildProgress(null);
@@ -969,7 +971,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         attachments: atts.length > 0 ? atts : undefined,
       };
       setMessages((prev) => [...prev, userMsg]);
-      void runDesktopTurn(prompt, atts.map((att) => att.dataUrl), 'build', { chatId: chatID.current });
+      void runDesktopTurn(prompt, atts.map((att) => att.dataUrl), 'build', {
+        chatId: chatID.current,
+        pluginAutomation: options?.pluginAutomation,
+      });
       return;
     }
 

@@ -125,6 +125,10 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	if err != nil {
 		return err
 	}
+	automation, err := s.resolvePluginAutomation(ctx, app.ID, req.PluginAutomation)
+	if err != nil {
+		return err
+	}
 	client, model, err := s.loadModel(ctx, req.Provider, req.Model)
 	if err != nil {
 		return err
@@ -178,7 +182,7 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	}
 	messages = append(messages, llm.ChatMessage{Role: "user", Content: req.Prompt, Images: req.Attachments})
 	request := llm.ChatRequest{Model: model, Messages: messages, Temperature: 0.2, MaxTokens: config.ModelBlueprintMaxTokens}
-	closePluginTools := s.attachPluginTools(ctx, app.ID, req.ChatID, app.Path, &request)
+	closePluginTools := s.attachPluginTools(ctx, app.ID, req.ChatID, app.Path, automation, &request)
 	defer closePluginTools()
 	supportsThinking := config.SupportsDeepSeekThinking(model)
 	if bp != nil && bp.Approved && req.Mode != "plan" {
@@ -243,6 +247,11 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 }
 
 func streamModelResponse(ctx context.Context, client *llm.OpenAIClient, request llm.ChatRequest, receive func(string) error) error {
+	if request.ToolInstructions != "" {
+		// 规划和构建会在此之前重组系统消息。克隆后再注入，避免重试时重复添加。
+		request.Messages = slices.Clone(request.Messages)
+		request.Messages[0].Content += "\n" + request.ToolInstructions
+	}
 	hasContent := false
 	err := client.StreamChat(ctx, request, func(chunk string) error {
 		hasContent = hasContent || strings.TrimSpace(chunk) != ""

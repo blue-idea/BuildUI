@@ -10,6 +10,9 @@ import {
 } from 'lucide-react';
 import { NATIVE_APP_STACK } from '../config/projectTemplates';
 import { useI18n } from '../i18n/I18nContext';
+import { pluginBridge } from '../services/wailsBridge';
+import type { InstalledPlugin, PluginAutomation } from '../types/plugin';
+import { HomePluginPicker } from './HomePluginPicker';
 import { ModelSelector } from './ModelSelector';
 import type { AttachmentItem } from '../App';
 import type { ThemePreset } from './ThemeSelector';
@@ -23,6 +26,7 @@ export interface GuideCustomizationOptions {
   reference: string;
   customReference: string;
   template: string;
+  pluginAutomation?: PluginAutomation;
 }
 
 export interface HomeGuideViewProps {
@@ -232,6 +236,22 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   onOpenStyleCenter,
 }) => {
   const { t, locale } = useI18n();
+  const bridge = pluginBridge();
+  const [availablePlugins, setAvailablePlugins] = useState<InstalledPlugin[] | null>(null);
+  const [pluginLoadError, setPluginLoadError] = useState(false);
+  const [pluginSelection, setPluginSelection] = useState<PluginAutomation>({ enabled: false, pluginIds: [] });
+
+  useEffect(() => {
+    if (!bridge) return;
+    let active = true;
+    // 首页创建新项目，只列出全局插件。项目专属插件仍由原项目管理。
+    void bridge.ListPlugins().then((plugins) => {
+      if (active) setAvailablePlugins((plugins ?? []).filter((plugin) => plugin.enabled && plugin.appId == null));
+    }).catch(() => {
+      if (active) setPluginLoadError(true);
+    });
+    return () => { active = false; };
+  }, [bridge]);
 
   // 1. 选项卡：App、Desktop、Web
   const [category, setCategory] = useState<AppCategory>(initialCategory);
@@ -374,35 +394,29 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
     return t('homeGuide.placeholderWeb');
   }, [category, t]);
 
-  const handleStart = () => {
-    onStartBuilding(
-      assembledPrompt,
-      {
-        category,
-        userInput,
-        style: selectedStyle,
-        reference: '',
-        customReference: '',
-        template: selectedTemplate,
-      },
-      attachments
-    );
+  const startProject = (prompt: string, template: string, input: string) => {
+    const pluginAutomation = bridge ? {
+      enabled: pluginSelection.enabled,
+      pluginIds: pluginSelection.enabled && availablePlugins
+        ? pluginSelection.pluginIds.filter((id) => availablePlugins.some((plugin) => plugin.id === id))
+        : [],
+    } : undefined;
+    onStartBuilding(prompt, {
+      category,
+      userInput: input,
+      style: selectedStyle,
+      reference: '',
+      customReference: '',
+      template,
+      pluginAutomation,
+    }, attachments);
   };
+
+  const handleStart = () => startProject(assembledPrompt, selectedTemplate, userInput);
 
   const handleBlankProject = () => {
     setSelectedTemplate('blank');
-    onStartBuilding(
-      `Create a new blank project for ${category.toUpperCase()} application. (Blank Canvas)`,
-      {
-        category,
-        userInput: '',
-        style: selectedStyle,
-        reference: '',
-        customReference: '',
-        template: 'blank',
-      },
-      attachments
-    );
+    startProject(`Create a new blank project for ${category.toUpperCase()} application. (Blank Canvas)`, 'blank', '');
   };
 
   const activeStyleObj = effectivePresets.find((s) => s.id === selectedStyle);
@@ -495,6 +509,14 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
             rows={3}
             className="w-full resize-none bg-transparent text-sm sm:text-base text-slate-800 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none leading-relaxed"
           />
+          {bridge && (
+            <HomePluginPicker
+              plugins={availablePlugins}
+              loadError={pluginLoadError}
+              selection={pluginSelection}
+              onChange={setPluginSelection}
+            />
+          )}
 
           {/* 底部操作栏（图标 + 选项卡） */}
           <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-300/40 dark:border-zinc-800/80">

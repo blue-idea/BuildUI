@@ -100,6 +100,10 @@ CREATE TABLE IF NOT EXISTS mcp_plugin_oauth (
     attempt TEXT NOT NULL,
     credentials TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS mcp_project_automation (
+    app_id INTEGER PRIMARY KEY REFERENCES apps(id) ON DELETE CASCADE,
+    selection_json TEXT NOT NULL
+);
 
 CREATE INDEX IF NOT EXISTS idx_chats_app_id ON chats(app_id);
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"buildui/internal/config"
@@ -22,7 +23,8 @@ type Tool struct {
 }
 
 type Capability struct {
-	PluginID int64
+	PluginID   int64
+	PluginName string
 	Tool
 }
 
@@ -187,28 +189,32 @@ func (s *Service) SetToolPermission(ctx context.Context, id int64, name string, 
 	return err
 }
 
-func (t *Turn) Capabilities(ctx context.Context) []Capability {
+func (t *Turn) Capabilities(ctx context.Context, selectedIDs ...int64) []Capability {
 	ctx, cancel := context.WithTimeout(ctx, config.MCPRequestTimeout)
 	defer cancel()
-	rows, err := t.service.db.QueryContext(ctx, `SELECT id FROM mcp_plugins WHERE enabled AND (app_id IS NULL OR app_id=?)
+	rows, err := t.service.db.QueryContext(ctx, `SELECT id, name FROM mcp_plugins WHERE enabled AND (app_id IS NULL OR app_id=?)
 		AND EXISTS (SELECT 1 FROM mcp_tool_permissions WHERE plugin_id=mcp_plugins.id) ORDER BY id`, t.appID)
 	if err != nil {
 		return nil
 	}
-	var ids []int64
+	type candidate struct {
+		id   int64
+		name string
+	}
+	var candidates []candidate
 	for rows.Next() {
-		var id int64
-		if rows.Scan(&id) == nil {
-			ids = append(ids, id)
+		var item candidate
+		if rows.Scan(&item.id, &item.name) == nil && (len(selectedIDs) == 0 || slices.Contains(selectedIDs, item.id)) {
+			candidates = append(candidates, item)
 		}
 	}
 	_ = rows.Close()
 	var result []Capability
-	for _, id := range ids {
-		tools, _ := t.service.listTools(ctx, id, t.open)
+	for _, item := range candidates {
+		tools, _ := t.service.listTools(ctx, item.id, t.open)
 		for _, tool := range tools {
 			if tool.Allowed {
-				result = append(result, Capability{PluginID: id, Tool: tool})
+				result = append(result, Capability{PluginID: item.id, PluginName: item.name, Tool: tool})
 			}
 		}
 	}

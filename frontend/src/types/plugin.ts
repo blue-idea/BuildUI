@@ -15,6 +15,7 @@ export interface PluginItem {
     required?: boolean;
   };
   category: 'featured' | 'ai_media' | 'developer' | 'custom';
+  iconUrl?: string;
   iconColor?: string;
   iconBg?: string;
   iconText?: string;
@@ -53,4 +54,9 @@ export interface PluginTool {
   name: string;
   description: string;
   allowed: boolean;
+}
+
+export interface PluginAutomation {
+  enabled: boolean;
+  pluginIds: number[];
 }

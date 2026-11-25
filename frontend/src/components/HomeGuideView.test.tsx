@@ -13,6 +13,39 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
+  it('只选择可用于新项目的已启用插件，并提交开关和多选状态', async () => {
+    const onStartBuilding = vi.fn();
+    vi.stubGlobal('go', { main: { App: { ListPlugins: vi.fn().mockResolvedValue([
+      { id: 11, name: 'Mobbin', enabled: true },
+      { id: 12, name: 'Custom Notes', enabled: true },
+      { id: 13, name: 'Disabled plugin', enabled: false },
+      { id: 14, name: 'Other project plugin', enabled: true, appId: 8 },
+    ]) } } });
+    try {
+      renderWithProviders(<HomeGuideView onStartBuilding={onStartBuilding} />);
+      const toggle = screen.getByRole('switch', { name: 'Automatically use plugins' });
+      expect((toggle as HTMLInputElement).checked).toBe(false);
+      fireEvent.click(toggle);
+      fireEvent.click(await screen.findByRole('checkbox', { name: 'Mobbin' }));
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Custom Notes' }));
+      expect(screen.queryByRole('checkbox', { name: 'Disabled plugin' })).toBeNull();
+      expect(screen.queryByRole('checkbox', { name: 'Other project plugin' })).toBeNull();
+      fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: 'Build a dashboard' } });
+      fireEvent.click(screen.getByTestId('guide-submit-btn'));
+      expect(onStartBuilding).toHaveBeenLastCalledWith(
+        expect.stringContaining('Build a dashboard'), expect.objectContaining({ pluginAutomation: { enabled: true, pluginIds: [11, 12] } }), expect.anything(),
+      );
+      fireEvent.click(toggle);
+      expect(screen.queryByRole('group', { name: 'Enabled plugins' })).toBeNull();
+      fireEvent.click(screen.getByTestId('guide-submit-btn'));
+      expect(onStartBuilding).toHaveBeenLastCalledWith(
+        expect.any(String), expect.objectContaining({ pluginAutomation: { enabled: false, pluginIds: [] } }), expect.anything(),
+      );
+      fireEvent.click(toggle);
+      expect((screen.getByRole('checkbox', { name: 'Mobbin' }) as HTMLInputElement).checked).toBe(true);
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it('renders minimalist welcome header and top quick action buttons', () => {
     const onStartBuilding = vi.fn();
     const onBrowseTemplates = vi.fn();

@@ -4,7 +4,7 @@
  */
 
 import type { AppItem } from '../components/AppDrawer';
-import type { InstalledPlugin, PluginConfig, PluginTool } from '../types/plugin';
+import type { InstalledPlugin, PluginAutomation, PluginConfig, PluginTool } from '../types/plugin';
 import type { BlueprintDTO } from '../components/BlueprintCard';
 import type { VersionItem, VersionDiffResult } from '../components/VersionTimelineModal';
 
@@ -39,7 +39,7 @@ interface DesktopMethods {
   GetProjectChat: (id: number) => Promise<ProjectChat>;
   CreateProjectChat: (id: number) => Promise<ProjectChat>;
   ApproveBlueprint: (chatId: number) => Promise<void>;
-  StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[]; provider?: string; model?: string; resume?: boolean }) => Promise<void>;
+  StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[]; provider?: string; model?: string; resume?: boolean; pluginAutomation?: PluginAutomation }) => Promise<void>;
   ListProviderModels?: (provider: string, baseURL: string, apiKey: string) => Promise<string[]>;
   CancelChat: (chatId: number) => Promise<void>;
   RunApp: (req: { appId: number; restart?: boolean }) => Promise<{ previewUrl: string; typeScriptChecked?: boolean; repairAttempts?: number }>;

@@ -46,9 +46,10 @@ type ChatRequest struct {
 	// DisableThinking 仅在支持 DeepSeek 思考模式开关的模型中设置。
 	DisableThinking bool `json:"-"`
 	// IdleTimeout 限制等待模型正文的时间，零值沿用传输层配置。
-	IdleTimeout time.Duration                                   `json:"-"`
-	Tools       []ToolDefinition                                `json:"-"`
-	OnToolCall  func(context.Context, ToolCall) (string, error) `json:"-"`
+	IdleTimeout      time.Duration                                   `json:"-"`
+	Tools            []ToolDefinition                                `json:"-"`
+	OnToolCall       func(context.Context, ToolCall) (string, error) `json:"-"`
+	ToolInstructions string                                          `json:"-"`
 }
 
 type ToolDefinition struct {

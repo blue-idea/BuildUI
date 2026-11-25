@@ -330,11 +330,12 @@ func (s *ChatService) CancelChat(chatID int64) error {
 
 // StreamChatRequest 请求体
 type StreamChatRequest struct {
-	ChatID      int64    `json:"chatId"`
-	Prompt      string   `json:"prompt"`
-	Attachments []string `json:"attachments"`
-	Mode        string   `json:"mode"`
-	Provider    string   `json:"provider,omitempty"`
-	Model       string   `json:"model,omitempty"`
-	Resume      bool     `json:"resume,omitempty"`
+	ChatID           int64                      `json:"chatId"`
+	Prompt           string                     `json:"prompt"`
+	Attachments      []string                   `json:"attachments"`
+	Mode             string                     `json:"mode"`
+	Provider         string                     `json:"provider,omitempty"`
+	Model            string                     `json:"model,omitempty"`
+	Resume           bool                       `json:"resume,omitempty"`
+	PluginAutomation *plugins.ProjectAutomation `json:"pluginAutomation,omitempty"`
 }
