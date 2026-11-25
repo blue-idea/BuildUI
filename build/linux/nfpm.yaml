@@ -12,7 +12,7 @@ homepage: "https://github.com/blue-idea/BuildUI"
 license: "MIT"
 
 contents:
-  - src: "build/bin/buildui-${ARCH}"
+  - src: "build/bin/buildui"
     dst: "/usr/bin/buildui"
     file_info:
       mode: 0755
@@ -29,14 +29,18 @@ contents:
     file_info:
       mode: 0644
 
-deb:
-  depends:
-    - libgtk-3-0 | libgtk-3-0t64
-    - libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
-    - xdg-utils
+depends:
+  - xdg-utils
 
-rpm:
-  depends:
-    - gtk3
-    - webkit2gtk4.1
-    - xdg-utils
+overrides:
+  deb:
+    depends:
+      - libgtk-3-0 | libgtk-3-0t64
+      - libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
+      - xdg-utils
+
+  rpm:
+    depends:
+      - gtk3
+      - webkit2gtk4.1
+      - xdg-utils
