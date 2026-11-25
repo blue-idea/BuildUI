@@ -2,6 +2,7 @@ import React from 'react';
 import { PluginItem } from '../types/plugin';
 import { Check } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
+import { PluginIcon } from './PluginIcon';
 
 export interface PluginCardProps {
   plugin: PluginItem;
@@ -9,67 +10,6 @@ export interface PluginCardProps {
   onRemove?: (pluginId: string) => void;
   onConfigure?: () => void;
 }
-
-/**
- * 渲染品牌专属图标或优雅首字母徽标
- */
-const renderBrandIcon = (plugin: PluginItem) => {
-  switch (plugin.id) {
-    case 'stripe':
-      return (
-        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-          <div className="w-4 h-4 border-2 border-white rounded-xs transform -rotate-12" />
-        </div>
-      );
-    case 'vercel':
-      return (
-        <div className="w-10 h-10 rounded-xl bg-black dark:bg-zinc-800 text-white flex items-center justify-center shadow-xs shrink-0">
-          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-            <path d="M12 2L2 22h20L12 2z" />
-          </svg>
-        </div>
-      );
-    case 'huggingface':
-      return (
-        <div className="w-10 h-10 rounded-xl bg-amber-400 text-amber-950 flex items-center justify-center text-xl shadow-xs shrink-0 select-none">
-          🤗
-        </div>
-      );
-    case 'heygen':
-      return (
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center shadow-xs shrink-0">
-          <span className="text-xs font-black">HG</span>
-        </div>
-      );
-    case 'higgsfield':
-      return (
-        <div className="w-10 h-10 rounded-xl bg-lime-400 text-zinc-900 flex items-center justify-center font-black text-sm shadow-xs shrink-0">
-          HF
-        </div>
-      );
-    case 'roboflow':
-      return (
-        <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-          <div className="w-4 h-4 border-2 border-dashed border-white rounded-full" />
-        </div>
-      );
-    case 'braintrust':
-      return (
-        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-          BT
-        </div>
-      );
-    default:
-      return (
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-xs shadow-xs shrink-0"
-          style={{ backgroundColor: plugin.iconBg || '#6366f1' }}
-        >
-          {plugin.iconText || plugin.name.slice(0, 2).toUpperCase()}
-        </div>
-      );
-  }
-};
 
 export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove, onConfigure }) => {
   const { t } = useI18n();
@@ -81,7 +21,7 @@ export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove,
       className="p-5 rounded-2xl bg-white dark:bg-zinc-900/90 border border-slate-200/90 dark:border-zinc-800 flex flex-col justify-between gap-4 transition-all hover:border-slate-300 dark:hover:border-zinc-700 hover:shadow-xs group"
     >
       <div className="flex items-start gap-3.5">
-        {renderBrandIcon(plugin)}
+        <PluginIcon plugin={plugin} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">

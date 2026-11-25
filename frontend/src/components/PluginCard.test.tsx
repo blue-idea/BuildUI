@@ -27,6 +27,7 @@ describe('PluginCard Component (TDD)', () => {
     expect(screen.getByText('OAuth')).toBeDefined();
     expect(screen.getByText('Manage payments, customers, and products')).toBeDefined();
     expect(screen.getByText('mcp.stripe.com')).toBeDefined();
+    expect(screen.getByTestId('plugin-icon-stripe')).toBeDefined();
   });
 
   it('calls onAdd callback when clicking the Add button for uninstalled plugin', () => {

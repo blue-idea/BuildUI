@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, KeyRound, Plug, Plus, X } from 'lucide-react';
 import { pluginBridge } from '../services/wailsBridge';
 import { getCatalogPlugin } from '../config/plugins';
+import { PluginIcon } from './PluginIcon';
 import type { InstalledPlugin, PluginConfig, PluginTool } from '../types/plugin';
 
 interface Props {
@@ -29,7 +30,8 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
   const isHTTP = plugin.transport === 'http';
   const title = isHTTP ? 'Headers' : 'Environment variables';
   const keys = (isHTTP ? plugin.headers : plugin.env) ?? [];
-  const catalogCredential = getCatalogPlugin(plugin.catalogId)?.credential;
+  const catalogPlugin = getCatalogPlugin(plugin.catalogId);
+  const catalogCredential = catalogPlugin?.credential;
   const credential = catalogCredential?.transport === plugin.transport ? catalogCredential : undefined;
   const normalizeCredentialName = (key: string) => isHTTP ? key.toLowerCase() : key;
   const unconfiguredCredential = credential && !keys.some((key) => normalizeCredentialName(key) === normalizeCredentialName(credential.name)) ? credential : undefined;
@@ -85,7 +87,11 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
             <button type="button" aria-label="Close" disabled={busy} onClick={onClose} className="text-slate-500 dark:text-zinc-400"><X size={18} /></button>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-lg bg-blue-50 p-3 text-blue-700 dark:bg-blue-950 dark:text-blue-300"><Plug size={18} /></span>
+            {plugin.catalogId ? (
+              <PluginIcon plugin={{ id: plugin.catalogId, name: plugin.name, iconUrl: catalogPlugin?.iconUrl, iconBg: catalogPlugin?.iconBg }} />
+            ) : (
+              <span className="rounded-lg bg-blue-50 p-3 text-blue-700 dark:bg-blue-950 dark:text-blue-300"><Plug size={18} /></span>
+            )}
             <div className="min-w-0 flex-1">
               <h2 id="plugin-details-title" className="text-lg font-semibold">{plugin.name}</h2>
               <p className="break-all text-xs text-slate-500 dark:text-zinc-400">{isHTTP ? 'Streamable HTTP' : 'stdio'} · {plugin.endpoint}</p>
