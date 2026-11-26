@@ -14,34 +14,34 @@ import (
 // OpenInFileManager 跨平台唤起操作系统原生资源管理器定位指定路径
 func (s *ExportService) OpenInFileManager(targetPath string) error {
 	cleanPath := filepath.Clean(targetPath)
-	if _, err := os.Stat(cleanPath); err != nil {
+	info, err := os.Stat(cleanPath)
+	if err != nil {
 		return errs.NewNotFoundError(fmt.Sprintf("target path does not exist: %s", targetPath), err)
 	}
 
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		// Windows: 若为文件则在 explorer 中高亮选中，若为目录则直接打开
-		fileInfo, _ := os.Stat(cleanPath)
-		if fileInfo != nil && fileInfo.IsDir() {
-			cmd = sysutil.Command("explorer.exe", cleanPath)
-		} else {
-			cmd = sysutil.Command("explorer.exe", fmt.Sprintf("/select,%s", cleanPath))
-		}
-	case "darwin":
-		cmd = sysutil.Command("open", "-R", cleanPath)
-	default:
-		// Linux 或其他类 Unix
-		dir := cleanPath
-		if fi, _ := os.Stat(cleanPath); fi != nil && !fi.IsDir() {
-			dir = filepath.Dir(cleanPath)
-		}
-		cmd = sysutil.Command("xdg-open", dir)
-	}
-
+	cmd := fileManagerCommand(cleanPath, info.IsDir())
 	if err := cmd.Start(); err != nil {
 		return errs.NewInternalError(fmt.Sprintf("failed to spawn native file manager for: %s", cleanPath), err)
 	}
-
+	go func() { _ = cmd.Wait() }()
 	return nil
+}
+
+func fileManagerCommand(path string, isDir bool) *exec.Cmd {
+	switch runtime.GOOS {
+	case "windows":
+		// Explorer 需要可见窗口，避免使用隐藏窗口的命令构造器。
+		if isDir {
+			return exec.Command("explorer.exe", path)
+		}
+		// 将路径作为单独参数，让 Go 仅为路径添加引号。
+		return exec.Command("explorer.exe", "/select,", path)
+	case "darwin":
+		return sysutil.Command("open", "-R", path)
+	default:
+		if !isDir {
+			path = filepath.Dir(path)
+		}
+		return sysutil.Command("xdg-open", path)
+	}
 }
