@@ -1,16 +1,17 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Atom, Check, Globe, LayoutGrid, Monitor, Search, Smartphone, Triangle, X } from 'lucide-react';
 import clsx from 'clsx';
+import type { ProjectPlatform } from './AppDrawer';
 import type { AppTemplate } from './TemplateModal';
 import { useI18n } from '../i18n/I18nContext';
-import { DEFAULT_PROJECT_TEMPLATE, getOfficialProjectTemplates } from '../config/projectTemplates';
+import { DEFAULT_PROJECT_TEMPLATE, getOfficialProjectTemplates, isProjectTemplateCompatible } from '../config/projectTemplates';
 
-export type PlatformFilter = 'all' | 'web' | 'desktop' | 'app';
+export type PlatformFilter = 'all' | ProjectPlatform;
 
 export interface TemplateCenterViewProps {
   templates: AppTemplate[];
   onSelectTemplate: (templateId: string) => void | Promise<void>;
-  onCreateProject?: (name: string, templateId: string) => Promise<void>;
+  onCreateProject?: (name: string, templateId: string, platform: ProjectPlatform) => Promise<void>;
   selectedTemplateId?: string;
   busy?: boolean;
   initialPlatform?: PlatformFilter;
@@ -121,18 +122,20 @@ export function TemplateCenterView({
   const [searchQuery, setSearchQuery] = useState('');
   const [selecting, setSelecting] = useState(false);
   const [selectionError, setSelectionError] = useState('');
-  const [creationTemplate, setCreationTemplate] = useState<AppTemplate | null>(null);
+  const [creation, setCreation] = useState<{ template: AppTemplate; platform: ProjectPlatform } | null>(null);
   const officialTemplates = getOfficialProjectTemplates(templates);
   // 目录中的默认项回退到官方模板，历史设置仍保留在原处。
   const activeTemplateId = officialTemplates.some((template) => template.id === selectedTemplateId)
     ? selectedTemplateId
     : DEFAULT_PROJECT_TEMPLATE;
   const query = searchQuery.trim().toLowerCase();
-  const filtered = officialTemplates.filter((template) => (
-    (platformFilter === 'all' || platformFilter === (template.platform ?? 'web')) &&
+  const templatesForPlatform = (platform: PlatformFilter) => platform === 'all'
+    ? officialTemplates
+    : officialTemplates.filter((template) => template.platform === platform || isProjectTemplateCompatible(template, platform));
+  const filtered = templatesForPlatform(platformFilter).filter((template) =>
     [template.name, template.description, template.category, template.id, ...template.tags]
-      .some((value) => value.toLowerCase().includes(query))
-  ));
+      .some((value) => value.toLowerCase().includes(query)),
+  );
 
   const select = async (template: AppTemplate) => {
     setSelectionError('');
@@ -176,7 +179,7 @@ export function TemplateCenterView({
         <div className="flex flex-wrap gap-2" aria-label="Template platform categories">
           {filters.map(({ id, label, icon: Icon }) => {
             const selected = platformFilter === id;
-            const count = id === 'all' ? officialTemplates.length : officialTemplates.filter((item) => (item.platform ?? 'web') === id).length;
+            const count = templatesForPlatform(id).length;
             if (id !== 'all' && id !== platformFilter && count === 0) return null;
             return (
               <button
@@ -214,6 +217,7 @@ export function TemplateCenterView({
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((item) => {
                 const selected = item.id === activeTemplateId;
+                const platform = platformFilter === 'all' ? item.platform ?? 'web' : platformFilter;
                 const Icon = item.icon === 'React' ? Atom : item.icon === 'Expo' ? Smartphone : Triangle;
                 return (
                   <article
@@ -230,7 +234,7 @@ export function TemplateCenterView({
                           <Icon aria-hidden="true" className="h-5 w-5" />
                         </span>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500 dark:text-zinc-400">{platformLabels[item.platform ?? 'web']}</span>
+                          <span className="text-xs text-slate-500 dark:text-zinc-400">{platformLabels[platform]}</span>
                           {selected && <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400"><Check className="h-3.5 w-3.5" />{t('templatesPage.selectedBadge')}</span>}
                         </div>
                       </div>
@@ -240,7 +244,7 @@ export function TemplateCenterView({
                       </div>
                       <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
                         {selected && onCreateProject ? (
-                          <button type="button" className={primaryButton} disabled={busy || selecting} onClick={() => setCreationTemplate(item)}>
+                          <button type="button" className={primaryButton} disabled={busy || selecting} onClick={() => setCreation({ template: item, platform })}>
                             {t('templatesPage.createApp')}
                           </button>
                         ) : (
@@ -257,11 +261,11 @@ export function TemplateCenterView({
           </section>
         )}
       </div>
-      {creationTemplate && onCreateProject && (
+      {creation && onCreateProject && (
         <CreateProjectDialog
-          template={creationTemplate}
-          onClose={() => setCreationTemplate(null)}
-          onConfirm={(name) => onCreateProject(name, creationTemplate.id)}
+          template={creation.template}
+          onClose={() => setCreation(null)}
+          onConfirm={(name) => onCreateProject(name, creation.template.id, creation.platform)}
         />
       )}
     </div>

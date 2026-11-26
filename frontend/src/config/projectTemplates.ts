@@ -20,7 +20,7 @@ export function getProjectTemplatePlatform(id?: string): ProjectPlatform | undef
 }
 
 export function isProjectTemplateCompatible(template: AppTemplate, projectPlatform: ProjectPlatform): boolean {
-  const templatePlatform = template.platform ?? 'web';
-  // 桌面项目可以使用 Web 脚手架，移动项目使用支持 App 的脚手架。
-  return templatePlatform === projectPlatform || (projectPlatform === 'desktop' && templatePlatform === 'web');
+  // Desktop 的起步模板固定为 React。
+  if (projectPlatform === 'desktop') return template.id === 'react';
+  return (template.platform ?? 'web') === projectPlatform;
 }

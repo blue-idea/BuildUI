@@ -987,12 +987,12 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     setSettings((previous) => ({ ...previous, ...changes }));
   };
 
-  const handleCreateFromTemplate = async (name: string, templateId: string) => {
+  const handleCreateFromTemplate = async (name: string, templateId: string, platform: ProjectPlatform) => {
     if (desktop) {
       setIsChangingProject(true);
       setProjectError('');
       try {
-        await createAndOpenDesktopProject(name, templateId);
+        await createAndOpenDesktopProject(name, templateId, platform);
       } finally {
         setIsChangingProject(false);
       }
@@ -1006,7 +1006,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       id: Date.now(),
       name,
       path: '/workspace/' + generateSafeAppName(name, []).toLowerCase().replace(/ /g, '-'),
-      platform: getProjectTemplatePlatform(templateId),
+      platform,
       createdAt: new Date().toISOString(),
     };
     setApps((previous) => [...previous, newApp]);

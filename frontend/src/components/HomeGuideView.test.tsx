@@ -55,15 +55,29 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     expect(onStartBuilding.mock.lastCall?.[1].template).toBe('blank');
   });
 
-  it('切换到 App 后清除不兼容的 Next.js 并提供 Expo', () => {
+  it('切换到 Desktop 时清除 Next.js，定制模板只提供 React', () => {
     const onStartBuilding = vi.fn();
     renderWithProviders(<HomeGuideView onStartBuilding={onStartBuilding} />);
 
     fireEvent.click(screen.getByRole('switch', { name: 'Custom template' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Next.js' }));
     fireEvent.click(screen.getByTestId('guide-tab-desktop'));
-    expect(screen.getAllByRole<HTMLInputElement>('radio').map(({ value }) => value)).toEqual(['react', 'next']);
-    expect(screen.getByRole('radio', { name: 'Next.js', checked: true })).toBeDefined();
+
+    expect(screen.getAllByRole<HTMLInputElement>('radio').map(({ value }) => value)).toEqual(['react']);
+    expect(screen.queryByRole('radio', { checked: true })).toBeNull();
+    const submit = screen.getByTestId<HTMLButtonElement>('guide-submit-btn');
+    expect(submit.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('radio', { name: 'React' }));
+    fireEvent.click(submit);
+    expect(onStartBuilding.mock.lastCall?.[1]).toMatchObject({ template: 'react', category: 'desktop' });
+  });
+
+  it('切换到 App 后清除不兼容的 Next.js 并提供 Expo', () => {
+    const onStartBuilding = vi.fn();
+    renderWithProviders(<HomeGuideView onStartBuilding={onStartBuilding} />);
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Custom template' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Next.js' }));
     fireEvent.click(screen.getByTestId('guide-tab-app'));
     expect(screen.getAllByRole<HTMLInputElement>('radio').map(({ value }) => value)).toEqual(['react-native']);
     expect(screen.queryByRole('radio', { checked: true })).toBeNull();

@@ -3,7 +3,7 @@
   "selectionKey": "templates.selectedId",
   "consentKey": "templates.communityAccepted",
   "templates": [
-    { "id": "react", "name": "React", "description": "A client-side web app with React, Vite, TypeScript, and shadcn/ui.", "category": "Web", "platform": "web", "tags": ["React", "Vite", "TypeScript"], "icon": "React", "themeId": "default", "source": "official" },
+    { "id": "react", "name": "React", "description": "A starter with React, Vite, TypeScript, and shadcn/ui.", "category": "Web", "platform": "web", "tags": ["React", "Vite", "TypeScript"], "icon": "React", "themeId": "default", "source": "official" },
     { "id": "react-native", "name": "React Native (Expo)", "description": "A mobile app with Expo Router, React Native, and NativeWind.", "category": "Mobile", "platform": "app", "tags": ["Expo", "React Native", "NativeWind"], "icon": "Expo", "themeId": "default", "source": "official" },
     { "id": "next", "name": "Next.js", "description": "A full-stack web app with the Next.js App Router, TypeScript, and Tailwind CSS.", "category": "Web", "platform": "web", "tags": ["Next.js", "App Router", "TypeScript"], "icon": "Next.js", "themeId": "default", "source": "official" },
     { "id": "saas-dashboard", "name": "SaaS Analytics Dashboard", "description": "A metrics dashboard with revenue KPIs and activity charts.", "category": "Analytics", "platform": "web", "tags": ["Charts", "KPIs", "Metrics"], "icon": "📊", "themeId": "dark-slate", "source": "example" },

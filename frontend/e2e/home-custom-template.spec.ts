@@ -22,3 +22,20 @@ test('开始页开启定制模板，单选 Next.js 并进入构建区', async ({
   await page.getByTestId('guide-submit-btn').click();
   await expect(page.getByText(/Base Starter Template: Next\.js/)).toBeVisible();
 });
+
+test('从 Web 切到 Desktop 后仅能选择 React 起步模板', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await page.getByRole('switch', { name: 'Custom template' }).click();
+  await page.getByRole('radio', { name: 'Next.js' }).check();
+  await page.getByTestId('guide-tab-desktop').click();
+  await page.getByRole('button', { name: 'Starter template' }).click();
+  const react = page.getByRole('radio', { name: 'React', exact: true });
+  await expect(page.getByRole('radio')).toHaveCount(1);
+  await expect(react).not.toBeChecked();
+  await expect(page.getByTestId('guide-submit-btn')).toBeDisabled();
+  await react.check();
+  await page.screenshot({ path: testInfo.outputPath('desktop-react-selected.png') });
+  await page.getByTestId('guide-user-input').fill('Sample AI App');
+  await page.getByTestId('guide-submit-btn').click();
+  await expect(page.getByText(/Base Starter Template: React/)).toBeVisible();
+});

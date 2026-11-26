@@ -4,6 +4,7 @@ import { TemplateCenterView } from './TemplateCenterView';
 import { AppTemplate } from './TemplateModal';
 import { ThemeProvider } from '../context/ThemeContext';
 import { I18nProvider } from '../i18n/I18nContext';
+import { LOCAL_PROJECT_TEMPLATES } from '../config/projectTemplates';
 
 const mockTemplates: AppTemplate[] = [
   {
@@ -57,6 +58,27 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe('TemplateCenterView - Normal Page with Web, Desktop, App Categories', () => {
+  it('官方目录的 Desktop 分类仅提供 React，并以 Desktop 平台创建', async () => {
+    const onCreateProject = vi.fn().mockResolvedValue(undefined);
+    renderWithProviders(
+      <TemplateCenterView
+        templates={LOCAL_PROJECT_TEMPLATES}
+        onSelectTemplate={vi.fn()}
+        onCreateProject={onCreateProject}
+      />
+    );
+
+    const desktop = screen.getByTestId('platform-tab-desktop');
+    expect(within(desktop).getByText('1')).toBeDefined();
+    fireEvent.click(desktop);
+    expect(screen.getAllByRole('article').map((card) => card.dataset.testid)).toEqual(['template-card-react']);
+    expect(within(screen.getByTestId('template-card-react')).getByText('Desktop')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Create App' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Project name' }), { target: { value: 'Sample AI App' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Create project' })); });
+    expect(onCreateProject).toHaveBeenCalledWith('Sample AI App', 'react', 'desktop');
+  });
+
   it('选择默认模板与提交创建相互独立', async () => {
     const onSelectTemplate = vi.fn();
     const onCreateProject = vi.fn().mockResolvedValue(undefined);
@@ -69,7 +91,7 @@ describe('TemplateCenterView - Normal Page with Web, Desktop, App Categories', (
     fireEvent.click(screen.getByRole('button', { name: 'Create App' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Project name' }), { target: { value: '  Sample AI App  ' } });
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Create project' })); });
-    expect(onCreateProject).toHaveBeenCalledWith('Sample AI App', 'web-saas');
+    expect(onCreateProject).toHaveBeenCalledWith('Sample AI App', 'web-saas', 'web');
   });
 
   it('仅将官方模板纳入列表、平台计数和搜索', () => {
