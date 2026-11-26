@@ -61,7 +61,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onTestConnection,
   onSelectDirectory,
   defaultWorkspaceDir = '/workspace/default-app',
-  currentVersion = '0.1.1',
+  currentVersion = '0.1.2',
   onCheckForUpdates,
   onOpenExternalUrl,
 }) => {
