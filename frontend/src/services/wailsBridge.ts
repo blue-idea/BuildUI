@@ -4,7 +4,6 @@
  */
 
 import type { AppItem } from '../components/AppDrawer';
-import type { AppTemplate } from '../components/TemplateModal';
 import type { InstalledPlugin, PluginAutomation, PluginConfig, PluginTool } from '../types/plugin';
 import type { BlueprintDTO } from '../components/BlueprintCard';
 import type { VersionItem, VersionDiffResult } from '../components/VersionTimelineModal';
@@ -34,7 +33,6 @@ interface DesktopMethods {
   ListApps: () => Promise<AppItem[] | null>;
   CreateApp: (req: { name: string; customPath?: string; templateId?: string }) => Promise<ActiveProject>;
   CreateAppFromTemplate: (req: { templateId: string; appName: string; destPath?: string }) => Promise<ActiveProject>;
-  GetAppTemplates?: () => Promise<AppTemplate[]>;
   SelectProjectTemplate?: (id: string, acceptCommunity: boolean) => Promise<void>;
   DeleteApp: (id: number) => Promise<void>;
   SwitchApp: (id: number) => Promise<ActiveProject>;

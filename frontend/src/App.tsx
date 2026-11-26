@@ -6,18 +6,16 @@ import { ModelSelector } from './components/ModelSelector';
 import { VersionTimelineModal, VersionItem } from './components/VersionTimelineModal';
 import { AppDrawer, AppItem, ProjectPlatform, inferAppPlatform } from './components/AppDrawer';
 import { ExportModal } from './components/ExportModal';
-import type { AppTemplate } from './components/TemplateModal';
 import { CommandPalette, CommandAction } from './components/CommandPalette';
 import { UpdateNotifier } from './components/UpdateNotifier';
 import { MacOSWindowHeader } from './components/MacOSWindowHeader';
 import { LeftDock, DockTab } from './components/LeftDock';
 import {
   BLANK_PROJECT_TEMPLATE,
-  COMMUNITY_TEMPLATE_CONSENT_KEY,
-  DEFAULT_PROJECT_TEMPLATE,
   LOCAL_PROJECT_TEMPLATES,
   NATIVE_APP_TEMPLATE,
   SELECTED_TEMPLATE_KEY,
+  getProjectTemplatePlatform,
 } from './config/projectTemplates';
 import { HomeGuideView, GuideCustomizationOptions } from './components/HomeGuideView';
 import { TemplateCenterView } from './components/TemplateCenterView';
@@ -34,6 +32,7 @@ import { I18nProvider, useI18n } from './i18n/I18nContext';
 import { generateSandboxDoc } from './utils/sandboxTemplate';
 import { generateSafeAppName } from './utils/appName';
 import { parseConfiguredProviders } from './config/providers';
+import { DEFAULT_HOME_STYLE } from './config/homeStyle';
 import {
   fetchSettings,
   saveSettings,
@@ -173,6 +172,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const desktop = isWailsAvailable();
 
   const [activeDockTab, setActiveDockTab] = useState<DockTab>(initialDockTab);
+  const [pluginListRevision, setPluginListRevision] = useState(0);
   const [previousDockTab, setPreviousDockTab] = useState<DockTab>('home');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('preview');
   const [activeAppId, setActiveAppId] = useState<number>(desktop ? 0 : 1);
@@ -289,6 +289,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     return merged.filter((p) => !deletedIds.has(p.id));
   });
   const [activeThemeId, setActiveThemeId] = useState<string>('dark-slate');
+  // 首页的生成预设独立于当前项目的预览主题。
+  const [homeStyleId, setHomeStyleId] = useState<string>(DEFAULT_HOME_STYLE.id);
 
   const handleAddCustomPreset = (newPreset: ThemePreset) => {
     setThemePresets((prev) => {
@@ -327,28 +329,6 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
 
   const [installedDependencies, setInstalledDependencies] = useState<string[]>(desktop ? [] : ['lucide-react']);
   const [installingDeps, setInstallingDeps] = useState<string | null>(null);
-
-  const [templates, setTemplates] = useState<AppTemplate[]>(LOCAL_PROJECT_TEMPLATES);
-  const [communityStatus, setCommunityStatus] = useState<'loading' | 'unavailable'>();
-  const selectedTemplateId = settings[SELECTED_TEMPLATE_KEY] || DEFAULT_PROJECT_TEMPLATE;
-
-  const loadTemplateCatalog = useCallback(async () => {
-    if (!desktop) return;
-    const list = desktopApp().GetAppTemplates;
-    if (!list) return;
-    setCommunityStatus('loading');
-    try {
-      const community = (await list()).filter((entry) => entry.source === 'community');
-      setTemplates([...LOCAL_PROJECT_TEMPLATES, ...community]);
-      setCommunityStatus(community.length ? undefined : 'unavailable');
-    } catch {
-      setCommunityStatus('unavailable');
-    }
-  }, [desktop]);
-
-  useEffect(() => {
-    if (activeDockTab === 'templates') void loadTemplateCatalog();
-  }, [activeDockTab, loadTemplateCatalog]);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -495,8 +475,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
 
   const createAndOpenDesktopProject = async (name: string, templateId?: string, projectPlatform?: ProjectPlatform) => {
     const created = await desktopApp().CreateApp(templateId ? { name, templateId } : { name });
-    const templatePlatform = templates.find((entry) => entry.id === templateId)?.platform;
-    const platform = projectPlatform ?? templatePlatform ?? inferAppPlatform({ name: created.name, path: created.path });
+    const platform = projectPlatform ?? getProjectTemplatePlatform(templateId) ?? inferAppPlatform({ name: created.name, path: created.path });
     setApps((previous) => [...previous, { id: created.appId, name: created.name, path: created.path, platform }]);
     setIsDrawerOpen(false);
     setActiveDockTab('builder');
@@ -996,12 +975,11 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     ]);
   };
 
-  const handleSelectTemplate = async (templateId: string, acceptCommunity = false) => {
+  const handleSelectTemplate = async (templateId: string) => {
     const changes: Record<string, string> = { [SELECTED_TEMPLATE_KEY]: templateId };
-    if (acceptCommunity) changes[COMMUNITY_TEMPLATE_CONSENT_KEY] = 'true';
     if (desktop) {
       const api = desktopApp();
-      if (api.SelectProjectTemplate) await api.SelectProjectTemplate(templateId, acceptCommunity);
+      if (api.SelectProjectTemplate) await api.SelectProjectTemplate(templateId, false);
       else await api.SaveSettings(changes);
     } else {
       await saveSettings({ ...settings, ...changes });
@@ -1024,12 +1002,11 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     if (apps.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
       throw new Error(t('templatesPage.nameExists'));
     }
-    const selected = templates.find((entry) => entry.id === templateId);
     const newApp: AppItem = {
       id: Date.now(),
       name,
       path: '/workspace/' + generateSafeAppName(name, []).toLowerCase().replace(/ /g, '-'),
-      platform: selected?.platform,
+      platform: getProjectTemplatePlatform(templateId),
       createdAt: new Date().toISOString(),
     };
     setApps((previous) => [...previous, newApp]);
@@ -1189,19 +1166,15 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             onOpenSettings={() => setIsSettingsOpen(true)}
             initialAttachments={attachments}
             onStartBuilding={(prompt, options, atts) => {
-              if (options.style && options.style !== 'auto') {
+              if (options.style !== DEFAULT_HOME_STYLE.id) {
                 setActiveThemeId(options.style);
               }
               handleStartBuilding(prompt, options, atts);
             }}
-            onBrowseTemplates={() => setActiveDockTab('templates')}
             styleTemplates={themePresets}
-            activeStyleId={activeThemeId}
-            onSelectStyleId={handleSelectTheme}
-            onOpenStyleCenter={() => {
-              setPreviousDockTab('home');
-              setActiveDockTab('style');
-            }}
+            activeStyleId={homeStyleId}
+            onSelectStyleId={setHomeStyleId}
+            pluginListRevision={pluginListRevision}
           />
         ) : activeDockTab === 'projects' ? (
           <ProjectsCenterView
@@ -1277,25 +1250,27 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
           />
         ) : activeDockTab === 'templates' ? (
           <TemplateCenterView
-            templates={templates}
-            selectedTemplateId={selectedTemplateId}
-            acceptedCommunityCode={settings[COMMUNITY_TEMPLATE_CONSENT_KEY] === 'true'}
+            templates={LOCAL_PROJECT_TEMPLATES}
+            selectedTemplateId={settings[SELECTED_TEMPLATE_KEY]}
             onSelectTemplate={handleSelectTemplate}
             onCreateProject={handleCreateFromTemplate}
-            communityStatus={communityStatus}
-            onRetryCommunity={() => void loadTemplateCatalog()}
             busy={desktop && (isChangingProject || isGenerating)}
           />
         ) : activeDockTab === 'components' ? (
           <ComponentCenterView
             onGoBack={() => setActiveDockTab(previousDockTab || 'builder')}
             projects={apps}
+            pluginListRevision={pluginListRevision}
+            onPluginsChanged={() => setPluginListRevision((revision) => revision + 1)}
           />
         ) : activeDockTab === 'style' ? (
           <StyleCenterView
             presets={themePresets}
             activeThemeId={activeThemeId}
-            onSelectTheme={handleSelectTheme}
+            onSelectTheme={(id) => {
+              setHomeStyleId(id);
+              handleSelectTheme(id);
+            }}
             onAddCustomPreset={handleAddCustomPreset}
             onDeleteCustomPreset={handleDeleteCustomPreset}
             onRestoreDefaultPresets={handleRestoreDefaultPresets}

@@ -33,7 +33,8 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     expect(submit.disabled).toBe(true);
     fireEvent.keyDown(screen.getByTestId('guide-user-input'), { key: 'Enter' });
     expect(onStartBuilding).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('radio', { name: 'SaaS Analytics Dashboard' }));
+    expect(screen.getAllByRole<HTMLInputElement>('radio').map(({ value }) => value)).toEqual(['react', 'next']);
+    fireEvent.click(screen.getByRole('radio', { name: 'React' }));
     const next = screen.getByRole('radio', { name: 'Next.js' });
     fireEvent.click(next);
     expect(screen.getAllByRole('radio', { checked: true })).toEqual([next]);
@@ -45,8 +46,6 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
       expect.stringContaining('Next.js App Router'), expect.objectContaining({ template: 'next' }), expect.anything(),
     );
 
-    fireEvent.click(screen.getByTestId('guide-blank-project-btn'));
-    expect(onStartBuilding.mock.lastCall?.[1].template).toBe('blank');
     fireEvent.click(trigger);
     expect(screen.getByRole('radio', { name: 'Next.js', checked: true })).toBeDefined();
     fireEvent.click(toggle);
@@ -63,8 +62,10 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Custom template' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Next.js' }));
     fireEvent.click(screen.getByTestId('guide-tab-desktop'));
+    expect(screen.getAllByRole<HTMLInputElement>('radio').map(({ value }) => value)).toEqual(['react', 'next']);
     expect(screen.getByRole('radio', { name: 'Next.js', checked: true })).toBeDefined();
     fireEvent.click(screen.getByTestId('guide-tab-app'));
+    expect(screen.getAllByRole<HTMLInputElement>('radio').map(({ value }) => value)).toEqual(['react-native']);
     expect(screen.queryByRole('radio', { checked: true })).toBeNull();
     expect(screen.queryByRole('radio', { name: 'Next.js' })).toBeNull();
     fireEvent.click(screen.getByRole('radio', { name: 'React Native (Expo)' }));
@@ -120,31 +121,6 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     } finally { vi.unstubAllGlobals(); }
   });
 
-  it('renders minimalist welcome header and top quick action buttons', () => {
-    const onStartBuilding = vi.fn();
-    const onBrowseTemplates = vi.fn();
-
-    renderWithProviders(
-      <HomeGuideView
-        onStartBuilding={onStartBuilding}
-        onBrowseTemplates={onBrowseTemplates}
-      />
-    );
-
-    // 验证欢迎标题与右侧轻量胶囊按钮
-    expect(screen.getByText(/Welcome to Blot-UI/i)).toBeDefined();
-    expect(screen.getByTestId('guide-blank-project-btn')).toBeDefined();
-    expect(screen.getByTestId('guide-templates-btn')).toBeDefined();
-
-    // 点击空白项目直接进入构建区
-    fireEvent.click(screen.getByTestId('guide-blank-project-btn'));
-    expect(onStartBuilding).toHaveBeenCalledWith(
-      expect.stringContaining('Blank Canvas'),
-      expect.objectContaining({ template: 'blank' }),
-      expect.anything()
-    );
-  });
-
   it('renders platform category tabs (App, Desktop, Web) and updates textarea placeholder', () => {
     renderWithProviders(<HomeGuideView onStartBuilding={vi.fn()} />);
 
@@ -180,8 +156,8 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     // 点击打开风格设计系统弹层
     fireEvent.click(styleBtn);
 
-    // 浮层说明及预设项
-    expect(screen.getByText(/auto-select based on your prompt/i)).toBeDefined();
+    // 默认项与内置预设同时展示。
+    expect(screen.getByRole('button', { name: /default/i, pressed: true })).toBeDefined();
     expect(screen.getByTestId('preset-bauhaus')).toBeDefined();
     expect(screen.getByTestId('preset-alexandria')).toBeDefined();
     expect(screen.getByTestId('preset-neon-tokyo')).toBeDefined();
@@ -251,7 +227,8 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     expect(calledOptions.style).toBe('style-linear-mock');
   });
 
-  it('notifies onSelectStyleId when a dynamic template is chosen', () => {
+  it('筛选后仍可从已选风格切回默认并移除设计系统提示词', () => {
+    const onStartBuilding = vi.fn();
     const onSelectStyleId = vi.fn();
     const customTemplates = [
       {
@@ -265,16 +242,27 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
 
     renderWithProviders(
       <HomeGuideView
-        onStartBuilding={vi.fn()}
+        onStartBuilding={onStartBuilding}
         styleTemplates={customTemplates}
         onSelectStyleId={onSelectStyleId}
       />
     );
 
-    fireEvent.click(screen.getByTestId('guide-style-btn'));
+    const styleBtn = screen.getByTestId('guide-style-btn');
+    fireEvent.click(styleBtn);
     fireEvent.click(screen.getByTestId('preset-style-test-1'));
-
     expect(onSelectStyleId).toHaveBeenCalledWith('style-test-1');
+
+    fireEvent.click(styleBtn);
+    fireEvent.click(screen.getByTestId('guide-style-filter-app'));
+    fireEvent.click(screen.getByRole('button', { name: /default/i, pressed: false }));
+    expect(onSelectStyleId).toHaveBeenLastCalledWith('auto');
+    expect(screen.queryByTestId('guide-selected-style-badge')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('guide-submit-btn'));
+    const [prompt, options] = onStartBuilding.mock.lastCall!;
+    expect(options.style).toBe('auto');
+    expect(prompt).not.toMatch(/Design System & Palette|\[Design System Style Prompt\]|Neon accents/);
   });
 
   it('replaces Balanced dropdown with ModelSelector and triggers onSelectModel', () => {

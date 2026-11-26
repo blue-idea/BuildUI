@@ -38,12 +38,8 @@ export interface I18nDictionary {
     tabWeb: string;
     tabDesktop: string;
     tabApp: string;
-    blankProject: string;
     customTemplate: string;
     starterTemplate: string;
-    startWithDesign: string;
-    browseTemplates: string;
-    styleAutoHint: string;
     stylePresetsTitle: string;
     referenceTitle: string;
     customRefPlaceholder: string;
@@ -65,23 +61,14 @@ export interface I18nDictionary {
     clearSearch: string;
     allCount: string;
     official: string;
-    community: string;
-    examples: string;
     selectedBadge: string;
     selectTemplate: string;
     createApp: string;
     createProject: string;
     projectName: string;
     nameExists: string;
-    consentTitle: string;
-    consentDescription: string;
-    acceptAndSelect: string;
     cancel: string;
     working: string;
-    repository: string;
-    communityLoading: string;
-    communityUnavailable: string;
-    retry: string;
   };
   projectsPage: {
     title: string;

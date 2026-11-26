@@ -92,6 +92,7 @@ describe('TASK-128: Plugin Page & Popups i18n alignment (TDD)', () => {
         onClose={vi.fn()}
         onEdit={vi.fn()}
         onUpdate={vi.fn()}
+        onSaveConfig={vi.fn()}
         onDelete={vi.fn()}
         onToolCount={vi.fn()}
       />,

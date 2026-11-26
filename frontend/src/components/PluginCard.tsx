@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PluginItem } from '../types/plugin';
 import { Check } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { PluginIcon } from './PluginIcon';
+import { PluginEnabledSwitch } from './PluginEnabledSwitch';
 import { openExternalUrl } from '../services/wailsBridge';
 
 export interface PluginCardProps {
@@ -10,11 +11,29 @@ export interface PluginCardProps {
   onAdd?: (plugin: PluginItem) => void;
   onRemove?: (pluginId: string) => void;
   onConfigure?: () => void;
+  onToggleEnabled?: (enabled: boolean) => void | Promise<void>;
+  actionsDisabled?: boolean;
 }
 
-export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove, onConfigure }) => {
+export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove, onConfigure, onToggleEnabled, actionsDisabled }) => {
   const { t } = useI18n();
   const isInstalled = Boolean(plugin.isInstalled);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const disabled = isSaving || actionsDisabled;
+
+  async function toggleEnabled(enabled: boolean) {
+    if (!onToggleEnabled || disabled) return;
+    setIsSaving(true);
+    setSaveError('');
+    try {
+      await onToggleEnabled(enabled);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <div
@@ -41,18 +60,28 @@ export const PluginCard: React.FC<PluginCardProps> = ({ plugin, onAdd, onRemove,
         </div>
       </div>
 
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-zinc-800/80 text-xs">
-        <span className="text-[11px] text-slate-400 dark:text-zinc-500 truncate flex items-center gap-1">
+      {saveError && <p role="alert" className="break-words text-xs text-red-700 dark:text-red-300">{saveError}</p>}
+      <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-zinc-800/80 text-xs">
+        <span className="min-w-0 truncate text-[11px] text-slate-400 dark:text-zinc-500">
           {plugin.domain}
         </span>
 
         {isInstalled ? (
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
-              <Check className="w-3 h-3" />
-              {t('pluginsPage.btnAdded')}
-            </span>
-            {onConfigure && <button type="button" onClick={onConfigure} className="font-medium text-blue-700 hover:underline dark:text-blue-400">{t('pluginsPage.btnConfigure')}</button>}
+          <div className="flex shrink-0 items-center gap-3">
+            {onToggleEnabled ? (
+              <PluginEnabledSwitch
+                enabled={Boolean(plugin.enabled)}
+                disabled={disabled}
+                pluginName={plugin.name}
+                onChange={(enabled) => { void toggleEnabled(enabled); }}
+              />
+            ) : (
+              <span className="flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                <Check className="w-3 h-3" />
+                {t('pluginsPage.btnAdded')}
+              </span>
+            )}
+            {onConfigure && <button type="button" onClick={onConfigure} disabled={disabled} className="font-medium text-blue-700 hover:underline disabled:opacity-50 dark:text-blue-400">{t('pluginsPage.btnConfigure')}</button>}
             {onRemove && (
               <button
                 type="button"

@@ -11,12 +11,13 @@ import {
 } from 'lucide-react';
 import {
   BLANK_PROJECT_TEMPLATE,
+  getOfficialProjectTemplates,
   isProjectTemplateCompatible,
-  LOCAL_PROJECT_TEMPLATES,
   NATIVE_APP_STACK,
   NEXT_APP_STACK,
   NEXT_APP_TEMPLATE,
 } from '../config/projectTemplates';
+import { DEFAULT_HOME_STYLE } from '../config/homeStyle';
 import { useI18n } from '../i18n/I18nContext';
 import { pluginBridge } from '../services/wailsBridge';
 import type { InstalledPlugin, PluginAutomation } from '../types/plugin';
@@ -51,7 +52,6 @@ export interface HomeGuideViewProps {
     options: GuideCustomizationOptions,
     attachments?: AttachmentItem[]
   ) => void;
-  onBrowseTemplates?: () => void;
   initialCategory?: AppCategory;
   selectedModel?: string;
   onSelectModel?: (model: string) => void;
@@ -61,7 +61,7 @@ export interface HomeGuideViewProps {
   styleTemplates?: ThemePreset[];
   activeStyleId?: string;
   onSelectStyleId?: (id: string) => void;
-  onOpenStyleCenter?: () => void;
+  pluginListRevision?: number;
 }
 
 export interface StyleOption {
@@ -72,6 +72,11 @@ export interface StyleOption {
   swatch: React.ReactNode;
   stylePrompt?: string;
 }
+
+const defaultStyleOption: StyleOption = {
+  ...DEFAULT_HOME_STYLE,
+  swatch: <Palette aria-hidden="true" className="h-5 w-5 shrink-0" />,
+};
 
 // 风格预设列表（精确匹配圆色盘设计系统规范，覆盖 App / Desktop / Web）
 const DEFAULT_STYLE_PRESETS: StyleOption[] = [
@@ -239,7 +244,6 @@ const DEFAULT_STYLE_PRESETS: StyleOption[] = [
 
 export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   onStartBuilding,
-  onBrowseTemplates,
   initialCategory = 'web',
   selectedModel = 'auto',
   onSelectModel = () => {},
@@ -249,7 +253,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   styleTemplates,
   activeStyleId,
   onSelectStyleId,
-  onOpenStyleCenter,
+  pluginListRevision = 0,
 }) => {
   const { t, locale } = useI18n();
   const bridge = pluginBridge();
@@ -260,14 +264,20 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   useEffect(() => {
     if (!bridge) return;
     let active = true;
-    // 首页创建新项目，只列出全局插件。项目专属插件仍由原项目管理。
+    // 插件页可能在返回首页后才完成保存，此时按最新版本重新读取已启用的全局插件。
     void bridge.ListPlugins().then((plugins) => {
-      if (active) setAvailablePlugins((plugins ?? []).filter((plugin) => plugin.enabled && plugin.appId == null));
+      if (active) {
+        setAvailablePlugins((plugins ?? []).filter((plugin) => plugin.enabled && plugin.appId == null));
+        setPluginLoadError(false);
+      }
     }).catch(() => {
-      if (active) setPluginLoadError(true);
+      if (active) {
+        setAvailablePlugins(null);
+        setPluginLoadError(true);
+      }
     });
     return () => { active = false; };
-  }, [bridge]);
+  }, [bridge, pluginListRevision]);
 
   // 1. 选项卡：App、Desktop、Web
   const [category, setCategory] = useState<AppCategory>(initialCategory);
@@ -276,8 +286,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   const [userInput, setUserInput] = useState('');
 
   // 3. 风格选择（优先从风格页模版列表获取，支持受控与非受控）
-  const [internalSelectedStyle, setInternalSelectedStyle] = useState('auto');
-  const selectedStyle = activeStyleId ?? internalSelectedStyle;
+  const [internalSelectedStyle, setInternalSelectedStyle] = useState<string>(DEFAULT_HOME_STYLE.id);
   const [activePresetPopover, setActivePresetPopover] = useState<'style' | 'template' | null>(null);
   const [popoverStyleFilter, setPopoverStyleFilter] = useState<'all' | AppCategory>('all');
 
@@ -289,7 +298,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   // null 表示关闭定制，空字符串表示已开启但尚未选择模板。
   const [customTemplateId, setCustomTemplateId] = useState<string | null>(null);
   const customTemplateEnabled = customTemplateId !== null;
-  const templateOptions = LOCAL_PROJECT_TEMPLATES.filter((template) => isProjectTemplateCompatible(template, category));
+  const templateOptions = getOfficialProjectTemplates().filter((template) => isProjectTemplateCompatible(template, category));
   const selectedTemplate = templateOptions.find((template) => template.id === customTemplateId);
   const canStart = !customTemplateEnabled || !!selectedTemplate;
 
@@ -385,11 +394,14 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
 
   // 根据 Popover 选中的分类（All / App / Desktop / Web）过滤展示风格
   const filteredStylePresets = useMemo(() => {
-    if (popoverStyleFilter === 'all') return effectivePresets;
-    return effectivePresets.filter(
-      (preset) => (preset.appType || 'web') === popoverStyleFilter
-    );
+    const platformPresets = popoverStyleFilter === 'all'
+      ? effectivePresets
+      : effectivePresets.filter((preset) => preset.appType === popoverStyleFilter);
+    return [defaultStyleOption, ...platformPresets];
   }, [effectivePresets, popoverStyleFilter]);
+
+  const activePreset = effectivePresets.find((preset) => preset.id === (activeStyleId ?? internalSelectedStyle));
+  const selectedStyle = activePreset?.id ?? DEFAULT_HOME_STYLE.id;
 
   // 提交时使用选中的脚手架和风格组装构建提示词。
   const assemblePrompt = () => {
@@ -399,9 +411,6 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
         : category === 'desktop'
         ? 'Desktop Client Application (Windowed macOS / Windows UI)'
         : 'Web Application (Responsive Browser)';
-
-    const activePreset = effectivePresets.find((s) => s.id === selectedStyle);
-    const styleName = activePreset?.name ?? 'Auto-adaptive';
 
     const coreGoal =
       userInput.trim() ||
@@ -413,8 +422,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
 
     let prompt = `Create a high-quality ${platformLabel}:
 • Core Goal: ${coreGoal}
-• Platform: ${platformLabel}
-• Design System & Palette: ${styleName}
+• Platform: ${platformLabel}${activePreset ? `\n• Design System & Palette: ${activePreset.name}` : ''}
 • Base Starter Template: ${selectedTemplate?.name ?? 'Blank Canvas'}
 • Implementation Requirements:
   - Clean modular ${stack}
@@ -422,7 +430,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   - Accessible controls, polished micro-interactions, and crisp typography`;
 
     // 将风格模版中的 stylePrompt 注入到项目生成提示词中
-    if (activePreset?.stylePrompt && selectedStyle !== 'auto') {
+    if (activePreset?.stylePrompt) {
       prompt += `\n\n[Design System Style Prompt]\n${activePreset.stylePrompt}`;
     }
 
@@ -436,82 +444,31 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
     return t('homeGuide.placeholderWeb');
   }, [category, t]);
 
-  const startProject = (prompt: string, template: string, input: string) => {
+  const handleStart = () => {
+    if (!canStart) return;
     const pluginAutomation = bridge ? {
       enabled: pluginSelection.enabled,
       pluginIds: pluginSelection.enabled && availablePlugins
         ? pluginSelection.pluginIds.filter((id) => availablePlugins.some((plugin) => plugin.id === id))
         : [],
     } : undefined;
-    onStartBuilding(prompt, {
+    onStartBuilding(assemblePrompt(), {
       category,
-      userInput: input,
+      userInput,
       style: selectedStyle,
       reference: '',
       customReference: '',
-      template,
+      template: selectedTemplate?.id ?? BLANK_PROJECT_TEMPLATE,
       pluginAutomation,
     }, attachments);
   };
 
-  const handleStart = () => {
-    if (!canStart) return;
-    startProject(assemblePrompt(), selectedTemplate?.id ?? BLANK_PROJECT_TEMPLATE, userInput);
-  };
-
-  const handleBlankProject = () => {
-    startProject(`Create a new blank project for ${category.toUpperCase()} application. (Blank Canvas)`, BLANK_PROJECT_TEMPLATE, '');
-  };
-
-  const activeStyleObj = effectivePresets.find((s) => s.id === selectedStyle);
-
   return (
     <div className="flex-1 h-full overflow-y-auto bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 flex flex-col justify-center px-6 py-12 transition-colors select-none">
       <div className="max-w-4xl mx-auto w-full flex flex-col gap-6">
-        {/* 顶部标题区与空白项目快捷入口 */}
-        <div className="flex items-center justify-between w-full px-2">
-          <h1 className="text-3xl sm:text-4xl font-normal tracking-tight text-slate-900 dark:text-zinc-100">
-            {locale === 'zh' ? '欢迎使用 Blot-UI..' : 'Welcome to Blot-UI..'}
-          </h1>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (onOpenStyleCenter) {
-                  onOpenStyleCenter();
-                } else {
-                  setActivePresetPopover('style');
-                }
-              }}
-              className="text-xs font-medium px-3.5 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:border-slate-300 dark:hover:border-zinc-700 shadow-2xs transition-all flex items-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5 text-slate-400" />
-              <span>{t('homeGuide.startWithDesign')}</span>
-            </button>
-
-            <button
-              type="button"
-              data-testid="guide-blank-project-btn"
-              onClick={handleBlankProject}
-              className="text-xs font-medium px-3.5 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 hover:border-slate-300 dark:hover:border-zinc-700 shadow-2xs transition-all flex items-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5 text-slate-400" />
-              <span>{t('homeGuide.blankProject')}</span>
-            </button>
-
-            {onBrowseTemplates && (
-              <button
-                type="button"
-                data-testid="guide-templates-btn"
-                onClick={onBrowseTemplates}
-                className="text-xs font-medium px-3 py-1.5 rounded-full text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-white/60 dark:hover:bg-zinc-800/60 transition-all"
-              >
-                {t('homeGuide.browseTemplates')}
-              </button>
-            )}
-          </div>
-        </div>
+        <h1 className="px-2 text-3xl sm:text-4xl font-normal tracking-tight text-slate-900 dark:text-zinc-100">
+          {locale === 'zh' ? '欢迎使用 Blot-UI..' : 'Welcome to Blot-UI..'}
+        </h1>
 
         {/* 核心 AI 输入卡片 */}
         <div className="relative w-full rounded-3xl bg-slate-200/50 dark:bg-zinc-900/90 border border-slate-300/60 dark:border-zinc-800 p-4 sm:p-5 shadow-sm transition-all focus-within:border-blue-400 dark:focus-within:border-blue-500/80 focus-within:bg-white dark:focus-within:bg-zinc-900 focus-within:shadow-md">
@@ -723,18 +680,18 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                   aria-controls={activePresetPopover === 'style' ? stylePopoverId : undefined}
                   onClick={() => setActivePresetPopover((current) => current === 'style' ? null : 'style')}
                   className={`flex items-center gap-1.5 p-2 rounded-full transition-all ${
-                    activeStyleObj && selectedStyle !== 'auto'
+                    activePreset
                       ? 'bg-slate-300/50 dark:bg-zinc-800 text-blue-600 dark:text-blue-400'
                       : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-300/40 dark:hover:bg-zinc-800'
                   }`}
                 >
                   <Palette className="w-4 h-4" />
-                  {activeStyleObj && selectedStyle !== 'auto' && (
+                  {activePreset && (
                     <span
                       data-testid="guide-selected-style-badge"
                       className="hidden md:inline-flex text-[11px] font-medium pr-1 text-slate-700 dark:text-zinc-300"
                     >
-                      {activeStyleObj.name}
+                      {activePreset.name}
                     </span>
                   )}
                 </button>
@@ -747,27 +704,6 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                     aria-label={t('homeGuide.stylePresetsTitle')}
                     className={presetPopoverClass}
                   >
-                    <p className="text-xs text-slate-500 dark:text-zinc-400 leading-snug">
-                      {t('homeGuide.styleAutoHint')}
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (onOpenStyleCenter) {
-                          onOpenStyleCenter();
-                          setActivePresetPopover(null);
-                        } else {
-                          handleSelectStyle('auto');
-                          setActivePresetPopover(null);
-                        }
-                      }}
-                      className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4 text-slate-400" />
-                      <span className="font-medium">{t('homeGuide.startWithDesign')}</span>
-                    </button>
-
                     {/* 端形态分类胶囊筛选栏：All | Web | Desktop | App */}
                     <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700/80 select-none text-[11px]">
                       <button
@@ -833,12 +769,13 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                       <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
                         {filteredStylePresets.map((preset) => {
                           const isSelected = selectedStyle === preset.id;
-                          const presetAppType = preset.appType || 'web';
+                          const presetAppType = preset.appType;
                           return (
                             <button
                               key={preset.id}
                               type="button"
                               data-testid={`preset-${preset.id}`}
+                              aria-pressed={isSelected}
                               onClick={() => {
                                 handleSelectStyle(preset.id);
                                 setActivePresetPopover(null);
@@ -850,31 +787,33 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
                                 <div className="flex flex-col text-left truncate">
                                   <div className="flex items-center gap-1.5 truncate">
                                     <span className="font-medium truncate">{preset.name}</span>
-                                    <span
-                                      data-testid={`preset-badge-${preset.id}`}
-                                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-medium border shrink-0 ${
-                                        presetAppType === 'app'
-                                          ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200/50 dark:border-purple-800/50'
-                                          : presetAppType === 'desktop'
-                                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
-                                          : 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50'
-                                      }`}
-                                    >
-                                      {presetAppType === 'app' ? (
-                                        <Smartphone className="w-2.5 h-2.5" />
-                                      ) : presetAppType === 'desktop' ? (
-                                        <Monitor className="w-2.5 h-2.5" />
-                                      ) : (
-                                        <Globe className="w-2.5 h-2.5" />
-                                      )}
-                                      <span>
-                                        {presetAppType === 'app'
-                                          ? 'App'
-                                          : presetAppType === 'desktop'
-                                          ? 'Desktop'
-                                          : 'Web'}
+                                    {presetAppType && (
+                                      <span
+                                        data-testid={`preset-badge-${preset.id}`}
+                                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-medium border shrink-0 ${
+                                          presetAppType === 'app'
+                                            ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200/50 dark:border-purple-800/50'
+                                            : presetAppType === 'desktop'
+                                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
+                                            : 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50'
+                                        }`}
+                                      >
+                                        {presetAppType === 'app' ? (
+                                          <Smartphone className="w-2.5 h-2.5" />
+                                        ) : presetAppType === 'desktop' ? (
+                                          <Monitor className="w-2.5 h-2.5" />
+                                        ) : (
+                                          <Globe className="w-2.5 h-2.5" />
+                                        )}
+                                        <span>
+                                          {presetAppType === 'app'
+                                            ? 'App'
+                                            : presetAppType === 'desktop'
+                                            ? 'Desktop'
+                                            : 'Web'}
+                                        </span>
                                       </span>
-                                    </span>
+                                    )}
                                   </div>
                                   {preset.desc && (
                                     <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate max-w-[190px]">

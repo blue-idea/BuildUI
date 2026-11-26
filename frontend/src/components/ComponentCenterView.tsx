@@ -10,12 +10,16 @@ import { DEFAULT_CATALOG_CATEGORIES } from '../config/plugins';
 
 export interface ComponentCenterViewProps {
   onGoBack?: () => void;
+  onPluginsChanged?: () => void;
+  pluginListRevision?: number;
   initialInstalledPlugins?: PluginItem[];
   projects?: { id: number; name: string }[];
 }
 
 export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
   onGoBack,
+  onPluginsChanged,
+  pluginListRevision = 0,
   initialInstalledPlugins = [],
   projects = [],
 }) => {
@@ -36,24 +40,51 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
       if (active) setLoadError(error instanceof Error ? error.message : String(error));
     });
     return () => { active = false; };
-  }, [api]);
+  }, [api, pluginListRevision]);
 
   function upsert(record: InstalledPlugin) {
     setRecords((previous) => previous.some((item) => item.id === record.id)
       ? previous.map((item) => item.id === record.id ? record : item)
       : [...previous, record]);
+    onPluginsChanged?.();
+  }
+
+  async function savePluginConfig(config: PluginConfig) {
+    if (!api) throw new Error('Plugin storage is unavailable.');
+    const record = await api.SavePlugin(config);
+    upsert(record);
+    // 停用后清除旧的工具统计，避免重新启用时显示过期结果。
+    if (!record.enabled) {
+      setToolCounts((current) => ({ ...current, [record.id]: 0 }));
+    }
+    return record;
+  }
+
+  async function togglePlugin(id: string, enabled: boolean) {
+    if (!api) {
+      setInstalledPlugins((items) => items.map((item) => item.id === id ? { ...item, enabled } : item));
+      return;
+    }
+    const record = records.find((item) => String(item.id) === id);
+    if (record) await savePluginConfig({ ...record, enabled });
+  }
+
+  function removeRecord(id: number) {
+    setRecords((items) => items.filter((item) => item.id !== id));
+    setSelectedId(undefined);
+    onPluginsChanged?.();
   }
 
   const selected = records.find((record) => record.id === selectedId);
   const displayedPlugins: PluginItem[] = api ? records.map((record) => ({
     id: String(record.id), name: record.name, description: record.description, domain: record.endpoint,
     badge: record.transport === 'http' ? 'HTTP' : 'STDIO', category: 'custom', isInstalled: true,
-    enabled: record.enabled, toolsCount: record.enabled ? toolCounts[record.id] ?? 0 : 0,
+    enabled: record.enabled, toolsCount: toolCounts[record.id] ?? 0,
   })) : installedPlugins;
 
   // 计算已启用插件数和工具数
   const totalPlugins = displayedPlugins.length;
-  const totalTools = displayedPlugins.reduce((acc, p) => acc + p.toolsCount, 0);
+  const totalTools = displayedPlugins.reduce((acc, p) => acc + (p.enabled === false ? 0 : p.toolsCount), 0);
 
   // 判断是否已安装特定插件
   const installedIds = useMemo(() => {
@@ -85,10 +116,9 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
   // 添加自定义插件
   const handleAddCustomPlugin = ({ transport, args, ...customPlugin }: PluginDraft) => {
     if (api) {
-      return api.SavePlugin({ ...initialConfig, id: initialConfig?.id ?? 0, name: customPlugin.name,
+      return savePluginConfig({ ...initialConfig, id: initialConfig?.id ?? 0, name: customPlugin.name,
         description: customPlugin.description, transport, endpoint: customPlugin.domain, args,
         enabled: initialConfig?.enabled ?? true }).then((record) => {
-        upsert(record);
         setSelectedId(record.id);
         setToolCounts((current) => ({ ...current, [record.id]: 0 }));
       });
@@ -194,6 +224,8 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
                     plugin={plugin}
                     onConfigure={api ? () => setSelectedId(Number(plugin.id)) : undefined}
                     onRemove={api ? undefined : handleRemovePlugin}
+                    onToggleEnabled={(enabled) => togglePlugin(plugin.id, enabled)}
+                    actionsDisabled={isAddModalOpen || !!selected}
                   />
                 ))}
               </div>
@@ -280,7 +312,8 @@ export const ComponentCenterView: React.FC<ComponentCenterViewProps> = ({
       />
       {selected && !isAddModalOpen && <PluginDetails key={selected.id} plugin={selected} projects={projects}
         onClose={() => setSelectedId(undefined)} onEdit={() => { setInitialConfig(selected); setIsAddModalOpen(true); }}
-        onUpdate={upsert} onDelete={() => { setRecords((items) => items.filter((item) => item.id !== selected.id)); setSelectedId(undefined); }}
+        onSaveConfig={async (patch) => { await savePluginConfig({ ...selected, ...patch }); }}
+        onUpdate={upsert} onDelete={() => removeRecord(selected.id)}
         onToolCount={(count) => setToolCounts((current) => ({ ...current, [selected.id]: count }))} />}
     </div>
   );

@@ -149,7 +149,12 @@ describe('TASK-026: i18n Localization Engine and Dictionaries', () => {
     expect(screen.getByText('Web')).toBeDefined();
     expect(screen.getByText('Desktop')).toBeDefined();
     expect(screen.getByText('App')).toBeDefined();
-    expect(screen.getByText('空白项目')).toBeDefined();
+    expect(screen.queryByTestId('guide-blank-project-btn')).toBeNull();
+    expect(screen.queryByTestId('guide-templates-btn')).toBeNull();
+    expect(screen.queryByRole('button', { name: '从自定义设计开始' })).toBeNull();
+    fireEvent.click(screen.getByTestId('guide-style-btn'));
+    expect(screen.getByRole('dialog', { name: '设计系统预设' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: '从自定义设计开始' })).toBeNull();
   });
 
   it('renders ComponentCenterView in Chinese when locale is zh and English when locale is en', async () => {

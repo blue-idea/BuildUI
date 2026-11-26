@@ -1,9 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { ComponentCenterView } from './ComponentCenterView';
 import { ThemeProvider } from '../context/ThemeContext';
 import { I18nProvider } from '../i18n/I18nContext';
+import type { InstalledPlugin } from '../types/plugin';
 
 const renderWithProviders = (ui: React.ReactElement) => {
   return render(
@@ -14,6 +15,44 @@ const renderWithProviders = (ui: React.ReactElement) => {
 };
 
 describe('ComponentCenterView Component (TDD)', () => {
+  it('在列表展示启停状态，保存成功后更新，失败时保留原状态', async () => {
+    const plugin: InstalledPlugin = {
+      id: 1, name: 'Expo', description: '', transport: 'http', endpoint: 'https://mcp.expo.dev/mcp',
+      catalogId: 'expo', enabled: false,
+    };
+    let finishSave!: (record: InstalledPlugin) => void;
+    const save = vi.fn()
+      .mockImplementationOnce(() => new Promise<InstalledPlugin>((resolve) => { finishSave = resolve; }))
+      .mockRejectedValueOnce(new Error('Could not save plugin.'));
+    const onPluginsChanged = vi.fn();
+    vi.stubGlobal('go', { main: { App: { ListPlugins: async () => [plugin], SavePlugin: save } } });
+    try {
+      renderWithProviders(<ComponentCenterView onPluginsChanged={onPluginsChanged} />);
+      const card = within(await screen.findByTestId('plugin-card-1'));
+      const toggle = card.getByRole('switch', { name: 'Enable plugin Expo' }) as HTMLButtonElement;
+      expect(toggle.getAttribute('aria-checked')).toBe('false');
+      expect(card.getByText('Disabled')).toBeDefined();
+      expect(within(screen.getByTestId('plugin-card-expo')).queryByRole('switch')).toBeNull();
+
+      fireEvent.click(toggle);
+      expect(toggle.disabled).toBe(true);
+      expect((card.getByRole('button', { name: 'Configure' }) as HTMLButtonElement).disabled).toBe(true);
+      expect(toggle.getAttribute('aria-checked')).toBe('false');
+      expect(save).toHaveBeenLastCalledWith({ ...plugin, enabled: true });
+      await act(async () => finishSave({ ...plugin, enabled: true }));
+      expect(toggle.disabled).toBe(false);
+      expect(toggle.getAttribute('aria-checked')).toBe('true');
+      expect(card.getByText('Enabled')).toBeDefined();
+
+      fireEvent.click(toggle);
+      expect(await card.findByRole('alert')).toHaveProperty('textContent', 'Could not save plugin.');
+      expect(save).toHaveBeenLastCalledWith({ ...plugin, enabled: false });
+      expect(toggle.getAttribute('aria-checked')).toBe('true');
+      expect(toggle.disabled).toBe(false);
+      expect(onPluginsChanged).toHaveBeenCalledTimes(1);
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it.each([
     ['remotion', 'Standard input/output (stdio)', 'npx', ['@remotion/mcp@latest']],
     ['figma', 'Streamable HTTP', 'http://127.0.0.1:3845/mcp'],

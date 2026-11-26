@@ -3,6 +3,7 @@ import { ArrowLeft, KeyRound, Plug, Plus, X } from 'lucide-react';
 import { pluginBridge } from '../services/wailsBridge';
 import { getCatalogPlugin } from '../config/plugins';
 import { PluginIcon } from './PluginIcon';
+import { PluginEnabledSwitch } from './PluginEnabledSwitch';
 import { useI18n } from '../i18n/I18nContext';
 import type { InstalledPlugin, PluginConfig, PluginTool } from '../types/plugin';
 
@@ -12,6 +13,7 @@ interface Props {
   onClose: () => void;
   onEdit: () => void;
   onUpdate: (plugin: InstalledPlugin) => void;
+  onSaveConfig: (patch: Partial<PluginConfig>) => Promise<void>;
   onDelete: () => void;
   onToolCount: (count: number) => void;
 }
@@ -19,7 +21,7 @@ interface Props {
 const action = 'rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-800';
 const field = 'min-w-0 w-full rounded-lg border border-slate-200 bg-transparent px-3 py-2 text-sm dark:border-zinc-700';
 
-export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onDelete, onToolCount }: Props) {
+export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onSaveConfig, onDelete, onToolCount }: Props) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<{ oldKey: string; key: string; value: string } | null>(null);
   const [tools, setTools] = useState<PluginTool[] | null>(null);
@@ -63,9 +65,9 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
   }
 
   function updateConfig(patch: Partial<PluginConfig>) {
-    void perform(async (api) => {
-      onUpdate(await api.SavePlugin({ ...plugin, ...patch }));
-      if (patch.enabled === false) { setTools(null); onToolCount(0); }
+    void perform(async () => {
+      await onSaveConfig(patch);
+      if (patch.enabled === false) setTools(null);
     });
   }
 
@@ -99,7 +101,7 @@ export function PluginDetails({ plugin, projects, onClose, onEdit, onUpdate, onD
               <p className="break-all text-xs text-slate-500 dark:text-zinc-400">{isHTTP ? t('pluginsPage.detailsHttpTransport') : t('pluginsPage.detailsStdioTransport')} · {plugin.endpoint}</p>
             </div>
             <button type="button" className={action} disabled={busy} onClick={onEdit}>{t('pluginsPage.detailsEditConnection')}</button>
-            <button type="button" role="switch" aria-checked={plugin.enabled} aria-label={t('pluginsPage.detailsSwitchAria')} className={action} disabled={busy} onClick={() => updateConfig({ enabled: !plugin.enabled })}>{plugin.enabled ? t('pluginsPage.detailsEnabled') : t('pluginsPage.detailsDisabled')}</button>
+            <PluginEnabledSwitch enabled={plugin.enabled} disabled={busy} onChange={(enabled) => updateConfig({ enabled })} />
           </div>
         </header>
 

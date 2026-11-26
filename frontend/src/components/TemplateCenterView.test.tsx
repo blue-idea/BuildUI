@@ -1,4 +1,4 @@
-import { act, render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { TemplateCenterView } from './TemplateCenterView';
 import { AppTemplate } from './TemplateModal';
@@ -11,6 +11,7 @@ const mockTemplates: AppTemplate[] = [
     name: 'SaaS Analytics Dashboard',
     description: 'Cloud metrics and KPI dashboard',
     category: 'Analytics',
+    source: 'official',
     platform: 'web',
     tags: ['Charts', 'KPIs'],
     icon: '📊',
@@ -20,6 +21,7 @@ const mockTemplates: AppTemplate[] = [
     name: 'Product Landing Page',
     description: 'Clean responsive landing page',
     category: 'Marketing',
+    source: 'official',
     platform: 'web',
     tags: ['Landing', 'SaaS'],
     icon: '🚀',
@@ -29,6 +31,7 @@ const mockTemplates: AppTemplate[] = [
     name: 'Developer Workstation',
     description: 'Dual-pane code inspector and terminal',
     category: 'Developer',
+    source: 'official',
     platform: 'desktop',
     tags: ['IDE', 'Terminal'],
     icon: '💻',
@@ -38,6 +41,7 @@ const mockTemplates: AppTemplate[] = [
     name: 'Fitness & Workout Tracker',
     description: 'Activity rings and exercise logger',
     category: 'Health',
+    source: 'official',
     platform: 'app',
     tags: ['Activity', 'Timer'],
     icon: '🏃',
@@ -68,21 +72,20 @@ describe('TemplateCenterView - Normal Page with Web, Desktop, App Categories', (
     expect(onCreateProject).toHaveBeenCalledWith('Sample AI App', 'web-saas');
   });
 
-  it('首次选择社区模板需要显式确认', async () => {
-    const onSelectTemplate = vi.fn();
-    const props = {
-      templates: [{ ...mockTemplates[0], id: 'jeff-kazzee/dyad-template-angular', source: 'community' as const }],
-      onSelectTemplate,
-    };
-    renderWithProviders(<TemplateCenterView {...props} />);
+  it('仅将官方模板纳入列表、平台计数和搜索', () => {
+    renderWithProviders(<TemplateCenterView templates={[
+      mockTemplates[0],
+      { ...mockTemplates[1], source: 'example' },
+      { ...mockTemplates[2], id: 'jeff-kazzee/dyad-template-angular', source: 'community' },
+      { ...mockTemplates[3], source: undefined },
+    ]} onSelectTemplate={vi.fn()} />);
 
-    fireEvent.click(screen.getByTestId('use-template-jeff-kazzee/dyad-template-angular'));
-    expect(onSelectTemplate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(onSelectTemplate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByTestId('use-template-jeff-kazzee/dyad-template-angular'));
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Accept and select' })); });
-    expect(onSelectTemplate).toHaveBeenCalledWith('jeff-kazzee/dyad-template-angular', true);
+    expect(screen.getAllByRole('article').map((card) => card.dataset.testid)).toEqual(['template-card-web-saas']);
+    expect(within(screen.getByTestId('platform-tab-all')).getByText('1')).toBeDefined();
+    expect(screen.queryByTestId('platform-tab-desktop')).toBeNull();
+    expect(screen.queryByTestId('platform-tab-app')).toBeNull();
+    fireEvent.change(screen.getByTestId('template-search-input'), { target: { value: 'landing' } });
+    expect(screen.getByTestId('template-empty-state')).toBeDefined();
   });
 
   it('renders the template center page header and 3 main platform tabs plus all', () => {

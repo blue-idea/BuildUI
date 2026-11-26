@@ -1,6 +1,56 @@
 import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { App } from './App';
+import { getCatalogPlugin } from './config/plugins';
+import type { InstalledPlugin } from './types/plugin';
+
+it.each([
+  { entry: '详情', action: '启用', enabled: true, fromDetails: true },
+  { entry: '详情', action: '停用', enabled: false, fromDetails: true },
+  { entry: '列表', action: '启用', enabled: true, fromDetails: false },
+  { entry: '列表', action: '停用', enabled: false, fromDetails: false },
+])('返回首页后同步仍在保存的插件$entry $action', async ({ enabled, fromDetails }) => {
+  const preset = getCatalogPlugin('expo')!;
+  let plugin: InstalledPlugin = {
+    id: 1, name: preset.name, description: preset.description, transport: 'http',
+    endpoint: preset.endpoint!, catalogId: preset.id, appId: null, enabled: !enabled,
+  };
+  let finishSave!: () => void;
+  const savePlugin = vi.fn((next: InstalledPlugin) => new Promise<InstalledPlugin>((resolve) => {
+    finishSave = () => {
+      plugin = next;
+      resolve(plugin);
+    };
+  }));
+  vi.stubGlobal('go', { main: { App: {
+    GetSettings: async () => ({}),
+    ListApps: async () => [],
+    ListPlugins: async () => [plugin],
+    SavePlugin: savePlugin,
+  } } });
+
+  try {
+    render(<App initialDockTab="components" />);
+    if (fromDetails) fireEvent.click(await screen.findByRole('button', { name: 'Configure' }));
+    const switchName = fromDetails ? 'Enable plugin' : `Enable plugin ${preset.name}`;
+    fireEvent.click(await screen.findByRole('switch', { name: switchName }));
+    expect(savePlugin).toHaveBeenCalledWith(expect.objectContaining({ enabled }));
+
+    fireEvent.click(screen.getByTestId('dock-home'));
+    fireEvent.click(screen.getByRole('switch', { name: 'Automatically use plugins' }));
+    const picker = within(screen.getByRole('region', { name: 'Plugin automation' }));
+    const pluginOption = () => picker.queryByRole('checkbox', { name: preset.name });
+    const emptyHint = () => picker.queryByText('No plugins enabled. Enable plugins in Plugins.');
+    await waitFor(() => expect(enabled ? emptyHint() : pluginOption()).not.toBeNull());
+
+    await act(async () => finishSave());
+
+    expect(enabled ? pluginOption() : emptyHint()).not.toBeNull();
+    expect(enabled ? emptyHint() : pluginOption()).toBeNull();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
 
 it('手动启动预览时显示后端检查进度，修复完成后刷新源码列表', async () => {
   const project = { appId: 41, name: 'Podcast', path: '/podcast', blueprintApproved: true };
@@ -173,12 +223,12 @@ describe('App Guided Mode Home & Navigation', () => {
 
   // v22.REQ-001-AC-001：三个平台通过同一个首页生成入口选择脚手架。
   it.each([
-    { category: 'app', template: undefined, effectiveTemplate: 'react-native', stack: 'Expo + React Native + NativeWind + Expo Router + Font Awesome' },
-    { category: 'desktop', template: undefined, effectiveTemplate: undefined, stack: 'React 19 + Tailwind CSS' },
-    { category: 'web', template: undefined, effectiveTemplate: undefined, stack: 'React 19 + Tailwind CSS' },
-    { category: 'web', template: 'next', effectiveTemplate: 'next', stack: 'Next.js App Router' },
-    { category: 'desktop', template: 'saas-dashboard', effectiveTemplate: 'saas-dashboard', stack: 'React 19 + Tailwind CSS' },
-  ] as const)('首页 $category 创建使用对应脚手架 ($template)', async ({ category, template, effectiveTemplate, stack }) => {
+    { category: 'app', templateName: undefined, effectiveTemplate: 'react-native', stack: 'Expo + React Native + NativeWind + Expo Router + Font Awesome' },
+    { category: 'desktop', templateName: undefined, effectiveTemplate: undefined, stack: 'React 19 + Tailwind CSS' },
+    { category: 'web', templateName: undefined, effectiveTemplate: undefined, stack: 'React 19 + Tailwind CSS' },
+    { category: 'web', templateName: 'Next.js', effectiveTemplate: 'next', stack: 'Next.js App Router' },
+    { category: 'desktop', templateName: 'React', effectiveTemplate: 'react', stack: 'React 19 + Tailwind CSS' },
+  ] as const)('首页 $category 创建使用对应脚手架 ($templateName)', async ({ category, templateName, effectiveTemplate, stack }) => {
     const create = vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' });
     const streamChat = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('go', { main: { App: {
@@ -194,9 +244,9 @@ describe('App Guided Mode Home & Navigation', () => {
     try {
       render(<App />);
       fireEvent.click(screen.getByTestId(`guide-tab-${category}`));
-      if (template) {
+      if (templateName) {
         fireEvent.click(screen.getByRole('switch', { name: 'Custom template' }));
-        fireEvent.click(screen.getByRole('radio', { name: template === 'next' ? 'Next.js' : 'SaaS Analytics Dashboard' }));
+        fireEvent.click(screen.getByRole('radio', { name: templateName }));
       }
       fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: 'Fitness Check-in' } });
       fireEvent.click(screen.getByTestId('guide-submit-btn'));
@@ -658,7 +708,7 @@ describe('App Main Split Layout & Workflow', () => {
     fireEvent.click(tmplBtn);
 
     expect(screen.getByText('Application Templates')).toBeDefined();
-    expect(screen.getByText('SaaS Analytics Dashboard')).toBeDefined();
+    expect(screen.queryByText('SaaS Analytics Dashboard')).toBeNull();
 
     fireEvent.click(screen.getByTestId('use-template-next'));
     const create = await within(screen.getByTestId('template-card-next')).findByRole('button', { name: 'Create App' });
@@ -668,6 +718,28 @@ describe('App Main Split Layout & Workflow', () => {
 
     // 模版中心使用后进入构建区
     expect(await screen.findByText(/Chat & Blueprint/i)).toBeDefined();
+  });
+
+  it('模板中心跳过社区目录并对旧默认项回退到官方模板', async () => {
+    const getAppTemplates = vi.fn().mockResolvedValue([]);
+    const saveSettings = vi.fn();
+    const getSettings = vi.fn().mockResolvedValue({ 'templates.selectedId': 'saas-dashboard' });
+    vi.stubGlobal('go', { main: { App: {
+      GetSettings: getSettings,
+      ListApps: vi.fn().mockResolvedValue([]),
+      GetAppTemplates: getAppTemplates,
+      SaveSettings: saveSettings,
+    } } });
+
+    try {
+      await act(async () => { render(<App initialDockTab="templates" />); });
+      expect(getSettings).toHaveBeenCalled();
+      expect(getAppTemplates).not.toHaveBeenCalled();
+      expect(within(screen.getByTestId('template-card-react')).getByRole('button', { name: 'Create App' })).toBeDefined();
+      expect(saveSettings).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('supports selecting and previewing image attachments before sending', async () => {
@@ -894,6 +966,18 @@ describe('App Main Split Layout & Workflow', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('首页默认生成时省略设计系统提示词', async () => {
+    render(<App initialDockTab="home" />);
+
+    fireEvent.click(screen.getByTestId('guide-style-btn'));
+    expect(screen.getByRole('button', { name: /default/i, pressed: true })).toBeDefined();
+    fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: 'Build an issue tracking workspace' } });
+    fireEvent.click(screen.getByTestId('guide-submit-btn'));
+
+    const message = await screen.findByText(/Core Goal: Build an issue tracking workspace/i);
+    expect(message.textContent).not.toMatch(/Design System & Palette|\[Design System Style Prompt\]/i);
   });
 
   it('首页设计系统预设动态包含风格页可用模版并在生成时注入风格prompt', async () => {

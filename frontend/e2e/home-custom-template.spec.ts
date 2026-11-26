@@ -8,12 +8,13 @@ test('开始页开启定制模板，单选 Next.js 并进入构建区', async ({
   await enabled.click();
   const trigger = page.getByRole('button', { name: 'Starter template' });
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-  const analytics = page.getByRole('radio', { name: 'SaaS Analytics Dashboard' });
+  await expect(page.getByRole('radio')).toHaveCount(2);
+  const react = page.getByRole('radio', { name: 'React', exact: true });
   const next = page.getByRole('radio', { name: 'Next.js' });
-  await analytics.check();
+  await react.check();
   await next.check();
   await expect(next).toBeChecked();
-  await expect(analytics).not.toBeChecked();
+  await expect(react).not.toBeChecked();
   await page.screenshot({ path: testInfo.outputPath('next-template-selected.png') });
   await next.press('Escape');
   await expect(trigger).toBeFocused();

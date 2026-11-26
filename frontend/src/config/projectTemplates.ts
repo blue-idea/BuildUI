@@ -9,8 +9,15 @@ export const NEXT_APP_TEMPLATE = 'next';
 export const NEXT_APP_STACK = 'Next.js App Router + React + TypeScript + Tailwind CSS';
 export const DEFAULT_PROJECT_TEMPLATE = catalog.defaultId;
 export const SELECTED_TEMPLATE_KEY = catalog.selectionKey;
-export const COMMUNITY_TEMPLATE_CONSENT_KEY = catalog.consentKey;
 export const LOCAL_PROJECT_TEMPLATES = catalog.templates as AppTemplate[];
+
+export function getOfficialProjectTemplates(templates: readonly AppTemplate[] = LOCAL_PROJECT_TEMPLATES): AppTemplate[] {
+  return templates.filter((template) => template.source === 'official');
+}
+
+export function getProjectTemplatePlatform(id?: string): ProjectPlatform | undefined {
+  return LOCAL_PROJECT_TEMPLATES.find((template) => template.id === id)?.platform;
+}
 
 export function isProjectTemplateCompatible(template: AppTemplate, projectPlatform: ProjectPlatform): boolean {
   const templatePlatform = template.platform ?? 'web';
