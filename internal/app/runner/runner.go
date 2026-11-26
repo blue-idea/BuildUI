@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -32,16 +35,23 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 	if native {
 		commands = append(commands, "expo")
 	} else if next {
-		commands = append(commands, "next")
+		commands = append(commands, "next", "tsc")
 	}
 	if err := workspace.EnsureProjectDependencies(ctx, appPath, commands...); err != nil {
 		return 0, err
 	}
 	cmd := workspace.PnpmCommand(ctx, appPath, "run", "dev", "--host", "127.0.0.1")
-	if next {
-		cmd = workspace.PnpmCommand(ctx, appPath, "exec", "next", "dev", "--hostname", "127.0.0.1", "--port", "0")
-	}
 	cleanup := func() {}
+	if next {
+		preload, removeAssets, err := scaffold.PrepareNextPreview(appPath)
+		if err != nil {
+			return 0, err
+		}
+		cleanup = removeAssets
+		cmd = workspace.PnpmCommand(ctx, appPath, "exec", "next", "dev", "--hostname", "127.0.0.1", "--port", "0")
+		nodeOptions := strings.TrimSpace(os.Getenv("NODE_OPTIONS") + " --require " + strconv.Quote(filepath.ToSlash(preload)))
+		cmd.Env = append(cmd.Environ(), "NODE_OPTIONS="+nodeOptions)
+	}
 	if native {
 		previewConfig, removeAssets, err := scaffold.PrepareExpoPreview(appPath)
 		if err != nil {
