@@ -37,7 +37,7 @@ describe('ProjectsCenterView Component', () => {
         apps={mockApps}
         activeAppId={1}
         onSelectApp={vi.fn()}
-        onCreateApp={vi.fn()}
+        onNewProject={vi.fn()}
         onDeleteApp={vi.fn()}
       />
     );
@@ -61,7 +61,7 @@ describe('ProjectsCenterView Component', () => {
         apps={mockApps}
         activeAppId={1}
         onSelectApp={vi.fn()}
-        onCreateApp={vi.fn()}
+        onNewProject={vi.fn()}
         onDeleteApp={vi.fn()}
       />
     );
@@ -78,7 +78,7 @@ describe('ProjectsCenterView Component', () => {
         apps={mockApps}
         activeAppId={1}
         onSelectApp={vi.fn()}
-        onCreateApp={vi.fn()}
+        onNewProject={vi.fn()}
         onDeleteApp={vi.fn()}
       />
     );
@@ -105,7 +105,7 @@ describe('ProjectsCenterView Component', () => {
         activeAppId={1}
         onSelectApp={onSelectApp}
         onOpenProject={onOpenProject}
-        onCreateApp={vi.fn()}
+        onNewProject={vi.fn()}
         onDeleteApp={vi.fn()}
       />
     );
@@ -117,33 +117,6 @@ describe('ProjectsCenterView Component', () => {
     expect(onOpenProject).toHaveBeenCalledWith(2);
   });
 
-  it('supports creating a new named project via form input', async () => {
-    const onCreateNamedApp = vi.fn().mockResolvedValue(undefined);
-
-    renderWithProviders(
-      <ProjectsCenterView
-        apps={mockApps}
-        activeAppId={1}
-        onSelectApp={vi.fn()}
-        onCreateApp={vi.fn()}
-        onCreateNamedApp={onCreateNamedApp}
-        onDeleteApp={vi.fn()}
-      />
-    );
-
-    // 点击“新建工程”按钮展开输入表单
-    const newBtn = screen.getByTestId('new-project-btn');
-    fireEvent.click(newBtn);
-
-    const input = screen.getByTestId('new-project-name-input');
-    fireEvent.change(input, { target: { value: 'Fitness Tracker' } });
-
-    const submitBtn = screen.getByTestId('submit-create-project-btn');
-    fireEvent.click(submitBtn);
-
-    expect(onCreateNamedApp).toHaveBeenCalledWith('Fitness Tracker', 'web');
-  });
-
   it('triggers onDeleteApp when clicking delete button', () => {
     const onDeleteApp = vi.fn();
 
@@ -152,7 +125,7 @@ describe('ProjectsCenterView Component', () => {
         apps={mockApps}
         activeAppId={1}
         onSelectApp={vi.fn()}
-        onCreateApp={vi.fn()}
+        onNewProject={vi.fn()}
         onDeleteApp={onDeleteApp}
       />
     );
@@ -171,7 +144,7 @@ describe('ProjectsCenterView Component', () => {
         apps={mockApps}
         activeAppId={1}
         onSelectApp={vi.fn()}
-        onCreateApp={vi.fn()}
+        onNewProject={vi.fn()}
         onDeleteApp={vi.fn()}
         onOpenInFileManager={onOpenInFileManager}
       />
@@ -189,7 +162,7 @@ describe('ProjectsCenterView Component', () => {
         apps={[]}
         activeAppId={0}
         onSelectApp={vi.fn()}
-        onCreateApp={vi.fn()}
+        onNewProject={vi.fn()}
         onDeleteApp={vi.fn()}
       />
     );
@@ -205,7 +178,7 @@ describe('ProjectsCenterView Component', () => {
         apps={mockApps}
         activeAppId={1}
         onSelectApp={vi.fn()}
-        onCreateApp={vi.fn()}
+        onNewProject={vi.fn()}
         onDeleteApp={vi.fn()}
         onRenameApp={onRenameApp}
       />
@@ -231,7 +204,7 @@ describe('ProjectsCenterView Component', () => {
         apps={mockApps}
         activeAppId={1}
         onSelectApp={vi.fn()}
-        onCreateApp={vi.fn()}
+        onNewProject={vi.fn()}
         onDeleteApp={vi.fn()}
       />,
       'zh'
@@ -270,7 +243,7 @@ describe('ProjectsCenterView Component', () => {
           apps={multiPlatformApps}
           activeAppId={1}
           onSelectApp={vi.fn()}
-          onCreateApp={vi.fn()}
+          onNewProject={vi.fn()}
           onDeleteApp={vi.fn()}
         />
       );
@@ -287,7 +260,7 @@ describe('ProjectsCenterView Component', () => {
           apps={multiPlatformApps}
           activeAppId={1}
           onSelectApp={vi.fn()}
-          onCreateApp={vi.fn()}
+          onNewProject={vi.fn()}
           onDeleteApp={vi.fn()}
         />
       );
@@ -327,7 +300,7 @@ describe('ProjectsCenterView Component', () => {
           apps={multiPlatformApps}
           activeAppId={1}
           onSelectApp={vi.fn()}
-          onCreateApp={vi.fn()}
+          onNewProject={vi.fn()}
           onDeleteApp={vi.fn()}
         />
       );
@@ -335,36 +308,6 @@ describe('ProjectsCenterView Component', () => {
       expect(screen.getByTestId('project-platform-badge-1')).toBeDefined();
       expect(screen.getByTestId('project-platform-badge-2')).toBeDefined();
       expect(screen.getByTestId('project-platform-badge-3')).toBeDefined();
-    });
-
-    it('allows selecting platform when creating a new project', async () => {
-      const onCreateNamedApp = vi.fn();
-      renderWithProviders(
-        <ProjectsCenterView
-          apps={multiPlatformApps}
-          activeAppId={1}
-          onSelectApp={vi.fn()}
-          onCreateApp={vi.fn()}
-          onCreateNamedApp={onCreateNamedApp}
-          onDeleteApp={vi.fn()}
-        />
-      );
-
-      // 打开新建表单
-      fireEvent.click(screen.getByTestId('new-project-btn'));
-
-      // 输入工程名
-      const input = screen.getByTestId('new-project-name-input');
-      fireEvent.change(input, { target: { value: 'Fitness Tracker' } });
-
-      // 选择 App 形态
-      const platformSelectApp = screen.getByTestId('new-project-platform-app');
-      fireEvent.click(platformSelectApp);
-
-      // 提交表单
-      fireEvent.click(screen.getByTestId('submit-create-project-btn'));
-
-      expect(onCreateNamedApp).toHaveBeenCalledWith('Fitness Tracker', 'app');
     });
   });
 });

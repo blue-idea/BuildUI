@@ -1,19 +1,9 @@
 import { test, expect } from '@playwright/test';
-import path from 'path';
-import fs from 'fs';
-
-const screenshotsDir = path.resolve(process.cwd(), '../docs/spec/versions/v11/reports/screenshots');
-
-test.beforeAll(() => {
-  if (!fs.existsSync(screenshotsDir)) {
-    fs.mkdirSync(screenshotsDir, { recursive: true });
-  }
-});
 
 test.describe('Project Management Center View & LeftDock Navigation', () => {
   test('Complete Project Management workflow: Dock navigation -> View inspection -> Theme/Language toggle -> Screenshots', async ({
     page,
-  }) => {
+  }, testInfo) => {
     // 1. 访问首页，验证左侧微坞呈现构建区下方的工程管理区图标
     await page.goto('/');
 
@@ -29,21 +19,30 @@ test.describe('Project Management Center View & LeftDock Navigation', () => {
     // 验证卡片与项目信息
     await expect(page.getByTestId('project-search-input')).toBeVisible();
     await expect(page.getByTestId('new-project-btn')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Browse Templates' })).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Pantry Planner' })).toBeVisible();
 
     // 截图 1: 浅色主题 + 英文模式
     await page.screenshot({
-      path: path.join(screenshotsDir, '01-projects-center-light-en.png'),
+      path: testInfo.outputPath('01-projects-center-light-en.png'),
       fullPage: true,
     });
 
-    // 3. 展开新建工程表单
+    // 3. 验证页头与空状态的入口都返回首页
     await page.getByTestId('new-project-btn').click();
-    await expect(page.getByTestId('new-project-name-input')).toBeVisible();
+    await expect(page.getByTestId('guide-user-input')).toBeVisible();
+    await dockProjects.click();
+    await page.getByTestId('project-search-input').fill('Sample AI App');
+    const emptyState = page.getByTestId('empty-projects-state');
+    await expect(emptyState).toBeVisible();
+    await expect(emptyState.getByRole('button', { name: 'Browse Templates' })).toHaveCount(0);
+    await emptyState.getByRole('button', { name: 'New Project' }).click();
+    await expect(page.getByTestId('guide-user-input')).toBeVisible();
     await page.screenshot({
-      path: path.join(screenshotsDir, '02-projects-center-new-project-form.png'),
+      path: testInfo.outputPath('02-home-after-new-project.png'),
       fullPage: true,
     });
+    await dockProjects.click();
 
     // 4. 切换为暗黑模式
     const themeBtn = page.getByRole('button', { name: /switch to light mode|switch to dark mode/i });
@@ -51,7 +50,7 @@ test.describe('Project Management Center View & LeftDock Navigation', () => {
       await themeBtn.click();
     }
     await page.screenshot({
-      path: path.join(screenshotsDir, '03-projects-center-dark-en.png'),
+      path: testInfo.outputPath('03-projects-center-dark-en.png'),
       fullPage: true,
     });
 
@@ -61,7 +60,7 @@ test.describe('Project Management Center View & LeftDock Navigation', () => {
       await langBtn.click();
       await expect(page.getByText('工程管理')).toBeVisible();
       await page.screenshot({
-        path: path.join(screenshotsDir, '04-projects-center-dark-zh.png'),
+        path: testInfo.outputPath('04-projects-center-dark-zh.png'),
         fullPage: true,
       });
 
@@ -69,7 +68,7 @@ test.describe('Project Management Center View & LeftDock Navigation', () => {
       if (await themeBtn.isVisible()) {
         await themeBtn.click();
         await page.screenshot({
-          path: path.join(screenshotsDir, '05-projects-center-light-zh.png'),
+          path: testInfo.outputPath('05-projects-center-light-zh.png'),
           fullPage: true,
         });
       }

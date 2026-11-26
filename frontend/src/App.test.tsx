@@ -166,28 +166,32 @@ it('从桌面会话恢复已保存的阶段并发送续建请求', async () => {
 });
 
 it('桌面工作台从后端加载空项目列表并使用真实创建入口', async () => {
-  const create = vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' });
+  const project = { appId: 41, name: 'Sample AI App', path: '/workspace/sample-ai-app' };
+  const create = vi.fn().mockResolvedValue(project);
+  const streamChat = vi.fn().mockResolvedValue(undefined);
   vi.stubGlobal('go', { main: { App: {
     GetSettings: vi.fn().mockResolvedValue({}),
     ListApps: vi.fn().mockResolvedValue([]),
     CreateApp: create,
-    SwitchApp: vi.fn().mockResolvedValue({ appId: 41, name: 'Fitness Check-in', path: '/fitness' }),
+    SwitchApp: vi.fn().mockResolvedValue(project),
     GetProjectChat: vi.fn().mockResolvedValue({ chatId: 7, messages: [] }),
     GetVersions: vi.fn().mockResolvedValue([]),
     ListProjectFiles: vi.fn().mockResolvedValue([]),
+    StreamChat: streamChat,
   } } });
   try {
-    render(<App /* default home */ />);
+    await act(async () => { render(<App />); });
     fireEvent.click(screen.getByRole('button', { name: /open applications drawer/i }));
     expect(screen.queryAllByText('Pantry Planner')).toHaveLength(0);
     expect(screen.queryByRole('button', { name: /mock blueprint/i })).toBeNull();
-    const newApp = screen.getByRole<HTMLButtonElement>('button', { name: /new app/i });
-    await waitFor(() => expect(newApp.disabled).toBe(false));
-    fireEvent.click(newApp);
-    fireEvent.change(screen.getByLabelText('Project name'), { target: { value: 'Fitness Check-in' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
-    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Fitness Check-in' })));
-    await waitFor(() => expect(screen.queryByText('Fitness Check-in')).toBeDefined());
+    expect(screen.getByTestId('empty-projects-state')).toBeDefined();
+    fireEvent.click(screen.getByTestId('new-project-btn'));
+    expect(create).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: project.name } });
+    fireEvent.click(screen.getByTestId('guide-submit-btn'));
+    await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(1));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: project.name }));
+    expect(screen.getByTestId('project-tab').textContent).toContain(project.name);
   } finally {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -696,16 +700,10 @@ describe('App Main Split Layout & Workflow', () => {
     expect(screen.queryByPlaceholderText(/type a command or search/i)).toBeNull();
   });
 
-  it('从项目中心打开模板目录并以 Next.js 模板命名创建', async () => {
+  it('从侧栏打开模板中心并以 Next.js 模板命名创建', async () => {
     renderBuilder();
 
-    // 点击顶栏 Manage App 进入工程管理页面
-    const appsBtn = screen.getByRole('button', { name: /manage app/i });
-    fireEvent.click(appsBtn);
-
-    // 点击从模版浏览
-    const tmplBtn = screen.getByRole('button', { name: /browse templates/i });
-    fireEvent.click(tmplBtn);
+    fireEvent.click(screen.getByTestId('dock-templates'));
 
     expect(screen.getByText('Application Templates')).toBeDefined();
     expect(screen.queryByText('SaaS Analytics Dashboard')).toBeNull();
@@ -909,14 +907,33 @@ describe('App Main Split Layout & Workflow', () => {
     }
   });
 
-  it('creates project under custom workspace.dir when configured in settings', async () => {
+  it('工程管理页移除模板入口', async () => {
+    await act(async () => { render(<App initialDockTab="projects" />); });
+
+    expect(screen.getByTestId('projects-center-view')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Browse Templates' })).toBeNull();
+    fireEvent.change(screen.getByTestId('project-search-input'), { target: { value: 'Sample AI App' } });
+    expect(screen.getByTestId('empty-projects-state')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Browse Templates' })).toBeNull();
+  });
+
+  it('从工程管理页点击新建工程后回到首页', async () => {
+    await act(async () => { render(<App initialDockTab="projects" />); });
+
+    fireEvent.click(screen.getByTestId('new-project-btn'));
+
+    expect(screen.queryByTestId('projects-center-view')).toBeNull();
+    expect(screen.getByTestId('guide-user-input')).toBeDefined();
+  });
+
+  it('在首页使用自定义工作区配置创建工程', async () => {
     const mockSettings = {
       'workspace.dir': '/custom/storage/path',
     };
     const create = vi.fn().mockResolvedValue({
       appId: 101,
-      name: 'Custom Storage App',
-      path: '/custom/storage/path/custom-storage-app',
+      name: 'Sample AI App',
+      path: '/custom/storage/path/sample-ai-app',
     });
     vi.stubGlobal('go', {
       main: {
@@ -932,36 +949,22 @@ describe('App Main Split Layout & Workflow', () => {
           ListApps: vi.fn().mockResolvedValue([]),
           GetActiveChat: vi.fn().mockResolvedValue({ chatId: 1, messages: [] }),
           CreateApp: create,
+          SwitchApp: vi.fn().mockResolvedValue({ appId: 101, path: '/custom/storage/path/sample-ai-app' }),
+          GetProjectChat: vi.fn().mockResolvedValue({ chatId: 1, messages: [] }),
+          GetVersions: vi.fn().mockResolvedValue([]),
+          ListProjectFiles: vi.fn().mockResolvedValue([]),
+          StreamChat: vi.fn().mockResolvedValue(undefined),
         },
       },
     });
 
     try {
-      render(<App initialDockTab="builder" />);
+      render(<App initialDockTab="home" />);
+      fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: 'Sample AI App' } });
+      fireEvent.click(screen.getByTestId('guide-submit-btn'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('dock-projects')).toBeDefined();
-      });
-
-      // 点击 dock-projects 进入工程中心
-      fireEvent.click(screen.getByTestId('dock-projects'));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('projects-center-view')).toBeDefined();
-      });
-
-      // 打开新建工程表单
-      const newProjectBtn = screen.getByTestId('new-project-btn');
-      fireEvent.click(newProjectBtn);
-
-      const nameInput = screen.getByTestId('new-project-name-input');
-      fireEvent.change(nameInput, { target: { value: 'Custom Storage App' } });
-
-      const submitBtn = screen.getByTestId('submit-create-project-btn');
-      fireEvent.click(submitBtn);
-
-      await waitFor(() => {
-        expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Custom Storage App' }));
+        expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Sample AI App' }));
       });
     } finally {
       vi.unstubAllGlobals();

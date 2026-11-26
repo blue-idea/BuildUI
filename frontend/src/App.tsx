@@ -1197,39 +1197,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               }
               setActiveDockTab('builder');
             }}
-            onCreateNamedApp={
-              desktop
-                ? createDesktopProject
-                : async (name: string, platform?: ProjectPlatform) => {
-                    const newId = Date.now();
-                    const baseDir = (settings['workspace.dir'] || workspaceDir || '/workspace').replace(/\/+$/, '');
-                    const slug = name.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-|-$/g, '') || `app-${newId}`;
-                    const newApp: AppItem = {
-                      id: newId,
-                      name,
-                      path: `${baseDir}/${slug}`,
-                      createdAt: new Date().toISOString(),
-                      platform: platform || 'web',
-                    };
-                    setApps((prev) => [...prev, newApp]);
-                    setActiveAppId(newId);
-                    setWorkspaceDir(newApp.path);
-                  }
-            }
-            onCreateApp={() => {
-              const newId = Date.now();
-              const nextIndex = apps.length === 1 || apps.some((a) => a.id === 1) ? 2 : apps.length + 1;
-              const baseDir = (settings['workspace.dir'] || workspaceDir || '/workspace').replace(/\/+$/, '');
-              const newApp: AppItem = {
-                id: newId,
-                name: `Project ${nextIndex}`,
-                path: `${baseDir}/project-${nextIndex}`,
-                createdAt: new Date().toISOString(),
-              };
-              setApps((prev) => [...prev, newApp]);
-              setActiveAppId(newId);
-              setWorkspaceDir(newApp.path);
-            }}
+            onNewProject={() => setActiveDockTab('home')}
             onDeleteApp={(id) => {
               if (desktop) {
                 void updateProject(async () => {
@@ -1242,9 +1210,6 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             }}
             onRenameApp={(id, newName) => {
               setApps((prev) => prev.map((a) => (a.id === id ? { ...a, name: newName } : a)));
-            }}
-            onOpenTemplates={() => {
-              setActiveDockTab('templates');
             }}
             onOpenInFileManager={desktop ? (path) => desktopApp().OpenInFileManager(path) : openInFileManager}
           />

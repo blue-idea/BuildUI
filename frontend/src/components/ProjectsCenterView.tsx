@@ -6,7 +6,6 @@ import {
   FolderOpen,
   Trash2,
   ExternalLink,
-  Layers,
   X,
   Clock,
   HardDrive,
@@ -26,11 +25,9 @@ export interface ProjectsCenterViewProps {
   activeAppId: number;
   onSelectApp?: (id: number) => void;
   onOpenProject?: (id: number) => void;
-  onCreateApp: () => void;
-  onCreateNamedApp?: (name: string, platform?: ProjectPlatform) => Promise<void> | void;
+  onNewProject: () => void;
   onDeleteApp: (id: number) => void;
   onRenameApp?: (id: number, newName: string) => void;
-  onOpenTemplates?: () => void;
   onOpenInFileManager?: (path: string) => void;
   busy?: boolean;
   error?: string;
@@ -41,11 +38,9 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
   activeAppId,
   onSelectApp,
   onOpenProject,
-  onCreateApp,
-  onCreateNamedApp,
+  onNewProject,
   onDeleteApp,
   onRenameApp,
-  onOpenTemplates,
   onOpenInFileManager,
   busy = false,
   error,
@@ -53,9 +48,6 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
   const { t } = useI18n();
   const [platformFilter, setPlatformFilter] = useState<ProjectPlatform | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectPlatform, setNewProjectPlatform] = useState<ProjectPlatform>('web');
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -94,20 +86,6 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
   const handleOpen = (appId: number) => {
     onSelectApp?.(appId);
     onOpenProject?.(appId);
-  };
-
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = newProjectName.trim();
-    if (!name || busy) return;
-
-    if (onCreateNamedApp) {
-      await onCreateNamedApp(name, newProjectPlatform);
-    } else {
-      onCreateApp();
-    }
-    setNewProjectName('');
-    setIsCreating(false);
   };
 
   const renderPlatformBadge = (platform: ProjectPlatform, appId: number) => {
@@ -229,27 +207,12 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
             <button
               type="button"
               data-testid="new-project-btn"
-              aria-label="New project - New app"
-              onClick={() => setIsCreating((prev) => !prev)}
-              disabled={busy}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
+              onClick={onNewProject}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{t('projectsPage.newProject')}</span>
             </button>
-
-            {/* 从模版浏览 */}
-            {onOpenTemplates && (
-              <button
-                type="button"
-                data-testid="browse-templates-btn"
-                onClick={onOpenTemplates}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs font-medium shadow-2xs transition-all"
-              >
-                <Layers className="w-3.5 h-3.5 text-blue-500" />
-                <span>{t('projectsPage.browseTemplates')}</span>
-              </button>
-            )}
           </div>
         </header>
 
@@ -367,105 +330,6 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
             className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-xs text-rose-600 dark:text-rose-400"
           >
             {error}
-          </div>
-        )}
-
-        {/* 新建项目卡片表单 */}
-        {isCreating && (
-          <div className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-blue-300 dark:border-blue-700/60 shadow-md transition-all">
-            <form onSubmit={handleCreateSubmit} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="new-project-input"
-                  className="text-xs font-semibold text-slate-700 dark:text-zinc-300"
-                >
-                  {t('projectsPage.projectNameLabel')}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsCreating(false)}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <input
-                  id="new-project-input"
-                  data-testid="new-project-name-input"
-                  aria-label="Project name"
-                  type="text"
-                  autoFocus
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  placeholder={t('projectsPage.projectNamePlaceholder')}
-                  className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                />
-
-                {/* 应用形态选择器 */}
-                <div className="inline-flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-700 self-start sm:self-auto select-none">
-                  <button
-                    type="button"
-                    data-testid="new-project-platform-web"
-                    onClick={() => setNewProjectPlatform('web')}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                      newProjectPlatform === 'web'
-                        ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-2xs font-semibold'
-                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                    }`}
-                  >
-                    <Globe className="w-3 h-3" />
-                    <span>Web</span>
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="new-project-platform-desktop"
-                    onClick={() => setNewProjectPlatform('desktop')}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                      newProjectPlatform === 'desktop'
-                        ? 'bg-white dark:bg-zinc-700 text-purple-600 dark:text-purple-400 shadow-2xs font-semibold'
-                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                    }`}
-                  >
-                    <Monitor className="w-3 h-3" />
-                    <span>Desktop</span>
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="new-project-platform-app"
-                    onClick={() => setNewProjectPlatform('app')}
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                      newProjectPlatform === 'app'
-                        ? 'bg-white dark:bg-zinc-700 text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold'
-                        : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                    }`}
-                  >
-                    <Smartphone className="w-3 h-3" />
-                    <span>App</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="submit"
-                    data-testid="submit-create-project-btn"
-                    aria-label="Create project"
-                    disabled={busy || !newProjectName.trim()}
-                    className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
-                  >
-                    {t('projectsPage.createProject')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsCreating(false)}
-                    className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all"
-                  >
-                    {t('projectsPage.cancel')}
-                  </button>
-                </div>
-              </div>
-            </form>
           </div>
         )}
 
@@ -665,22 +529,12 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
             <div className="flex items-center gap-3 mt-5">
               <button
                 type="button"
-                onClick={() => setIsCreating(true)}
+                onClick={onNewProject}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{t('projectsPage.newProject')}</span>
               </button>
-              {onOpenTemplates && (
-                <button
-                  type="button"
-                  onClick={onOpenTemplates}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs font-medium transition-all"
-                >
-                  <Layers className="w-3.5 h-3.5 text-blue-500" />
-                  <span>{t('projectsPage.browseTemplates')}</span>
-                </button>
-              )}
             </div>
           </div>
         )}

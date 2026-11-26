@@ -75,10 +75,6 @@ export interface I18nDictionary {
     subtitle: string;
     searchPlaceholder: string;
     newProject: string;
-    createProject: string;
-    projectNameLabel: string;
-    projectNamePlaceholder: string;
-    browseTemplates: string;
     activeBadge: string;
     openProject: string;
     revealInFinder: string;
@@ -90,7 +86,6 @@ export interface I18nDictionary {
     totalCount: string;
     createdTime: string;
     projectPath: string;
-    cancel: string;
     tabAll: string;
     tabWeb: string;
     tabDesktop: string;
@@ -98,7 +93,6 @@ export interface I18nDictionary {
     platformWeb: string;
     platformDesktop: string;
     platformApp: string;
-    newProjectPlatformLabel: string;
   };
   chat: {
     newChat: string;
