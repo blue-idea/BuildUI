@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	ModelClarificationMaxTokens = 2048
 	ModelBlueprintMaxTokens     = 4096
 	ModelBuildMaxTokens         = 12288
 	ModelDeepSeekBuildMaxTokens = 32768
@@ -16,6 +17,9 @@ const (
 	ModelBuildStreamIdleTimeout = 2 * time.Minute
 	ModelBuildRepairAttempts    = 2
 	ModelBuildRepairBatchSize   = 3
+
+	ChatStageClarify   = "clarify"
+	ChatStageBlueprint = "blueprint"
 )
 
 // SupportsDeepSeekThinking 识别官方模型名和中转服务常用的 V4 模型别名。

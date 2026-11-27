@@ -21,7 +21,7 @@ func (s *ChatService) resolvePluginAutomation(ctx context.Context, appID int64, 
 	return s.plugins.ProjectAutomation(ctx, appID)
 }
 
-func (s *ChatService) attachPluginTools(ctx context.Context, appID, chatID int64, directory string, automation *plugins.ProjectAutomation, request *llm.ChatRequest) func() {
+func (s *ChatService) attachPluginTools(ctx context.Context, appID, chatID int64, directory, locale string, automation *plugins.ProjectAutomation, request *llm.ChatRequest) func() {
 	if s.plugins == nil || (automation != nil && (!automation.Enabled || len(automation.PluginIDs) == 0)) {
 		return func() {}
 	}
@@ -55,7 +55,7 @@ func (s *ChatService) attachPluginTools(ctx context.Context, appID, chatID int64
 		if !exists {
 			return "", errors.New("This MCP tool is not available for the project.")
 		}
-		s.emitProgress(chatID, "Using plugin tool: "+item.Name)
+		s.emitProgress(chatID, localizedProgress(locale, "using_plugin", item.Name))
 		return turn.Call(ctx, item.PluginID, item.Name, json.RawMessage(call.Function.Arguments))
 	}
 	return turn.Close

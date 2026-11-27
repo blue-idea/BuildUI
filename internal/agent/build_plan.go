@@ -64,8 +64,8 @@ func (s *ChatService) streamPlannedBuild(ctx context.Context, req StreamChatRequ
 	}
 	for state.Next < len(state.Steps) {
 		step := state.Steps[state.Next]
-		label := fmt.Sprintf("Build step %d/%d — %s", state.Next+1, len(state.Steps), step.Title)
-		s.emitProgress(req.ChatID, label+" · Waiting for model output…")
+		label := localizedProgress(req.Locale, "build_step_label", state.Next+1, len(state.Steps), step.Title)
+		s.emitProgress(req.ChatID, localizedProgress(req.Locale, "build_step_wait", state.Next+1, len(state.Steps), step.Title))
 		remaining := make([]string, 0, len(step.Files))
 		for _, name := range step.Files {
 			if !slices.Contains(state.StepFiles, name) {
@@ -89,11 +89,11 @@ func (s *ChatService) streamPlannedBuild(ctx context.Context, req StreamChatRequ
 				return err
 			}
 			if newFile {
-				s.emitProgress(req.ChatID, fmt.Sprintf("%s · %d/%d files saved", label, len(state.StepFiles), len(step.Files)))
+				s.emitProgress(req.ChatID, localizedProgress(req.Locale, "build_step_saved", label, len(state.StepFiles), len(step.Files)))
 			}
 			return nil
 		}
-		_, err := s.streamBuildStep(ctx, req.ChatID, root, client, stepRequest, remaining, func(text string) { reply.WriteString(text) }, recordChange)
+		_, err := s.streamBuildStepLocalized(ctx, req.ChatID, req.Locale, root, client, stepRequest, remaining, func(text string) { reply.WriteString(text) }, recordChange)
 		if err != nil {
 			return err
 		}
@@ -147,11 +147,15 @@ func (s *ChatService) planBuild(ctx context.Context, req StreamChatRequest, root
 	}
 	// 规划时提供页面及其直接依赖，实际执行时仍只发送该步骤指定的文件。
 	paths := sourcePathsWithLocalImports(root, requestedSourcePaths(root, req.Prompt), available)
-	s.emitProgress(req.ChatID, "Planning build steps…")
+	s.emitProgress(req.ChatID, localizedProgress(req.Locale, "plan_steps"))
 	request.MaxTokens = config.ModelBuildPlanMaxTokens
 	request.IdleTimeout = config.ModelBuildStreamIdleTimeout
 	request.Messages = slices.Clone(request.Messages)
-	request.Messages[0].Content = fmt.Sprintf(buildPlanPrompt, config.ModelBuildMaxSteps, config.ModelBuildMaxFilesPerStep) + projectStackContext(root) + "\n" + contextPrompt + sourceFilesContext(root, paths)
+	planSystem := fmt.Sprintf(buildPlanPrompt, config.ModelBuildMaxSteps, config.ModelBuildMaxFilesPerStep) + projectStackContext(root)
+	if directive := llmLanguageDirective(req.Locale); directive != "" {
+		planSystem += "\n" + directive
+	}
+	request.Messages[0].Content = planSystem + "\n" + contextPrompt + sourceFilesContext(root, paths)
 	last := &request.Messages[len(request.Messages)-1]
 	last.Content += "\n\nReturn the ordered build plan as a single JSON object with objective and steps."
 	readPlan := func() (*db.BuildCheckpoint, error) {
@@ -166,7 +170,7 @@ func (s *ChatService) planBuild(ctx context.Context, req StreamChatRequest, root
 	}
 	state, err := readPlan()
 	if errors.Is(err, llm.ErrOutputLimit) || errors.Is(err, errInvalidBuildPlan) {
-		s.emitProgress(req.ChatID, "Retrying the build plan…")
+		s.emitProgress(req.ChatID, localizedProgress(req.Locale, "plan_retry"))
 		last.Content += "\nThe previous response could not be read as a plan. Return an object starting with { and containing objective and steps. Keep the objective and each goal to one sentence. Do not declare the work completed."
 		state, err = readPlan()
 	}

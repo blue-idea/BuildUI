@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { InspectedElement } from '../types/inspect';
 import { LocalEditPopover } from './LocalEditPopover';
 import { MousePointerClick, X } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface ComponentInspectorProps {
   isActive: boolean;
@@ -70,6 +71,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
   onClearSelectedElement,
   onJumpToCode,
 }) => {
+  const { t } = useI18n();
   const [internalSelectedElement, setInternalSelectedElement] = useState<InspectedElement | null>(null);
 
   if (!isActive) return null;
@@ -100,17 +102,17 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
           <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
           <span className="font-bold text-white flex items-center gap-1.5">
             <MousePointerClick className="w-3.5 h-3.5 text-blue-300" />
-            <span>Local Edit Mode (Inspector Mode Active):</span>
+            <span>{t('localEdit.modeBannerTitle')}</span>
           </span>
           <span className="text-blue-200 hidden md:inline">
-            Select Elements to inspect source component and perform targeted AI edit
+            {t('localEdit.modeBannerDesc')}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           {/* 交互式点选快捷药丸 */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-blue-300 font-medium select-none">Select Target:</span>
+            <span className="text-[10px] text-blue-300 font-medium select-none">{t('localEdit.selectTarget')}</span>
             {availableElements.map((el) => (
               <button
                 key={el.id}
@@ -143,7 +145,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
             className="flex items-center gap-1 rounded-xl bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-500 transition-colors shadow-xs ml-2 cursor-pointer"
           >
             <X className="w-3 h-3" />
-            <span>Exit</span>
+            <span>{t('localEdit.exit')}</span>
           </button>
         </div>
       </div>

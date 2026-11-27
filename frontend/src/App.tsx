@@ -22,7 +22,7 @@ import { TemplateCenterView } from './components/TemplateCenterView';
 import { ComponentCenterView } from './components/ComponentCenterView';
 import { StyleCenterView } from './components/StyleCenterView';
 import { ProjectsCenterView } from './components/ProjectsCenterView';
-import { FileChangeCard } from './components/FileChangeCard';
+import { ChatMessageBubble } from './components/ChatMessageBubble';
 import { WorkspacePanel, WorkspaceView } from './components/WorkspacePanel';
 import { FileActionItem } from './types/fileAction';
 import { ThemePreset } from './components/ThemeSelector';
@@ -33,6 +33,8 @@ import { generateSandboxDoc } from './utils/sandboxTemplate';
 import { generateSafeAppName } from './utils/appName';
 import { parseConfiguredProviders } from './config/providers';
 import { DEFAULT_HOME_STYLE } from './config/homeStyle';
+import { extractLocalEditDraft, type PendingLocalEdit } from './utils/targetedPrompt';
+import { buildLocalEditSubmission, formatClarificationAnswersPrompt } from './utils/chatMessageParser';
 import {
   fetchSettings,
   saveSettings,
@@ -49,7 +51,7 @@ import {
   isWailsAvailable,
   DiagnosticItem,
 } from './services/wailsBridge';
-import { Plus, Send, Square, Hammer, ChevronDown } from 'lucide-react';
+import { Plus, Send, Square, Hammer, ChevronDown, Wand2, X, Sparkles } from 'lucide-react';
 import type { PluginAutomation } from './types/plugin';
 
 export interface AttachmentItem {
@@ -222,13 +224,16 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   ]);
 
   const [inputPrompt, setInputPrompt] = useState('');
+  const [pendingLocalEdit, setPendingLocalEdit] = useState<PendingLocalEdit | null>(null);
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatScrollEndRef = useRef<HTMLDivElement>(null);
   const [buildMode, setBuildMode] = useState<'build' | 'plan'>('build');
   const [selectedModel, setSelectedModel] = useState<string>('auto');
   const [extraSandboxItems, setExtraSandboxItems] = useState<string[]>([]);
   const [blueprint, setBlueprint] = useState<BlueprintDTO | null>(null);
   const [questionnaire, setQuestionnaire] = useState<QuestionItem[] | null>(null);
+  const [clarificationSummary, setClarificationSummary] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState(desktop ? '' : 'http://localhost:5173');
   const [nativePreview, setNativePreview] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
@@ -385,6 +390,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const loadChat = (projectChat: Awaited<ReturnType<ReturnType<typeof desktopApp>['GetProjectChat']>>) => {
     chatID.current = projectChat.chatId;
     setBlueprint(projectChat.blueprint);
+    setQuestionnaire(projectChat.clarification?.questions ?? null);
+    setClarificationSummary(projectChat.clarification?.summary ?? '');
+    setPendingLocalEdit(null);
     setBuildProgress(projectChat.buildProgress ?? null);
     setMessages((projectChat.messages ?? []).map((msg) => ({
       id: String(msg.id),
@@ -413,6 +421,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     setWorkspaceDir('');
     setMessages([]);
     setBlueprint(null);
+    setQuestionnaire(null);
+    setClarificationSummary('');
+    setPendingLocalEdit(null);
     setBuildProgress(null);
     setFocusedFile('');
     setInputPrompt('');
@@ -439,6 +450,9 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     setWorkspaceDir(active.path);
     setMessages([]);
     setBlueprint(null);
+    setQuestionnaire(null);
+    setClarificationSummary('');
+    setPendingLocalEdit(null);
     setBuildProgress(null);
     setFocusedFile('');
     setInputPrompt('');
@@ -489,16 +503,24 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     prompt: string,
     images: string[],
     mode: 'build' | 'plan',
-    options: { approve?: boolean; chatId?: number; resume?: boolean; pluginAutomation?: PluginAutomation } = {},
+    options: { approve?: boolean; chatId?: number; resume?: boolean; pluginAutomation?: PluginAutomation; stage?: 'clarify' | 'blueprint' } = {},
   ) => {
-    const { approve = false, chatId: id = chatID.current, resume, pluginAutomation } = options;
+    const { approve = false, chatId: id = chatID.current, resume, pluginAutomation, stage } = options;
     if (!id || turn.current) return;
     const currentAppId = projectID.current;
     const current = { id: `turn-${Date.now()}`, commit: '', cancelled: false };
     turn.current = current;
     setProjectError('');
     setIsGenerating(true);
-    setGenerationProgress(approve ? 'Approving the blueprint…' : 'Preparing the model request…');
+    setGenerationProgress(
+      approve
+        ? t('chat.approvingBlueprint')
+        : stage === 'clarify'
+        ? t('chat.generatingClarification')
+        : stage === 'blueprint'
+        ? t('chat.generatingBlueprint')
+        : t('chat.preparingRequest')
+    );
     try {
       if (approve) {
         await desktopApp().ApproveBlueprint(id);
@@ -522,6 +544,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         chatId: id,
         prompt,
         mode,
+        ...(stage && { stage }),
+        locale,
         attachments: images,
         provider: reqProvider,
         model: reqModel,
@@ -533,7 +557,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       const refreshFiles = refreshProject(currentAppId);
       if (current.commit || (mode === 'build' && (approve || resume || blueprint?.approved))) {
         // 文件监听可能漏掉已落盘的变更。构建成功后用新进程加载完整工作区。
-        setGenerationProgress('Restarting the preview…');
+        setGenerationProgress(t('chat.restartingPreview'));
         await Promise.all([refreshFiles, startPreview(currentAppId, true)]);
       } else {
         await refreshFiles;
@@ -595,6 +619,12 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       onChunk: (data) => {
         const current = forTurn(data.chatId);
         if (current) updateAssistant(current.id, (message) => ({ ...message, content: message.content + data.chunk }));
+      },
+      onClarification: (data) => {
+        if (!data.chatId || data.chatId === chatID.current) {
+          setClarificationSummary(data.summary ?? '');
+          setQuestionnaire(data.questions ?? null);
+        }
       },
       onToolStart: (data) => {
         const current = forTurn(data.chatId);
@@ -661,7 +691,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const renderMessageContent = (msg: ChatMessage) => {
+  const resolveMessageText = (msg: ChatMessage) => {
     if (msg.id === 'msg-user-1') {
       return t('chat.userDemoPrompt');
     }
@@ -670,6 +700,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     }
     return msg.content;
   };
+
+  useEffect(() => {
+    chatScrollEndRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'end' });
+  }, [messages.length, questionnaire, blueprint]);
 
   const handleSelectTheme = (themeId: string) => {
     if (desktop && activeAppId) {
@@ -778,7 +812,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
           {
             id: String(Date.now()),
             sender: 'assistant',
-            content: `Updated components based on your request: "${prompt}". Live preview refreshed.`,
+            content: t('chat.webUpdatedReply', { prompt }),
             fileChanges: [
               {
                 id: String(Date.now() + 1),
@@ -796,19 +830,25 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
 
   const handleSendPrompt = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const prompt = inputPrompt.trim();
-    if (!prompt && attachments.length === 0) return;
+    const rawInput = inputPrompt.trim();
+    if (!rawInput && attachments.length === 0) return;
     if (desktop && turn.current) return;
     if (desktop && chatID.current && isChangingProject) return;
 
+    const activeLocalEdit = pendingLocalEdit;
+    const outboundPrompt = activeLocalEdit
+      ? buildLocalEditSubmission(activeLocalEdit, rawInput)
+      : rawInput;
     const currentAttachments = [...attachments];
     setInputPrompt('');
+    setPendingLocalEdit(null);
     setAttachments([]);
 
     if (desktop) {
+      const isFreshProject = !chatID.current;
       if (!chatID.current) {
         // 构建页点击发送指令在无活跃项目时，自动创建新项目并激活，不再跳转工程管理页面
-        const appName = generateSafeAppName(prompt, apps.map((a) => a.name));
+        const appName = generateSafeAppName(outboundPrompt, apps.map((a) => a.name));
         await createDesktopProject(appName);
       }
       if (!chatID.current) return;
@@ -816,22 +856,34 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       const userMsg: ChatMessage = {
         id: String(Date.now()),
         sender: 'user',
-        content: prompt || (currentAttachments.length > 0 ? t('chat.attachedImage') : ''),
+        content: outboundPrompt || (currentAttachments.length > 0 ? t('chat.attachedImage') : ''),
         attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
       };
       setMessages((prev) => [...prev, userMsg]);
-      void runDesktopTurn(prompt, currentAttachments.map((attachment) => attachment.dataUrl), buildMode, { chatId: chatID.current });
+      const shouldClarify =
+        buildMode === 'build' &&
+        !activeLocalEdit &&
+        (isFreshProject || (!blueprint && !questionnaire));
+      void runDesktopTurn(
+        outboundPrompt,
+        currentAttachments.map((attachment) => attachment.dataUrl),
+        buildMode,
+        {
+          chatId: chatID.current,
+          ...(shouldClarify ? { stage: 'clarify' } : {}),
+        }
+      );
       return;
     }
 
     const userMsg: ChatMessage = {
       id: String(Date.now()),
       sender: 'user',
-      content: prompt || (currentAttachments.length > 0 ? t('chat.attachedImage') : ''),
+      content: outboundPrompt || (currentAttachments.length > 0 ? t('chat.attachedImage') : ''),
       attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
     };
     setMessages((prev) => [...prev, userMsg]);
-    runWebTurn(prompt);
+    runWebTurn(outboundPrompt);
   };
 
   const handleStartBuilding = async (
@@ -842,11 +894,12 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     setActiveDockTab('builder');
     const atts = initialAttachments && initialAttachments.length > 0 ? initialAttachments : [];
     setInputPrompt('');
+    setPendingLocalEdit(null);
     setAttachments([]);
 
     if (desktop) {
       if (turn.current) return;
-      // 首页点击开始生成按钮，自动创建新项目并直接开始构建，无需再次点击发送指令
+      // 首页点击开始生成按钮，自动创建新项目并首先发起大模型需求澄清（不丢失插件与设计系统预设）
       const appName = generateSafeAppName(options?.userInput || prompt, apps.map((a) => a.name));
       const templateId = options?.template === BLANK_PROJECT_TEMPLATE ? undefined : options?.template;
       const previousAppId = projectID.current;
@@ -863,6 +916,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       void runDesktopTurn(prompt, atts.map((att) => att.dataUrl), 'build', {
         chatId: chatID.current,
         pluginAutomation: options?.pluginAutomation,
+        stage: 'clarify',
       });
       return;
     }
@@ -883,6 +937,94 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     runWebTurn(prompt);
   };
 
+  const handleSubmitClarification = (answers: Record<string, string | string[]>) => {
+    if (!questionnaire) return;
+    const answerPrompt = formatClarificationAnswersPrompt(questionnaire, answers, locale);
+    setQuestionnaire(null);
+    setClarificationSummary('');
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        sender: 'user',
+        content: answerPrompt,
+      },
+    ]);
+
+    if (desktop) {
+      if (!chatID.current) return;
+      void runDesktopTurn(answerPrompt, [], 'build', {
+        chatId: chatID.current,
+        stage: 'blueprint',
+      });
+      return;
+    }
+
+    // Web 模拟模式：根据用户选择生成对应语言的蓝图
+    setBlueprint({
+      chatId: chatID.current || 1,
+      appName: activeApp?.name || (locale === 'zh' ? '新应用设计方案' : 'New App'),
+      designDirection:
+        locale === 'zh'
+          ? '结合您选择的模块与界面风格，采用高对比度现代卡片式布局与流畅交互层次'
+          : 'Clean modern card layout with high visual contrast tailored to your selections',
+      primaryColor: '#3b82f6',
+      themeId: activeThemeId || 'dark-slate',
+      visuals: [
+        {
+          id: 'brand-logo',
+          type: 'logo',
+          description: locale === 'zh' ? '应用品牌极简矢量徽标' : 'Application brand logo mark',
+          prompt: 'geometric vector tech logo',
+        },
+        {
+          id: 'hero-illustration',
+          type: 'illustration',
+          description: locale === 'zh' ? '首屏核心主视觉插画' : 'Modern 3D isometric hero illustration',
+          prompt: 'isometric tech workflow illustration',
+        },
+      ],
+      approved: false,
+    });
+  };
+
+  const handleSkipClarification = () => {
+    if (!questionnaire) return;
+    const skipPrompt = '[Clarification Skipped]';
+    setQuestionnaire(null);
+    setClarificationSummary('');
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: String(Date.now()),
+        sender: 'user',
+        content: skipPrompt,
+      },
+    ]);
+
+    if (desktop) {
+      if (!chatID.current) return;
+      void runDesktopTurn(skipPrompt, [], 'build', {
+        chatId: chatID.current,
+        stage: 'blueprint',
+      });
+      return;
+    }
+
+    setBlueprint({
+      chatId: chatID.current || 1,
+      appName: activeApp?.name || (locale === 'zh' ? '新应用设计方案' : 'New App'),
+      designDirection:
+        locale === 'zh'
+          ? '基于初始需求直接生成的现代高对比度卡片布局'
+          : 'Clean modern card layout with high visual contrast',
+      primaryColor: '#3b82f6',
+      themeId: activeThemeId || 'dark-slate',
+      visuals: [],
+      approved: false,
+    });
+  };
+
   const handleCancelGeneration = () => {
     if (desktop) {
       void desktopApp().CancelChat(chatID.current).catch(reportError);
@@ -899,7 +1041,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       {
         id: String(Date.now()),
         sender: 'assistant',
-        content: 'Generation stopped by user.',
+        content: t('chat.stoppedByUser'),
       },
     ]);
   };
@@ -926,7 +1068,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         {
           id: String(Date.now()),
           sender: 'assistant',
-          content: 'Application code generated and verified in local sandbox. You can see the live preview on the right.',
+          content: t('chat.codeGenSuccess'),
           fileChanges: [
             {
               id: 'fc-approve-1',
@@ -943,15 +1085,15 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const handleMockBlueprint = () => {
     setBlueprint({
       chatId: 101,
-      appName: 'Demo Portfolio',
-      designDirection: 'Cyberpunk Neon Dark Mode',
+      appName: locale === 'zh' ? '演示作品集应用' : 'Demo Portfolio',
+      designDirection: locale === 'zh' ? '赛博霓虹暗黑沉浸风格' : 'Cyberpunk Neon Dark Mode',
       primaryColor: '#00ffcc',
       themeId: 'dark',
       visuals: [
         {
           id: 'v-1',
           type: 'logo',
-          description: 'Neon glowing badge',
+          description: locale === 'zh' ? '霓虹发光六边形标识' : 'Neon glowing badge',
           prompt: 'cyberpunk hexagon',
         },
       ],
@@ -960,15 +1102,60 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   };
 
   const handleMockQuestionnaire = () => {
+    if (locale === 'zh') {
+      setClarificationSummary('请确认以下功能模块、页面结构与配色倾向：');
+      setQuestionnaire([
+        {
+          id: 'q1',
+          category: 'features',
+          question: '核心界面最需要突出哪些功能模块？',
+          type: 'multi_choice',
+          options: ['首页总览看板', '交互式任务清单', '数据趋势分析'],
+          allowCustom: true,
+        },
+        {
+          id: 'page_structure',
+          category: 'ui',
+          question: '页面结构偏好哪种形式？',
+          type: 'single_choice',
+          options: ['单页集中展示（一页内完成核心交互）', '多页分栏导航（按功能模块拆分独立页面）'],
+          allowCustom: true,
+        },
+        {
+          id: 'q2',
+          category: 'palette',
+          question: '您期望整体呈现怎样的界面配色与氛围？',
+          type: 'single_choice',
+          options: ['极简纯净浅色', '深邃科技暗黑', '暖意自然柔和'],
+          allowCustom: true,
+        },
+      ]);
+      return;
+    }
+    setClarificationSummary('Please clarify your preferred features, page structure, and color mood:');
     setQuestionnaire([
       {
         id: 'q1',
+        category: 'features',
         question: 'What is the primary target audience?',
         type: 'single_choice',
         options: ['Developers', 'Enterprise Teams', 'End Users'],
+        allowCustom: true,
+      },
+      {
+        id: 'page_structure',
+        category: 'ui',
+        question: 'How should the application pages be structured?',
+        type: 'single_choice',
+        options: [
+          'Single-page layout (all core sections on one page)',
+          'Multi-page navigation (separate pages per section)',
+        ],
+        allowCustom: true,
       },
       {
         id: 'q2',
+        category: 'palette',
         question: 'Any specific design preferences or color palettes?',
         type: 'text',
       },
@@ -1036,7 +1223,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
       {
         id: String(Date.now()),
         sender: 'assistant',
-        content: `Started a new conversation for ${activeApp?.name}. What would you like to build next?`,
+        content: t('chat.newChatWelcome', { app: activeApp?.name ?? '' }),
       },
     ]);
   };
@@ -1284,108 +1471,58 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
           </div>
 
           {/* 消息滚动流 */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {projectError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{projectError}</p>}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/40 dark:bg-zinc-950/30">
+            {projectError && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/50 dark:text-rose-300">
+                {projectError}
+              </div>
+            )}
             {!activeApp && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPreviousDockTab(activeDockTab);
-                  setActiveDockTab('projects');
-                }}
-                className="text-sm font-medium text-blue-600"
-              >
-                Create or open a project
-              </button>
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 p-5 text-center dark:border-zinc-700 dark:bg-zinc-900/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviousDockTab(activeDockTab);
+                    setActiveDockTab('projects');
+                  }}
+                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 cursor-pointer"
+                >
+                  {t('chat.createOrOpenProject')}
+                </button>
+              </div>
+            )}
+            {activeApp && messages.length === 0 && !questionnaire && !blueprint && !projectError && (
+              <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 text-center shadow-2xs dark:border-zinc-800 dark:bg-zinc-900/80">
+                <div className="mx-auto mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <h4 className="text-xs font-semibold text-slate-800 dark:text-zinc-100">
+                  {t('chat.emptyChatTitle')}
+                </h4>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-zinc-400">
+                  {t('chat.emptyChatDesc')}
+                </p>
+              </div>
             )}
             {messages.map((msg) => (
-              <div
+              <ChatMessageBubble
                 key={msg.id}
-                className={`flex flex-col ${
-                  msg.sender === 'user' ? 'items-end' : 'items-start'
-                }`}
-              >
-                {/* 消息气泡：用户为淡紫色气泡，助手为纯白/微深色卡片 */}
-                {(msg.content || msg.attachments?.length) ? <div
-                  className={`max-w-[92%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    msg.sender === 'user'
-                      ? 'bg-[#e8e5ff] text-[#2c246b] dark:bg-indigo-950/70 dark:text-indigo-200 font-medium shadow-2xs'
-                      : 'bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 text-slate-800 dark:text-zinc-200 shadow-2xs'
-                  }`}
-                >
-                  {renderMessageContent(msg)}
-
-                  {/* 消息附带的图片/多模态附件展示 */}
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {msg.attachments.map((att) => (
-                        <div
-                          key={att.id}
-                          className="relative overflow-hidden rounded-xl border border-slate-200/80 dark:border-zinc-700 bg-black/5"
-                        >
-                          <img src={att.dataUrl} alt={att.name} className="w-28 h-20 object-cover" />
-                          <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-[9px] text-white truncate">
-                            {att.name}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div> : null}
-
-                {/* 文件修改进度卡片群 */}
-                {msg.fileChanges && msg.fileChanges.length > 0 && (
-                  <div className="w-full mt-2 pl-2">
-                    {msg.fileChanges.map((fc) => (
-                      <FileChangeCard
-                        key={fc.id}
-                        item={fc}
-                        onInspect={handleInspectFile}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+                sender={msg.sender}
+                content={resolveMessageText(msg)}
+                attachments={msg.attachments}
+                fileChanges={msg.fileChanges}
+                onInspectFile={handleInspectFile}
+              />
             ))}
 
             {/* 需求澄清问卷卡片 */}
             {questionnaire && (
               <QuestionnaireCard
                 questions={questionnaire}
-                onSubmit={(answers) => {
-                  setQuestionnaire(null);
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      id: String(Date.now()),
-                      sender: 'user',
-                      content: `Submitted questionnaire answers (${Object.keys(answers).length} answered)`,
-                    },
-                  ]);
-                  // 问卷完成触发蓝图生成，蓝图包含设计方向、主色调与视觉资产清单
-                  setBlueprint({
-                    chatId: chatID.current || 1,
-                    appName: activeApp?.name || 'New App',
-                    designDirection: 'Clean modern card layout with high visual contrast',
-                    primaryColor: '#3b82f6',
-                    themeId: 'dark',
-                    visuals: [
-                      {
-                        id: 'brand-logo',
-                        type: 'logo',
-                        description: 'Application brand logo mark',
-                        prompt: 'geometric vector tech logo',
-                      },
-                      {
-                        id: 'hero-illustration',
-                        type: 'illustration',
-                        description: 'Modern 3D isometric hero illustration',
-                        prompt: 'isometric tech workflow illustration',
-                      },
-                    ],
-                    approved: false,
-                  });
-                }}
+                summary={clarificationSummary}
+                disabled={desktop && isGenerating}
+                onSubmit={handleSubmitClarification}
+                onSkip={handleSkipClarification}
               />
             )}
 
@@ -1411,18 +1548,18 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
                 <span>{t('chat.installedDeps')} {installedDependencies.join(', ')}</span>
               </div>
             )}
-
+            <div ref={chatScrollEndRef} />
           </div>
 
           {desktop && buildProgress && !isGenerating && !isChangingProject && (
             <div className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-2.5 text-xs dark:border-zinc-800 dark:bg-zinc-900">
-              <span>{buildProgress.completed} of {buildProgress.total} steps completed</span>
+              <span>{t('chat.stepsCompleted', { completed: buildProgress.completed, total: buildProgress.total })}</span>
               <button
                 type="button"
                 onClick={() => void runDesktopTurn('', [], 'build', { resume: true })}
                 className="rounded-lg bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
               >
-                Resume build
+                {t('chat.resumeBuild')}
               </button>
             </div>
           )}
@@ -1431,7 +1568,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
           {(activeTool || generationProgress || (desktop && isChangingProject)) && (
             <div role="status" data-testid="build-progress" className="mx-3 mb-2 flex items-center gap-2 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-950/40 p-2.5 text-xs text-blue-700 dark:text-blue-300">
               <span className="h-2 w-2 shrink-0 animate-ping rounded-full bg-blue-500" aria-hidden="true" />
-              <span className="min-w-0 break-all">{activeTool ? `${t('chat.executingTool')} ${activeTool}…` : generationProgress || 'Preparing the project…'}</span>
+              <span className="min-w-0 break-all">{activeTool ? `${t('chat.executingTool')} ${activeTool}…` : generationProgress || t('chat.preparingProject')}</span>
             </div>
           )}
 
@@ -1441,6 +1578,40 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               onSubmit={handleSendPrompt}
               className="rounded-2xl border border-slate-200 dark:border-zinc-700/80 bg-slate-50/50 dark:bg-zinc-800/40 p-2.5 shadow-2xs focus-within:border-blue-400 dark:focus-within:border-blue-500 focus-within:bg-white dark:focus-within:bg-zinc-800 transition-all"
             >
+              {/* 局部编辑上下文芯片：仅展示精简定位标签，隐藏大段源码 */}
+              {pendingLocalEdit && (
+                <div
+                  data-testid="local-edit-context-chip"
+                  className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-blue-200/80 bg-blue-50/80 px-2.5 py-1.5 text-[11px] text-blue-800 dark:border-blue-500/30 dark:bg-blue-950/50 dark:text-blue-200"
+                >
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Wand2 className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+                    <span className="font-semibold shrink-0">{t('chat.localEditTag')}</span>
+                    <span className="truncate font-mono text-[11px] text-slate-700 dark:text-zinc-200">
+                      {pendingLocalEdit.componentPath}
+                    </span>
+                    {pendingLocalEdit.tagName && (
+                      <span className="rounded bg-blue-100 px-1 py-0.2 font-mono text-[10px] dark:bg-blue-900/60">
+                        &lt;{pendingLocalEdit.tagName}&gt;
+                      </span>
+                    )}
+                    {pendingLocalEdit.lineRange && (
+                      <span className="rounded bg-white/80 px-1 py-0.2 font-mono text-[10px] text-slate-600 dark:bg-zinc-800 dark:text-zinc-300">
+                        {pendingLocalEdit.lineRange}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={t('localEdit.clearContext')}
+                    title={t('localEdit.clearContext')}
+                    onClick={() => setPendingLocalEdit(null)}
+                    className="rounded p-0.5 text-slate-400 hover:bg-blue-100 hover:text-slate-700 dark:hover:bg-blue-900/60 dark:hover:text-zinc-100"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
               {/* 已选附件缩略条 */}
               {attachments.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2 p-1.5 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
@@ -1576,7 +1747,20 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               }
               handleInspectFile(path);
             }
-            setInputPrompt(prompt);
+            const isStructuredLocalEdit =
+              prompt.includes('[Target Component:') || /^@\[[^\]]+\]\s*Local Edit:/m.test(prompt);
+            if (isStructuredLocalEdit) {
+              const draft = extractLocalEditDraft(prompt, path);
+              if (draft) {
+                setPendingLocalEdit(draft);
+                setInputPrompt(draft.instruction);
+              } else {
+                setInputPrompt(prompt);
+              }
+            } else {
+              setPendingLocalEdit(null);
+              setInputPrompt(prompt);
+            }
             setActiveDockTab('builder');
             setIsInspectMode(false);
           }}

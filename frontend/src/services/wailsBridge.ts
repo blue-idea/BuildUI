@@ -22,9 +22,26 @@ export interface BuildProgress {
   total: number;
 }
 
+export interface ClarificationQuestion {
+  id: string;
+  category?: string;
+  question: string;
+  type: 'single_choice' | 'multi_choice' | 'text';
+  options?: string[];
+  allowCustom?: boolean;
+  placeholder?: string;
+}
+
+export interface ClarificationPayload {
+  chatId?: number;
+  summary?: string;
+  questions: ClarificationQuestion[];
+}
+
 interface ProjectChat {
   chatId: number;
   blueprint: BlueprintDTO | null;
+  clarification?: ClarificationPayload | null;
   messages: Array<{ id: number; role: 'user' | 'assistant'; content: string }> | null;
   buildProgress?: BuildProgress;
 }
@@ -40,7 +57,18 @@ interface DesktopMethods {
   GetProjectChat: (id: number) => Promise<ProjectChat>;
   CreateProjectChat: (id: number) => Promise<ProjectChat>;
   ApproveBlueprint: (chatId: number) => Promise<void>;
-  StreamChat: (req: { chatId: number; prompt: string; mode: 'build' | 'plan'; attachments: string[]; provider?: string; model?: string; resume?: boolean; pluginAutomation?: PluginAutomation }) => Promise<void>;
+  StreamChat: (req: {
+    chatId: number;
+    prompt: string;
+    mode: 'build' | 'plan';
+    stage?: 'clarify' | 'blueprint';
+    locale?: 'en' | 'zh';
+    attachments: string[];
+    provider?: string;
+    model?: string;
+    resume?: boolean;
+    pluginAutomation?: PluginAutomation;
+  }) => Promise<void>;
   ListProviderModels?: (provider: string, baseURL: string, apiKey: string) => Promise<string[]>;
   CancelChat: (chatId: number) => Promise<void>;
   RunApp: (req: { appId: number; restart?: boolean }) => Promise<{ previewUrl: string; typeScriptChecked?: boolean; repairAttempts?: number }>;
@@ -153,6 +181,7 @@ export interface ProblemsResponse {
 export interface ChatEventHandlers {
   onProgress?: (data: { chatId: number; message: string }) => void;
   onChunk?: (data: { chatId: number; chunk: string }) => void;
+  onClarification?: (data: ClarificationPayload) => void;
   onToolStart?: (data: { chatId: number; tool: string; path?: string }) => void;
   onToolEnd?: (data: { chatId: number; tool: string; success: boolean }) => void;
   onError?: (data: { chatId: number; kind: string; message: string }) => void;
@@ -416,6 +445,9 @@ export function subscribeChatEvents(handlers: ChatEventHandlers): () => void {
     }
     if (handlers.onChunk) {
       cleanups.push(eventsOn('chat:chunk', (data: any) => handlers.onChunk?.(data)));
+    }
+    if (handlers.onClarification) {
+      cleanups.push(eventsOn('chat:clarification', (data: any) => handlers.onClarification?.(data)));
     }
     if (handlers.onToolStart) {
       cleanups.push(eventsOn('chat:tool-start', (data: any) => handlers.onToolStart?.(data)));

@@ -143,25 +143,54 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	}
 
 	assembler := NewPromptAssembler()
+	history, err := s.messageRepo.ListByChatID(ctx, req.ChatID)
+	if err != nil {
+		return err
+	}
+	chatHistory := make([]llm.ChatMessage, 0, len(history))
+	for _, msg := range history {
+		chatHistory = append(chatHistory, llm.ChatMessage{Role: msg.Role, Content: msg.Content})
+	}
+
+	isClarify := req.Stage == config.ChatStageClarify && (bp == nil || !bp.Approved)
+	langDirective := llmLanguageDirective(req.Locale)
+	stackContext := projectStackContext(app.Path)
+
 	system := BlueprintPrompt
 	switch {
+	case isClarify:
+		system = buildClarificationPrompt(req.Locale, hasDesignSystemPrompt(req.Prompt, chatHistory), stackContext)
 	case bp == nil || !bp.Approved:
-		if stack := projectStackContext(app.Path); stack != "" {
+		if stackContext != "" {
 			if workspace.UsesExpo(app.Path) {
 				system = nativeBlueprintPrompt
 			}
-			system += stack
+			system += stackContext
+		}
+		system += "\nSynthesize the user's original requirements (including any [Design System Style Prompt] palette/style specification) together with their clarification answers into a cohesive blueprint."
+		if langDirective != "" {
+			system += "\n" + langDirective
 		}
 	case req.Mode == "plan":
-		system = "Discuss the user's project and describe a plan. Do not emit file-writing markup or change any files." + projectStackContext(app.Path)
+		system = "Discuss the user's project and describe a plan. Do not emit file-writing markup or change any files." + stackContext
+		if langDirective != "" {
+			system += "\n" + langDirective
+		}
 	default:
 		system = assembler.assembleProjectSystemPrompt(app.Path) + "\nDo not use Markdown fences around tool output. For an app implementation, emit complete files with dyad-write. Use the language of the user's request for the interface and explanations."
+		if langDirective != "" {
+			system += "\n" + langDirective
+		}
 	}
 	tree, err := ScanWorkspaceTree(app.Path)
 	if err != nil {
 		return err
 	}
-	project := PromptContext{AppName: app.Name, WorkspaceTree: tree}
+	project := PromptContext{
+		AppName:            app.Name,
+		WorkspaceTree:      tree,
+		DesignSystemPrompt: extractDesignSystemPrompt(req.Prompt, chatHistory),
+	}
 	if bp != nil {
 		project.DesignDirection = bp.DesignDirection
 		project.PrimaryColor = bp.PrimaryColor
@@ -175,18 +204,15 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 		system += sourceContext(app.Path, req.Prompt)
 	}
 
-	history, err := s.messageRepo.ListByChatID(ctx, req.ChatID)
-	if err != nil {
-		return err
-	}
 	messages := []llm.ChatMessage{{Role: "system", Content: system}}
-	for _, msg := range history {
-		messages = append(messages, llm.ChatMessage{Role: msg.Role, Content: msg.Content})
-	}
+	messages = append(messages, chatHistory...)
 	messages = append(messages, llm.ChatMessage{Role: "user", Content: req.Prompt, Images: req.Attachments})
 	request := llm.ChatRequest{Model: model, Messages: messages, Temperature: 0.2, MaxTokens: config.ModelBlueprintMaxTokens}
-	closePluginTools := s.attachPluginTools(ctx, app.ID, req.ChatID, app.Path, automation, &request)
+	closePluginTools := s.attachPluginTools(ctx, app.ID, req.ChatID, app.Path, req.Locale, automation, &request)
 	defer closePluginTools()
+	if isClarify {
+		return s.streamClarification(ctx, req, model, client, request)
+	}
 	supportsThinking := config.SupportsDeepSeekThinking(model)
 	if bp != nil && bp.Approved && req.Mode != "plan" {
 		unlock, err := s.lockProjectBuild(app.ID)
@@ -203,9 +229,9 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 
 	drafting := bp == nil || !bp.Approved
 	if drafting {
-		s.emitProgress(req.ChatID, "Waiting for the model to generate a blueprint…")
+		s.emitProgress(req.ChatID, localizedProgress(req.Locale, "blueprint_wait"))
 	} else {
-		s.emitProgress(req.ChatID, "Waiting for the model to respond…")
+		s.emitProgress(req.ChatID, localizedProgress(req.Locale, "model_wait"))
 	}
 	var reply strings.Builder
 	receive := func(chunk string) error {
@@ -218,7 +244,7 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 	err = streamModelResponse(ctx, client, request, receive)
 	if drafting && errors.Is(err, llm.ErrOutputLimit) {
 		reply.Reset()
-		s.emitProgress(req.ChatID, "The blueprint reached the model's output limit. Retrying with a shorter blueprint…")
+		s.emitProgress(req.ChatID, localizedProgress(req.Locale, "blueprint_retry"))
 		request.DisableThinking = supportsThinking
 		request.Messages[len(request.Messages)-1].Content += "\nReturn concise valid blueprint JSON with one short sentence per field and at most three visuals."
 		err = streamModelResponse(ctx, client, request, receive)
@@ -240,6 +266,7 @@ func (s *ChatService) streamModel(ctx context.Context, req StreamChatRequest) er
 		if err := s.bpService.SaveBlueprint(ctx, draft); err != nil {
 			return err
 		}
+		_ = s.messageRepo.DeleteClarification(ctx, req.ChatID)
 		display = draft.DesignDirection
 	}
 	if err := s.saveTurn(ctx, req, model, display); err != nil {
@@ -267,9 +294,9 @@ func streamModelResponse(ctx context.Context, client *llm.OpenAIClient, request 
 }
 
 func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, appID int64, root string, client *llm.OpenAIClient, request llm.ChatRequest) error {
-	s.emitProgress(req.ChatID, "Waiting for the model to generate code…")
+	s.emitProgress(req.ChatID, localizedProgress(req.Locale, "code_wait"))
 	var display strings.Builder
-	changed, err := s.streamBuildStep(ctx, req.ChatID, root, client, request, nil, func(text string) { display.WriteString(text) }, nil)
+	changed, err := s.streamBuildStepLocalized(ctx, req.ChatID, req.Locale, root, client, request, nil, func(text string) { display.WriteString(text) }, nil)
 	if err != nil {
 		return err
 	}
@@ -282,6 +309,10 @@ func (s *ChatService) streamBuild(ctx context.Context, req StreamChatRequest, ap
 }
 
 func (s *ChatService) streamBuildStep(ctx context.Context, chatID int64, root string, client *llm.OpenAIClient, request llm.ChatRequest, expectedFiles []string, onText func(string), onChange func(string) error) (bool, error) {
+	return s.streamBuildStepLocalized(ctx, chatID, "", root, client, request, expectedFiles, onText, onChange)
+}
+
+func (s *ChatService) streamBuildStepLocalized(ctx context.Context, chatID int64, locale, root string, client *llm.OpenAIClient, request llm.ChatRequest, expectedFiles []string, onText func(string), onChange func(string) error) (bool, error) {
 	lastMessage := &request.Messages[len(request.Messages)-1]
 	prompt := lastMessage.Content
 	completed, pendingFiles := make(map[string]bool), make(map[string]bool)
@@ -333,13 +364,13 @@ func (s *ChatService) streamBuildStep(ctx context.Context, chatID int64, root st
 		if continuation >= config.ModelBuildContinuations {
 			return changed, errs.NewExternalError("The build could not finish after automatic continuation. Completed files were retained. Ask the model to finish the remaining work in smaller changes.", err)
 		}
-		progress := "Continuing generation to complete unfinished tools"
+		progressKey := "continue_unfinished"
 		reason := "Previous response ended with unfinished tool calls."
 		if hitOutputLimit {
-			progress = "Continuing generation after the model's output limit"
+			progressKey = "continue_output_limit"
 			reason = "Previous response reached the output limit."
 		}
-		s.emitProgress(chatID, fmt.Sprintf("%s (%d/%d)…", progress, continuation+1, config.ModelBuildContinuations))
+		s.emitProgress(chatID, localizedProgress(locale, progressKey, continuation+1, config.ModelBuildContinuations))
 		// 每次续写从完整工具标签开始，避免把被截断的正文拼接进文件或会话。
 		written := slices.Sorted(maps.Keys(completed))
 		lastMessage.Content = fmt.Sprintf("%s\n\n%s Continue the original request. Files already written in this turn: %q. Files to rewrite in full first: %q. Dependencies to finish: %q. Tools to re-emit in full if the target was lost: %q. Skip completed files unless needed for consistency. Use complete tool tags, including their closing tags. Keep each file small and prose brief.",
@@ -354,7 +385,7 @@ func (s *ChatService) finalizeModelBuild(ctx context.Context, req StreamChatRequ
 			changed = true
 		}
 	}
-	s.emitProgress(req.ChatID, "Saving generated changes…")
+	s.emitProgress(req.ChatID, localizedProgress(req.Locale, "saving_changes"))
 	commitHash := s.commitBuild(ctx, req.ChatID, root, changed)
 	if err := ctx.Err(); err != nil {
 		return err

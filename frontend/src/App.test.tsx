@@ -476,8 +476,8 @@ describe('App Main Split Layout & Workflow', () => {
     const submitBtn = screen.getByRole('button', { name: /submit answers/i });
     fireEvent.click(submitBtn);
 
-    // 3. 验证问卷提交后展示应用蓝图（含设计方向、主色调、视觉清单）
-    expect(screen.getByText(/Submitted questionnaire answers/i)).toBeDefined();
+    // 3. 验证问卷提交后展示美化后的澄清偏好摘要与待审批应用蓝图
+    expect(screen.getByText(/Clarification Preferences Confirmed/i)).toBeDefined();
     expect(screen.getByText('Pending Approval')).toBeDefined();
     expect(screen.getByText(/Clean modern card layout with high visual contrast/i)).toBeDefined();
     expect(screen.getByText('brand-logo')).toBeDefined();
@@ -608,11 +608,13 @@ describe('App Main Split Layout & Workflow', () => {
     // 提交局部编辑
     fireEvent.click(screen.getByRole('button', { name: /Apply Edit/i }));
 
-    // 验证审查浮层关闭，Chat 输入框填入了结构化定向指令
+    // 验证审查浮层关闭，输入框仅保留修改指令，定位芯片展示组件路径（不暴露大段代码）
     expect(screen.queryByTestId('local-edit-popover')).toBeNull();
+    const chip = screen.getByTestId('local-edit-context-chip');
+    expect(chip.textContent).toContain('RecipeCard.tsx');
     const chatInput = screen.getByPlaceholderText(/describe what to build/i) as HTMLTextAreaElement;
-    expect(chatInput.value).toContain('Local Edit:');
-    expect(chatInput.value).toContain('RecipeCard.tsx');
+    expect(chatInput.value).toContain('Change background color');
+    expect(chatInput.value).not.toContain('Original Code Snippet');
   });
 
   it('审查模式点选元素后展示局部编辑模式状态与控制器', () => {
@@ -979,8 +981,9 @@ describe('App Main Split Layout & Workflow', () => {
     fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: 'Build an issue tracking workspace' } });
     fireEvent.click(screen.getByTestId('guide-submit-btn'));
 
-    const message = await screen.findByText(/Core Goal: Build an issue tracking workspace/i);
-    expect(message.textContent).not.toMatch(/Design System & Palette|\[Design System Style Prompt\]/i);
+    const message = await screen.findByText('Build an issue tracking workspace');
+    expect(message).toBeDefined();
+    expect(screen.queryByText(/View style prompt/i)).toBeNull();
   });
 
   it('首页设计系统预设动态包含风格页可用模版并在生成时注入风格prompt', async () => {
@@ -1020,16 +1023,191 @@ describe('App Main Split Layout & Workflow', () => {
       const startBtn = screen.getByTestId('guide-submit-btn');
       fireEvent.click(startBtn);
 
-      // 进入构建区后，验证 Chat 中注入了包含 Design System Style Prompt 的提示词
+      // 进入构建区后，左侧干净展示核心需求与设计系统徽章，并可展开验证风格 Prompt 注入未丢失
       await waitFor(() => {
-        const chatInput = screen.getByPlaceholderText(/describe what to build/i) as HTMLTextAreaElement;
-        expect(chatInput).toBeDefined();
+        expect(screen.getByText('Build a futuristic crypto dashboard')).toBeDefined();
       });
-      // 检查最新消息列表中包含该 prompt
-      expect(screen.getByText(/Design System Style Prompt/i)).toBeDefined();
       expect(screen.getAllByText(/Custom Cyber Glow/i).length).toBeGreaterThanOrEqual(1);
+      fireEvent.click(screen.getByRole('button', { name: /View style prompt/i }));
+      expect(screen.getByText(/Design System & Visual Language Specification: Custom Cyber Glow/i)).toBeDefined();
     } finally {
       localStorage.removeItem('blot_style_templates');
+    }
+  });
+
+  it('桌面端全流程：首页先触发大模型需求澄清选项卡片，再生成蓝图，且保持中文语言与设计系统/插件透传', async () => {
+    localStorage.setItem('blot_locale', 'zh');
+    const handlers = new Map<string, (data: unknown) => void>();
+    vi.stubGlobal('runtime', {
+      EventsOn: (event: string, listener: (data: unknown) => void) => {
+        handlers.set(event, listener);
+        return () => handlers.delete(event);
+      },
+    });
+    const streamChat = vi.fn().mockImplementation(async (req: { stage?: string }) => {
+      if (req.stage === 'clarify') {
+        handlers.get('chat:clarification')?.({
+          chatId: 77,
+          summary: '请先选择核心功能与配色方向：',
+          questions: [
+            {
+              id: 'q1',
+              category: 'features',
+              question: '需要包含哪些模块？',
+              type: 'multi_choice',
+              options: ['节目单', '在线播放器'],
+              allowCustom: true,
+            },
+          ],
+        });
+      } else if (req.stage === 'blueprint') {
+        handlers.get('app-blueprint:update')?.({
+          chatId: 77,
+          appName: 'Podcast Studio',
+          designDirection: '赛博霓虹播客站，包含节目单与播放器',
+          primaryColor: '#00ffcc',
+          themeId: 'cyberpunk-neon',
+          visuals: [],
+          approved: false,
+        });
+      }
+    });
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: vi.fn().mockResolvedValue({}),
+          ListApps: vi.fn().mockResolvedValue([]),
+          ListPlugins: vi.fn().mockResolvedValue([{ id: 15, name: 'Lucide', enabled: true }]),
+          CreateApp: vi.fn().mockResolvedValue({ appId: 55, name: 'Podcast', path: '/podcast' }),
+          SwitchApp: vi.fn().mockResolvedValue({ appId: 55, name: 'Podcast', path: '/podcast' }),
+          GetProjectChat: vi.fn().mockResolvedValue({ chatId: 77, messages: [] }),
+          GetVersions: vi.fn().mockResolvedValue([]),
+          ListProjectFiles: vi.fn().mockResolvedValue(['src/App.tsx']),
+          StreamChat: streamChat,
+          ApproveBlueprint: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+    });
+
+    try {
+      render(<App initialDockTab="home" />);
+
+      // 选择设计系统预设与启用插件自动化
+      fireEvent.click(screen.getByTestId('guide-style-btn'));
+      fireEvent.click(screen.getByTestId('preset-benchmark-linear'));
+      fireEvent.click(screen.getByRole('switch', { name: /自动调用插件/i }));
+      fireEvent.click(await screen.findByRole('checkbox', { name: 'Lucide' }));
+
+      fireEvent.change(screen.getByTestId('guide-user-input'), { target: { value: '构建一个播客网站' } });
+      fireEvent.click(screen.getByTestId('guide-submit-btn'));
+
+      // 1. 首轮调用澄清阶段，携带 locale: zh、设计系统预设、插件自动化
+      await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(1));
+      expect(streamChat.mock.calls[0][0]).toMatchObject({
+        chatId: 77,
+        stage: 'clarify',
+        locale: 'zh',
+        pluginAutomation: { enabled: true, pluginIds: [15] },
+      });
+      expect(streamChat.mock.calls[0][0].prompt).toContain('[Design System Style Prompt]');
+
+      // 2. 展示中文澄清选项卡片，选择后提交生成蓝图
+      expect(await screen.findByText('需求与设计澄清')).toBeDefined();
+      fireEvent.click(screen.getByText('节目单'));
+      fireEvent.click(screen.getByTestId('questionnaire-submit-btn'));
+
+      await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(2));
+      expect(streamChat.mock.calls[1][0]).toMatchObject({
+        chatId: 77,
+        stage: 'blueprint',
+        locale: 'zh',
+      });
+      expect(streamChat.mock.calls[1][0].prompt).toContain('节目单');
+
+      // 3. 展示待审批蓝图卡片
+      expect(await screen.findByText('赛博霓虹播客站，包含节目单与播放器')).toBeDefined();
+    } finally {
+      localStorage.removeItem('blot_locale');
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('局部编辑提交时左侧气泡与输入框均不展示大段源码，但发给后端的 StreamChat 保留完整源码片段', async () => {
+    const project = { appId: 66, name: 'Shop', path: '/shop', blueprintApproved: true, previewUrl: 'http://localhost:5173' };
+    const streamChat = vi.fn().mockResolvedValue(undefined);
+    const readFile = vi.fn().mockResolvedValue(
+      `export function Hero() {\n  return (\n    <button className="px-4 py-2 bg-blue-600">\n      <span>Buy Now</span>\n    </button>\n  );\n}`
+    );
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: vi.fn().mockResolvedValue({}),
+          ListApps: vi.fn().mockResolvedValue([{ id: 66, name: project.name, path: project.path }]),
+          GetActiveApp: vi.fn().mockResolvedValue(project),
+          SwitchApp: vi.fn().mockResolvedValue(project),
+          GetProjectChat: vi.fn().mockResolvedValue({
+            chatId: 88,
+            blueprint: { chatId: 88, appName: 'Shop', designDirection: 'Clean', primaryColor: '#2563eb', themeId: 'clean-light', visuals: [], approved: true },
+            messages: [],
+          }),
+          GetVersions: vi.fn().mockResolvedValue([]),
+          ListProjectFiles: vi.fn().mockResolvedValue(['src/components/Hero.tsx']),
+          ReadProjectFile: readFile,
+          RunApp: vi.fn().mockResolvedValue({ previewUrl: 'http://localhost:5173' }),
+          StreamChat: streamChat,
+        },
+      },
+    });
+
+    try {
+      render(<App initialDockTab="builder" />);
+      await waitFor(() => expect(screen.getByTestId('project-tab').textContent).toContain('Shop'));
+
+      // 触发组件审查并模拟 postMessage 选中含大段源码的按钮
+      fireEvent.click(screen.getByRole('button', { name: /toggle component inspector/i }));
+      await act(async () => {
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            origin: 'http://localhost:5173',
+            data: {
+              type: 'buildui:element-selected',
+              element: {
+                id: 'hero-btn',
+                tagName: 'button',
+                componentPath: 'src/components/Hero.tsx',
+                line: 3,
+                className: 'px-4 py-2 bg-blue-600',
+                textSnippet: 'Buy Now',
+              },
+            },
+          })
+        );
+      });
+
+      const popover = await screen.findByTestId('local-edit-popover');
+      fireEvent.change(within(popover).getByPlaceholderText(/Describe what to change/i), {
+        target: { value: 'Change button to emerald gradient' },
+      });
+      fireEvent.click(within(popover).getByRole('button', { name: /Apply Edit/i }));
+
+      // 输入框仅显示干净修改指令，定位芯片显示组件与行号
+      const chip = await screen.findByTestId('local-edit-context-chip');
+      expect(chip.textContent).toContain('Hero.tsx');
+      const chatInput = screen.getByPlaceholderText(/describe what to build/i) as HTMLTextAreaElement;
+      expect(chatInput.value).toBe('Change button to emerald gradient');
+      expect(chatInput.value).not.toContain('Buy Now');
+
+      // 发送后，左侧消息气泡不渲染大段代码，但后端收到完整 [Original Code Snippet]
+      fireEvent.click(screen.getByRole('button', { name: /send prompt/i }));
+      await waitFor(() => expect(streamChat).toHaveBeenCalledTimes(1));
+      expect(streamChat.mock.calls[0][0].prompt).toContain('[Original Code Snippet:');
+      expect(streamChat.mock.calls[0][0].prompt).toContain('<span>Buy Now</span>');
+      expect(screen.queryByText(/Original Code Snippet/i)).toBeNull();
+      expect(screen.getByText('Change button to emerald gradient')).toBeDefined();
+      await waitFor(() => expect(readFile).toHaveBeenCalled());
+      await act(async () => {});
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });

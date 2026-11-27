@@ -77,6 +77,13 @@ CREATE TABLE IF NOT EXISTS build_checkpoints (
     state_json TEXT NOT NULL
 );
 
+-- 8. 蓝图前置需求澄清问卷缓存，随所属对话一起删除
+CREATE TABLE IF NOT EXISTS chat_clarifications (
+    chat_id INTEGER PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE,
+    payload_json TEXT NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+
 -- 辅助索引
 CREATE TABLE IF NOT EXISTS mcp_plugins (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

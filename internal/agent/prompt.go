@@ -18,12 +18,13 @@ type HistoryMessage struct {
 
 // PromptContext 包含注入给大模型的上下文元数据
 type PromptContext struct {
-	AppName         string
-	DesignDirection string
-	PrimaryColor    string
-	Visuals         []string
-	WorkspaceTree   string
-	HistoryMessages []HistoryMessage
+	AppName            string
+	DesignDirection    string
+	PrimaryColor       string
+	DesignSystemPrompt string
+	Visuals            []string
+	WorkspaceTree      string
+	HistoryMessages    []HistoryMessage
 }
 
 // ScanWorkspaceTree 扫描工作区目录结构，排除 node_modules, .git 等非必要文件
@@ -148,6 +149,11 @@ func (p *PromptAssembler) AssembleContextPrompt(ctx PromptContext) string {
 	sb.WriteString(fmt.Sprintf("App Name: %s\n", ctx.AppName))
 	sb.WriteString(fmt.Sprintf("Design Direction: %s\n", ctx.DesignDirection))
 	sb.WriteString(fmt.Sprintf("Primary Color: %s\n", ctx.PrimaryColor))
+	if strings.TrimSpace(ctx.DesignSystemPrompt) != "" {
+		sb.WriteString("[Design System Style Prompt]\n")
+		sb.WriteString(strings.TrimSpace(ctx.DesignSystemPrompt))
+		sb.WriteString("\n")
+	}
 	if len(ctx.Visuals) > 0 {
 		sb.WriteString("Visuals Guidelines:\n")
 		for _, v := range ctx.Visuals {

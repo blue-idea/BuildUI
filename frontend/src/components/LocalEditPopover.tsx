@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { InspectedElement } from '../types/inspect';
-import { DEFAULT_QUICK_ACTIONS, formatTargetedPrompt } from '../utils/targetedPrompt';
+import { formatTargetedPrompt, getLocalizedQuickActions } from '../utils/targetedPrompt';
+import { useI18n } from '../i18n/I18nContext';
 import { Wand2, X, Sparkles, CornerDownLeft, Code2, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 
 export interface LocalEditPopoverProps {
@@ -16,6 +17,8 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
   onSubmit,
   onJumpToCode,
 }) => {
+  const { locale, t } = useI18n();
+  const quickActions = getLocalizedQuickActions(locale);
   const [instruction, setInstruction] = useState('');
   const [showSnippet, setShowSnippet] = useState(false);
 
@@ -89,7 +92,7 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
               title="Open in Code View"
             >
               <Code2 className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-              <span>Jump to Code</span>
+              <span>{t('localEdit.jumpToCode')}</span>
             </button>
           )}
           <button
@@ -108,7 +111,7 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium text-slate-600 dark:text-zinc-300 flex items-center gap-1.5">
               <Code2 className="w-3.5 h-3.5 text-blue-500" />
-              <span>Target Code Region</span>
+              <span>{t('localEdit.targetCodeRegion')}</span>
             </span>
             <button
               type="button"
@@ -117,12 +120,12 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
             >
               {showSnippet ? (
                 <>
-                  <span>Hide Code</span>
+                  <span>{t('localEdit.hideCode')}</span>
                   <ChevronUp className="w-3 h-3" />
                 </>
               ) : (
                 <>
-                  <span>View Code</span>
+                  <span>{t('localEdit.viewCode')}</span>
                   <ChevronDown className="w-3 h-3" />
                 </>
               )}
@@ -145,7 +148,7 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
           <div className="flex items-center justify-between pb-2 text-[10px] font-semibold text-slate-500 dark:text-zinc-400">
             <span className="flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-blue-500" />
-              <span>Box Model (盒模型)</span>
+              <span>{t('localEdit.boxModel')}</span>
             </span>
             <span className="text-slate-400">Chrome DevTools Style</span>
           </div>
@@ -241,9 +244,9 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
       <div className="py-3 flex flex-wrap gap-1.5 items-center">
         <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 mr-1 flex items-center gap-1">
           <Sparkles className="w-3 h-3 text-amber-500" />
-          Quick:
+          {t('localEdit.quickLabel')}
         </span>
-        {DEFAULT_QUICK_ACTIONS.map((action) => (
+        {quickActions.map((action) => (
           <button
             key={action.id}
             type="button"
@@ -269,7 +272,7 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
                 handleSubmit();
               }
             }}
-            placeholder="Describe what to change for this specific element (e.g. Change color, add icon, make rounded)..."
+            placeholder={t('localEdit.placeholder')}
             className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-800/80 text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none transition-all"
           />
           <span className="absolute right-2.5 bottom-2.5 text-[10px] text-slate-400 dark:text-zinc-500 select-none">
@@ -283,7 +286,7 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
             onClick={onCancel}
             className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
           >
-            Cancel (Esc)
+            {t('localEdit.cancelEsc')}
           </button>
 
           <button
@@ -291,7 +294,7 @@ export const LocalEditPopover: React.FC<LocalEditPopoverProps> = ({
             disabled={!instruction.trim()}
             className="px-4 py-1.5 text-xs font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            <span>Apply Edit</span>
+            <span>{t('localEdit.applyEdit')}</span>
             <CornerDownLeft className="w-3 h-3" />
           </button>
         </div>
