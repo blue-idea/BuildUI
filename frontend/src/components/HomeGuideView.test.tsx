@@ -530,4 +530,22 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
     expect(centerContainer.className).toContain('items-center');
     expect(centerContainer.className).toContain('mx-auto');
   });
+
+  it('keeps design system preset popover above the hero title with a valid opaque surface', () => {
+    renderWithProviders(<HomeGuideView onStartBuilding={vi.fn()} />);
+
+    const titleWrap = screen.getByTestId('home-title-wrap');
+    const composerOuter = screen.getByTestId('home-composer-card').parentElement;
+    expect(titleWrap.className).toContain('z-0');
+    expect(composerOuter?.className).toContain('z-20');
+
+    // 打开设计系统预设菜单
+    fireEvent.click(screen.getByTestId('guide-style-btn'));
+    const popover = screen.getByRole('dialog', { name: 'Design Presets' });
+
+    // 弹层必须处于上层且使用 Tailwind v3 有效的高不透明度背景，避免被标题文字遮挡或透底
+    expect(popover.className).toContain('z-50');
+    expect(popover.className).not.toContain('bg-white/92');
+    expect(popover.className).toMatch(/\bbg-white(\/95)?\b/);
+  });
 });

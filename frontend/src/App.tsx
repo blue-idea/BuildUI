@@ -258,6 +258,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isInspectMode, setIsInspectMode] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportTargetAppId, setExportTargetAppId] = useState<number | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>(desktop ? [] : [
     {
@@ -1398,6 +1399,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             onRenameApp={(id, newName) => {
               setApps((prev) => prev.map((a) => (a.id === id ? { ...a, name: newName } : a)));
             }}
+            onExportProject={(app) => {
+              setExportTargetAppId(app.id);
+              setIsExportOpen(true);
+            }}
             onOpenInFileManager={desktop ? (path) => desktopApp().OpenInFileManager(path) : openInFileManager}
           />
         ) : activeDockTab === 'templates' ? (
@@ -1889,13 +1894,30 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
         }}
       />
 
-      <ExportModal
-        isOpen={isExportOpen}
-        onClose={() => setIsExportOpen(false)}
-        appName={activeApp?.name ?? 'No project selected'}
-        onExportZip={() => desktop ? desktopApp().ExportAppZip(activeAppId, '') : exportAppZip(activeAppId)}
-        onRevealInFileManager={desktop ? (path) => desktopApp().OpenInFileManager(path) : openInFileManager}
-      />
+      {(() => {
+        const exportTargetApp =
+          exportTargetAppId != null
+            ? apps.find((a) => a.id === exportTargetAppId) ?? activeApp
+            : activeApp;
+        const targetId = exportTargetApp?.id ?? activeAppId;
+        return (
+          <ExportModal
+            key={`export-modal-${targetId || 'none'}`}
+            isOpen={isExportOpen}
+            onClose={() => {
+              setIsExportOpen(false);
+              setExportTargetAppId(null);
+            }}
+            appName={exportTargetApp?.name ?? 'No project selected'}
+            onExportZip={() =>
+              desktop ? desktopApp().ExportAppZip(targetId, '') : exportAppZip(targetId)
+            }
+            onRevealInFileManager={
+              desktop ? (path) => desktopApp().OpenInFileManager(path) : openInFileManager
+            }
+          />
+        );
+      })()}
 
       <CommandPalette
         isOpen={isCommandPaletteOpen}

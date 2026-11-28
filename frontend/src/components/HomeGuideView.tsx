@@ -29,7 +29,7 @@ import type { ThemePreset } from './ThemeSelector';
 
 export type AppCategory = ProjectPlatform;
 
-const presetPopoverClass = 'absolute bottom-11 right-0 z-30 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-2xl border border-slate-200/85 bg-white/92 backdrop-blur-2xl p-4 text-left shadow-2xl dark:border-zinc-700/75 dark:bg-zinc-900/90';
+const presetPopoverClass = 'absolute bottom-11 right-0 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 text-left shadow-xl dark:border-zinc-700/80 dark:bg-zinc-900';
 const presetRowClass = (selected: boolean) => `flex cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs transition-colors ${selected
   ? 'bg-blue-50/90 font-medium text-blue-600 dark:bg-blue-950/45 dark:text-blue-400'
   : 'text-slate-800 hover:bg-slate-100/80 dark:text-zinc-200 dark:hover:bg-zinc-800/80'
@@ -503,7 +503,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
       >
         <div
           data-testid="home-title-wrap"
-          className="home-fade-up relative flex flex-col items-center px-2 text-center bg-transparent"
+          className="home-fade-up relative z-0 flex flex-col items-center px-2 text-center bg-transparent"
         >
           {/* 穹顶倾泻的圣光光束（纯装饰透明投影，柔和照耀口号） */}
           <div
@@ -517,7 +517,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
         </div>
 
         {/* 核心 AI 输入卡片（居中双模液态毛玻璃 + 聚焦柔光轮廓） */}
-        <div className="home-fade-up-delay group/composer relative mx-auto w-full rounded-[28px] p-[1px] bg-gradient-to-b from-white/90 via-slate-200/80 to-blue-200/55 dark:from-zinc-700/65 dark:via-zinc-800/75 dark:to-blue-500/25 shadow-[0_24px_60px_-24px_rgba(15,23,42,0.16)] dark:shadow-[0_28px_72px_-24px_rgba(0,0,0,0.75)] transition-all duration-300 focus-within:from-blue-400/70 focus-within:via-sky-300/60 focus-within:to-blue-500/60 dark:focus-within:from-blue-500/65 dark:focus-within:via-sky-400/45 dark:focus-within:to-blue-600/55 focus-within:shadow-[0_28px_70px_-20px_rgba(37,99,235,0.22)] dark:focus-within:shadow-[0_30px_80px_-20px_rgba(37,99,235,0.32)]">
+        <div className="home-fade-up-delay group/composer relative z-20 mx-auto w-full rounded-[28px] p-[1px] bg-gradient-to-b from-white/90 via-slate-200/80 to-blue-200/55 dark:from-zinc-700/65 dark:via-zinc-800/75 dark:to-blue-500/25 shadow-[0_24px_60px_-24px_rgba(15,23,42,0.16)] dark:shadow-[0_28px_72px_-24px_rgba(0,0,0,0.75)] transition-all duration-300 focus-within:from-blue-400/70 focus-within:via-sky-300/60 focus-within:to-blue-500/60 dark:focus-within:from-blue-500/65 dark:focus-within:via-sky-400/45 dark:focus-within:to-blue-600/55 focus-within:shadow-[0_28px_70px_-20px_rgba(37,99,235,0.22)] dark:focus-within:shadow-[0_30px_80px_-20px_rgba(37,99,235,0.32)]">
           <div
             data-testid="home-composer-card"
             className="relative w-full rounded-[27px] bg-white/75 dark:bg-zinc-900/75 backdrop-blur-2xl p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-300 focus-within:bg-white/90 dark:focus-within:bg-zinc-900/88"

@@ -77,6 +77,8 @@ export const en: I18nDictionary = {
     newProject: 'New Project',
     activeBadge: 'Active',
     openProject: 'Open Project',
+    exportProject: 'Export',
+    previewAlt: '{name} preview screenshot',
     revealInFinder: 'Reveal in Folder',
     deleteProject: 'Delete',
     deleteConfirm: 'Are you sure you want to delete this project?',

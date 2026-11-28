@@ -77,6 +77,8 @@ export interface I18nDictionary {
     newProject: string;
     activeBadge: string;
     openProject: string;
+    exportProject: string;
+    previewAlt: string;
     revealInFinder: string;
     deleteProject: string;
     deleteConfirm: string;

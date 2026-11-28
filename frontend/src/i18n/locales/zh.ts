@@ -77,6 +77,8 @@ export const zh: I18nDictionary = {
     newProject: '新建工程',
     activeBadge: '当前激活',
     openProject: '打开工程',
+    exportProject: '导出',
+    previewAlt: '{name} 预览截图',
     revealInFinder: '打开目录',
     deleteProject: '删除',
     deleteConfirm: '确定要删除此工程吗？',

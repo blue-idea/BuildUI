@@ -9,6 +9,7 @@ export interface AppItem {
   path: string;
   createdAt?: string;
   platform?: ProjectPlatform;
+  thumbnailUrl?: string;
 }
 
 /** 智能推断工程所属平台，未指定时默认安全 fallback 到 web */
