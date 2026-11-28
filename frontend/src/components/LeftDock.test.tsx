@@ -111,4 +111,16 @@ describe('LeftDock Navigation Bar', () => {
     expect(projectsBtn.className).toContain('text-blue-600');
     expect(projectsBtn.className).toContain('bg-blue-100');
   });
+
+  it('pins the settings button to the bottom of the left dock', () => {
+    renderWithProviders(<LeftDock activeTab="home" />);
+
+    const bottomGroup = screen.getByTestId('dock-bottom');
+    const settingsBtn = screen.getByTestId('dock-settings');
+    const homeBtn = screen.getByTestId('dock-home');
+
+    expect(bottomGroup.className).toContain('mt-auto');
+    expect(bottomGroup.contains(settingsBtn)).toBe(true);
+    expect(bottomGroup.contains(homeBtn)).toBe(false);
+  });
 });

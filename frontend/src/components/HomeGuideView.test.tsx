@@ -104,12 +104,18 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
 
   it('只选择可用于新项目的已启用插件，并提交开关和多选状态', async () => {
     const onStartBuilding = vi.fn();
-    vi.stubGlobal('go', { main: { App: { ListPlugins: vi.fn().mockResolvedValue([
-      { id: 11, name: 'Mobbin', enabled: true },
-      { id: 12, name: 'Custom Notes', enabled: true },
-      { id: 13, name: 'Disabled plugin', enabled: false },
-      { id: 14, name: 'Other project plugin', enabled: true, appId: 8 },
-    ]) } } });
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          ListPlugins: vi.fn().mockResolvedValue([
+            { id: 11, name: 'Mobbin', enabled: true },
+            { id: 12, name: 'Custom Notes', enabled: true },
+            { id: 13, name: 'Disabled plugin', enabled: false },
+            { id: 14, name: 'Other project plugin', enabled: true, appId: 8 },
+          ])
+        }
+      }
+    });
     try {
       renderWithProviders(<HomeGuideView onStartBuilding={onStartBuilding} />);
       const toggle = screen.getByRole('switch', { name: 'Automatically use plugins' });
@@ -486,5 +492,42 @@ describe('HomeGuideView - Minimalist Icon & Tab Guided Studio', () => {
 
     // 验证每个预设项展示对应的形态标识
     expect(screen.getByTestId('preset-badge-style-web-saas')).toBeDefined();
+  });
+
+  it('renders non-interactive artistic backdrop with motion layers and frosted glass composer', () => {
+    renderWithProviders(<HomeGuideView onStartBuilding={vi.fn()} />);
+
+    // 验证纯装饰性艺术背景层存在且不阻挡交互与辅助技术
+    const backdrop = screen.getByTestId('home-artistic-backdrop');
+    expect(backdrop.getAttribute('aria-hidden')).toBe('true');
+    expect(backdrop.className).toContain('pointer-events-none');
+    expect(backdrop.innerHTML).toContain('home-art-grid');
+    expect(backdrop.innerHTML).toContain('home-orb-a');
+    expect(backdrop.innerHTML).toContain('home-orbit-slow');
+
+    // 验证主创作卡片具备双模毛玻璃材质与优雅入场动效
+    const composer = screen.getByTestId('home-composer-card');
+    expect(composer.className).toContain('backdrop-blur-2xl');
+    expect(composer.className).toContain('bg-white/75');
+    expect(composer.className).toContain('dark:bg-zinc-900/75');
+
+    // 验证首页口号结合应用名称且随语言一致，同时标题与表单居中排版
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toBe('Blot-UI · Define the frame, and let the light enter.');
+    expect(heading.className).toContain('text-center');
+    expect(heading.className).toContain('home-sacred-title');
+
+    // 验证标题上方横线已移除，并渲染纯装饰性圣光光束层且文字容器背景透明
+    const titleWrap = screen.getByTestId('home-title-wrap');
+    expect(titleWrap.className).toContain('bg-transparent');
+    expect(titleWrap.querySelector('span.h-1')).toBeNull();
+
+    const sacredRay = screen.getByTestId('home-sacred-ray');
+    expect(sacredRay.getAttribute('aria-hidden')).toBe('true');
+    expect(sacredRay.className).toContain('pointer-events-none');
+
+    const centerContainer = screen.getByTestId('home-center-container');
+    expect(centerContainer.className).toContain('items-center');
+    expect(centerContainer.className).toContain('mx-auto');
   });
 });

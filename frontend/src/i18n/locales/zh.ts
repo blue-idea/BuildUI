@@ -31,7 +31,7 @@ export const zh: I18nDictionary = {
     help: '帮助与反馈',
   },
   homeGuide: {
-    welcome: '欢迎使用 Blot-UI..',
+    welcome: 'Blot-UI · 你定义边界，光便落入其中。',
     placeholderWeb: '您想设计怎样的 Web 网页应用？',
     placeholderDesktop: '您想设计怎样的桌面端客户端应用？',
     placeholderApp: '您想设计怎样的原生移动端 App？',

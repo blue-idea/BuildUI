@@ -29,12 +29,11 @@ import type { ThemePreset } from './ThemeSelector';
 
 export type AppCategory = ProjectPlatform;
 
-const presetPopoverClass = 'absolute bottom-11 right-0 z-30 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-2xl dark:border-zinc-800 dark:bg-zinc-900';
-const presetRowClass = (selected: boolean) => `flex cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs transition-colors ${
-  selected
-    ? 'bg-blue-50 font-medium text-blue-600 dark:bg-blue-950/40 dark:text-blue-400'
-    : 'text-slate-800 hover:bg-slate-100 dark:text-zinc-200 dark:hover:bg-zinc-800'
-}`;
+const presetPopoverClass = 'absolute bottom-11 right-0 z-30 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-2xl border border-slate-200/85 bg-white/92 backdrop-blur-2xl p-4 text-left shadow-2xl dark:border-zinc-700/75 dark:bg-zinc-900/90';
+const presetRowClass = (selected: boolean) => `flex cursor-pointer items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-xs transition-colors ${selected
+  ? 'bg-blue-50/90 font-medium text-blue-600 dark:bg-blue-950/45 dark:text-blue-400'
+  : 'text-slate-800 hover:bg-slate-100/80 dark:text-zinc-200 dark:hover:bg-zinc-800/80'
+  }`;
 
 export interface GuideCustomizationOptions {
   category: AppCategory;
@@ -246,7 +245,7 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   onStartBuilding,
   initialCategory = 'web',
   selectedModel = 'auto',
-  onSelectModel = () => {},
+  onSelectModel = () => { },
   settings,
   onOpenSettings,
   initialAttachments = [],
@@ -409,8 +408,8 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
       category === 'app'
         ? 'Native Mobile App (iOS / Android touch viewport)'
         : category === 'desktop'
-        ? 'Desktop Client Application (Windowed macOS / Windows UI)'
-        : 'Web Application (Responsive Browser)';
+          ? 'Desktop Client Application (Windowed macOS / Windows UI)'
+          : 'Web Application (Responsive Browser)';
 
     const coreGoal =
       userInput.trim() ||
@@ -464,397 +463,440 @@ export const HomeGuideView: React.FC<HomeGuideViewProps> = ({
   };
 
   return (
-    <div className="flex-1 h-full overflow-y-auto bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-zinc-100 flex flex-col justify-center px-6 py-12 transition-colors select-none">
-      <div className="max-w-4xl mx-auto w-full flex flex-col gap-6">
-        <h1 className="px-2 text-3xl sm:text-4xl font-normal tracking-tight text-slate-900 dark:text-zinc-100">
-          {locale === 'zh' ? '欢迎使用 Blot-UI..' : 'Welcome to Blot-UI..'}
-        </h1>
+    <div className="relative isolate flex-1 h-full overflow-x-hidden overflow-y-auto bg-gradient-to-b from-[#f8fbff] via-[#f3f7fc] to-[#ebf1fa] dark:from-[#080a0f] dark:via-[#0b0e16] dark:to-[#07090e] text-slate-800 dark:text-zinc-100 flex flex-col items-center justify-center px-6 py-12 transition-colors select-none">
+      {/* 纯装饰性艺术画布背景层：建筑细线网格、有机极光光晕与雕塑感几何轨道 */}
+      <div
+        data-testid="home-artistic-backdrop"
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+      >
+        {/* 建筑感极细网格 + 中心径向渐变消融 */}
+        <div className="home-art-grid absolute inset-0" />
 
-        {/* 核心 AI 输入卡片 */}
-        <div className="relative w-full rounded-3xl bg-slate-200/50 dark:bg-zinc-900/90 border border-slate-300/60 dark:border-zinc-800 p-4 sm:p-5 shadow-sm transition-all focus-within:border-blue-400 dark:focus-within:border-blue-500/80 focus-within:bg-white dark:focus-within:bg-zinc-900 focus-within:shadow-md">
-          {/* 已选附件缩略条 */}
-          {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3 p-2 bg-white/80 dark:bg-zinc-800/80 rounded-2xl border border-slate-200 dark:border-zinc-700/80">
-              {attachments.map((att) => (
-                <div
-                  key={att.id}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-zinc-700 rounded-xl text-[11px] text-slate-700 dark:text-zinc-200 shadow-2xs"
+        {/* 顶部柔光天幕光带 */}
+        <div className="absolute -top-32 left-1/2 h-72 w-[46rem] -translate-x-1/2 rounded-full bg-gradient-to-r from-sky-200/35 via-blue-200/45 to-cyan-200/30 dark:from-blue-600/15 dark:via-sky-500/15 dark:to-cyan-500/10 blur-3xl" />
+
+        {/* 流动极光光晕球 A（左上） */}
+        <div className="home-orb-a absolute -left-24 top-[12%] h-[28rem] w-[28rem] rounded-full bg-gradient-to-br from-sky-300/35 via-blue-200/25 to-transparent dark:from-blue-600/20 dark:via-sky-500/10 dark:to-transparent blur-3xl" />
+
+        {/* 流动极光光晕球 B（右下） */}
+        <div className="home-orb-b absolute -right-24 bottom-[8%] h-[30rem] w-[30rem] rounded-full bg-gradient-to-tl from-cyan-300/30 via-blue-300/25 to-transparent dark:from-cyan-500/15 dark:via-blue-600/15 dark:to-transparent blur-3xl" />
+
+        {/* 流动极光光晕球 C（中景温润微光，烘托主输入卡片纵深） */}
+        <div className="home-orb-c absolute left-1/2 top-[48%] h-[22rem] w-[42rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-blue-200/25 via-white/50 to-sky-200/25 dark:from-blue-500/10 dark:via-sky-400/10 dark:to-cyan-500/10 blur-3xl" />
+
+        {/* 雕塑感精密几何轨道光环（外环） */}
+        <div className="home-orbit-slow absolute left-1/2 top-1/2 h-[44rem] w-[44rem] rounded-full border border-slate-900/[0.045] dark:border-white/[0.05]">
+          <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-blue-500/45 dark:bg-blue-400/55 shadow-[0_0_12px_rgba(37,99,235,0.45)]" />
+          <span className="absolute -bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-sky-400/45 dark:bg-sky-300/45" />
+        </div>
+
+        {/* 雕塑感精密几何轨道光环（内环） */}
+        <div className="home-orbit-reverse absolute left-1/2 top-1/2 h-[30rem] w-[30rem] rounded-full border border-dashed border-blue-900/[0.055] dark:border-sky-200/[0.06]">
+          <span className="absolute top-1/2 -right-1 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-cyan-500/50 dark:bg-cyan-300/55 shadow-[0_0_10px_rgba(6,182,212,0.45)]" />
+        </div>
+      </div>
+
+      <div
+        data-testid="home-center-container"
+        className="relative z-10 max-w-3xl mx-auto w-full flex flex-col items-center gap-7"
+      >
+        <div
+          data-testid="home-title-wrap"
+          className="home-fade-up relative flex flex-col items-center px-2 text-center bg-transparent"
+        >
+          {/* 穹顶倾泻的圣光光束（纯装饰透明投影，柔和照耀口号） */}
+          <div
+            data-testid="home-sacred-ray"
+            aria-hidden="true"
+            className="home-sacred-ray pointer-events-none absolute -top-40 left-1/2 -z-10 h-64 w-[38rem] max-w-[95vw] blur-xl"
+          />
+          <h1 className="home-sacred-title relative bg-transparent text-center text-balance text-2xl sm:text-[30px] sm:leading-tight font-medium tracking-tight">
+            {t('homeGuide.welcome')}
+          </h1>
+        </div>
+
+        {/* 核心 AI 输入卡片（居中双模液态毛玻璃 + 聚焦柔光轮廓） */}
+        <div className="home-fade-up-delay group/composer relative mx-auto w-full rounded-[28px] p-[1px] bg-gradient-to-b from-white/90 via-slate-200/80 to-blue-200/55 dark:from-zinc-700/65 dark:via-zinc-800/75 dark:to-blue-500/25 shadow-[0_24px_60px_-24px_rgba(15,23,42,0.16)] dark:shadow-[0_28px_72px_-24px_rgba(0,0,0,0.75)] transition-all duration-300 focus-within:from-blue-400/70 focus-within:via-sky-300/60 focus-within:to-blue-500/60 dark:focus-within:from-blue-500/65 dark:focus-within:via-sky-400/45 dark:focus-within:to-blue-600/55 focus-within:shadow-[0_28px_70px_-20px_rgba(37,99,235,0.22)] dark:focus-within:shadow-[0_30px_80px_-20px_rgba(37,99,235,0.32)]">
+          <div
+            data-testid="home-composer-card"
+            className="relative w-full rounded-[27px] bg-white/75 dark:bg-zinc-900/75 backdrop-blur-2xl p-4 sm:p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all duration-300 focus-within:bg-white/90 dark:focus-within:bg-zinc-900/88"
+          >
+            {/* 已选附件缩略条 */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3 p-2 bg-white/80 dark:bg-zinc-800/75 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-zinc-700/70">
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100/90 dark:bg-zinc-700/80 rounded-xl text-[11px] text-slate-700 dark:text-zinc-200 shadow-2xs"
+                  >
+                    <img src={att.dataUrl} alt={att.name} className="w-4 h-4 rounded object-cover" />
+                    <span className="truncate max-w-[140px] font-mono">{att.name}</span>
+                    <button
+                      type="button"
+                      aria-label={`${t('chat.removeAttachment')} ${att.name}`}
+                      onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                      className="text-slate-400 hover:text-rose-500 ml-1 transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 输入框主体 */}
+            <textarea
+              data-testid="guide-user-input"
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleStart();
+                }
+              }}
+              placeholder={inputPlaceholder}
+              rows={3}
+              className="w-full resize-none bg-transparent text-sm sm:text-base text-slate-800 dark:text-zinc-100 placeholder-slate-400/90 dark:placeholder-zinc-500 focus:outline-none leading-relaxed"
+            />
+            {bridge && (
+              <HomePluginPicker
+                plugins={availablePlugins}
+                loadError={pluginLoadError}
+                selection={pluginSelection}
+                onChange={setPluginSelection}
+              />
+            )}
+
+            {/* 底部操作栏（图标 + 选项卡） */}
+            <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-200/75 dark:border-zinc-800/80">
+              {/* 左侧：+ 附件上传图标 与 选项卡（App / Desktop / Web） */}
+              <div className="flex items-center gap-2 relative">
+                {/* 隐藏的文件上传 input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  accept="image/*"
+                  aria-label="Upload attachment input"
+                  data-testid="guide-upload-input"
+                  className="hidden"
+                  multiple
+                />
+
+                {/* + 按钮：附件上传 */}
+                <button
+                  type="button"
+                  data-testid="guide-upload-btn"
+                  title={t('chat.addAttachment')}
+                  aria-label={t('chat.addAttachment')}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-800/80 transition-colors"
                 >
-                  <img src={att.dataUrl} alt={att.name} className="w-4 h-4 rounded object-cover" />
-                  <span className="truncate max-w-[140px] font-mono">{att.name}</span>
+                  <Plus className="w-4 h-4" />
+                </button>
+
+                {/* 选项卡胶囊控制条：App | Desktop | Web */}
+                <div
+                  role="tablist"
+                  aria-label="Platform tabs"
+                  className="flex items-center p-1 bg-slate-200/55 dark:bg-zinc-800/75 backdrop-blur-md rounded-full border border-slate-300/50 dark:border-zinc-700/60"
+                >
                   <button
                     type="button"
-                    aria-label={`${t('chat.removeAttachment')} ${att.name}`}
-                    onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
-                    className="text-slate-400 hover:text-rose-500 ml-1 transition-colors"
+                    role="tab"
+                    data-testid="guide-tab-app"
+                    aria-selected={category === 'app'}
+                    onClick={() => handleCategoryChange('app')}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${category === 'app'
+                      ? 'bg-white/95 dark:bg-zinc-700/95 text-blue-600 dark:text-blue-300 shadow-xs ring-1 ring-slate-900/5 dark:ring-white/10'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                      }`}
                   >
-                    ✕
+                    <Smartphone className="w-3.5 h-3.5" />
+                    <span>{t('homeGuide.tabApp')}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="tab"
+                    data-testid="guide-tab-desktop"
+                    aria-selected={category === 'desktop'}
+                    onClick={() => handleCategoryChange('desktop')}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${category === 'desktop'
+                      ? 'bg-white/95 dark:bg-zinc-700/95 text-blue-600 dark:text-blue-300 shadow-xs ring-1 ring-slate-900/5 dark:ring-white/10'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                      }`}
+                  >
+                    <Monitor className="w-3.5 h-3.5" />
+                    <span>{t('homeGuide.tabDesktop')}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="tab"
+                    data-testid="guide-tab-web"
+                    aria-selected={category === 'web'}
+                    onClick={() => handleCategoryChange('web')}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${category === 'web'
+                      ? 'bg-white/95 dark:bg-zinc-700/95 text-blue-600 dark:text-blue-300 shadow-xs ring-1 ring-slate-900/5 dark:ring-white/10'
+                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                      }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    <span>{t('homeGuide.tabWeb')}</span>
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* 输入框主体 */}
-          <textarea
-            data-testid="guide-user-input"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleStart();
-              }
-            }}
-            placeholder={inputPlaceholder}
-            rows={3}
-            className="w-full resize-none bg-transparent text-sm sm:text-base text-slate-800 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none leading-relaxed"
-          />
-          {bridge && (
-            <HomePluginPicker
-              plugins={availablePlugins}
-              loadError={pluginLoadError}
-              selection={pluginSelection}
-              onChange={setPluginSelection}
-            />
-          )}
-
-          {/* 底部操作栏（图标 + 选项卡） */}
-          <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-300/40 dark:border-zinc-800/80">
-            {/* 左侧：+ 附件上传图标 与 选项卡（App / Desktop / Web） */}
-            <div className="flex items-center gap-2 relative">
-              {/* 隐藏的文件上传 input */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept="image/*"
-                aria-label="Upload attachment input"
-                data-testid="guide-upload-input"
-                className="hidden"
-                multiple
-              />
-
-              {/* + 按钮：附件上传 */}
-              <button
-                type="button"
-                data-testid="guide-upload-btn"
-                title={t('chat.addAttachment')}
-                aria-label={t('chat.addAttachment')}
-                onClick={() => fileInputRef.current?.click()}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-300/40 dark:hover:bg-zinc-800 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-
-              {/* 选项卡胶囊控制条：App | Desktop | Web */}
-              <div
-                role="tablist"
-                aria-label="Platform tabs"
-                className="flex items-center p-1 bg-slate-300/40 dark:bg-zinc-800/80 rounded-full border border-slate-300/50 dark:border-zinc-700/60"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  data-testid="guide-tab-app"
-                  aria-selected={category === 'app'}
-                  onClick={() => handleCategoryChange('app')}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                    category === 'app'
-                      ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-2xs'
-                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <Smartphone className="w-3.5 h-3.5" />
-                  <span>{t('homeGuide.tabApp')}</span>
-                </button>
-
-                <button
-                  type="button"
-                  role="tab"
-                  data-testid="guide-tab-desktop"
-                  aria-selected={category === 'desktop'}
-                  onClick={() => handleCategoryChange('desktop')}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                    category === 'desktop'
-                      ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-2xs'
-                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <Monitor className="w-3.5 h-3.5" />
-                  <span>{t('homeGuide.tabDesktop')}</span>
-                </button>
-
-                <button
-                  type="button"
-                  role="tab"
-                  data-testid="guide-tab-web"
-                  aria-selected={category === 'web'}
-                  onClick={() => handleCategoryChange('web')}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                    category === 'web'
-                      ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-2xs'
-                      : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                  }`}
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  <span>{t('homeGuide.tabWeb')}</span>
-                </button>
               </div>
-            </div>
 
-            {/* 右侧：模板、设计系统、模型和提交 */}
-            <div className="flex items-center gap-2 relative">
-              <div ref={templatePopoverRef} className="relative flex items-center gap-1">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={customTemplateEnabled}
-                  title={t('homeGuide.customTemplate')}
-                  aria-label={t('homeGuide.customTemplate')}
-                  aria-controls={activePresetPopover === 'template' ? templatePopoverId : undefined}
-                  onClick={() => {
-                    setCustomTemplateId(customTemplateEnabled ? null : '');
-                    setActivePresetPopover(customTemplateEnabled ? null : 'template');
-                  }}
-                  className="group flex items-center gap-1.5 rounded-full p-2 text-xs font-medium text-slate-600 hover:bg-slate-300/40 focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                >
-                  <span aria-hidden="true" className="relative h-4 w-7 shrink-0 rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3 after:w-3 after:rounded-full after:bg-white after:transition-transform group-aria-checked:bg-blue-600 group-aria-checked:after:translate-x-3 dark:bg-zinc-700" />
-                  {!customTemplateEnabled && <span className="hidden whitespace-nowrap md:block">{t('homeGuide.customTemplate')}</span>}
-                </button>
-                {customTemplateEnabled && (
+              {/* 右侧：模板、设计系统、模型和提交 */}
+              <div className="flex items-center gap-2 relative">
+                <div ref={templatePopoverRef} className="relative flex items-center gap-1">
                   <button
                     type="button"
-                    data-testid="guide-template-btn"
-                    title={t('homeGuide.starterTemplate')}
-                    aria-label={t('homeGuide.starterTemplate')}
-                    aria-expanded={activePresetPopover === 'template'}
-                    aria-haspopup="dialog"
+                    role="switch"
+                    aria-checked={customTemplateEnabled}
+                    title={t('homeGuide.customTemplate')}
+                    aria-label={t('homeGuide.customTemplate')}
                     aria-controls={activePresetPopover === 'template' ? templatePopoverId : undefined}
-                    onClick={() => setActivePresetPopover((current) => current === 'template' ? null : 'template')}
-                    className="flex items-center gap-1.5 rounded-full bg-slate-300/50 p-2 text-blue-600 hover:bg-slate-300/70 dark:bg-zinc-800 dark:text-blue-400"
+                    onClick={() => {
+                      setCustomTemplateId(customTemplateEnabled ? null : '');
+                      setActivePresetPopover(customTemplateEnabled ? null : 'template');
+                    }}
+                    className="group flex items-center gap-1.5 rounded-full p-2 text-xs font-medium text-slate-600 hover:bg-slate-200/60 focus-visible:outline-2 focus-visible:outline-blue-500 dark:text-zinc-300 dark:hover:bg-zinc-800/80 transition-colors"
                   >
-                    <LayoutTemplate aria-hidden="true" className="h-4 w-4 shrink-0" />
-                    <span className="hidden max-w-28 truncate text-[11px] font-medium md:block">{selectedTemplate?.name ?? t('homeGuide.starterTemplate')}</span>
+                    <span aria-hidden="true" className="relative h-4 w-7 shrink-0 rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-3 after:w-3 after:rounded-full after:bg-white after:transition-transform group-aria-checked:bg-blue-600 group-aria-checked:after:translate-x-3 dark:bg-zinc-700" />
+                    {!customTemplateEnabled && <span className="hidden whitespace-nowrap md:block">{t('homeGuide.customTemplate')}</span>}
                   </button>
-                )}
-                {customTemplateEnabled && activePresetPopover === 'template' && (
-                  <div id={templatePopoverId} role="dialog" aria-label={t('homeGuide.customTemplate')} className={presetPopoverClass}>
-                    <p className="px-2 text-xs font-semibold text-slate-700 dark:text-zinc-300">{t('homeGuide.starterTemplate')}</p>
-                    <div role="radiogroup" aria-label={t('homeGuide.starterTemplate')} className="flex max-h-56 flex-col gap-1 overflow-y-auto border-t border-slate-100 pt-2 dark:border-zinc-800">
-                      {templateOptions.map(({ id, name, description, platform }) => {
-                        const isSelected = id === customTemplateId;
-                        const PlatformIcon = platform === 'app' ? Smartphone : platform === 'desktop' ? Monitor : Globe;
-                        return (
-                          <label key={id} className={`${presetRowClass(isSelected)} relative has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-blue-500`}>
-                            <input
-                              type="radio"
-                              name={templatePopoverId}
-                              value={id}
-                              aria-label={name}
-                              checked={isSelected}
-                              onChange={() => setCustomTemplateId(id)}
-                              className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
-                            />
-                            <PlatformIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
-                            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                              <span className="truncate font-medium">{name}</span>
-                              <span className="truncate text-[10px] text-slate-500 dark:text-zinc-400">{description}</span>
-                            </span>
-                            {isSelected && <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* 风格 Popover 容器与触发按钮 */}
-              <div ref={stylePopoverRef} className="relative">
-                <button
-                  type="button"
-                  data-testid="guide-style-btn"
-                  title={t('homeGuide.stylePresetsTitle')}
-                  aria-expanded={activePresetPopover === 'style'}
-                  aria-haspopup="dialog"
-                  aria-controls={activePresetPopover === 'style' ? stylePopoverId : undefined}
-                  onClick={() => setActivePresetPopover((current) => current === 'style' ? null : 'style')}
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-all ${
-                    activePreset
-                      ? 'bg-slate-300/50 dark:bg-zinc-800 text-blue-600 dark:text-blue-400'
-                      : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-300/40 dark:hover:bg-zinc-800'
-                  }`}
-                >
-                  <Palette className="w-4 h-4" />
-                  {activePreset && (
-                    <span
-                      data-testid="guide-selected-style-badge"
-                      className="hidden md:inline-flex text-[11px] font-medium pr-1 text-slate-700 dark:text-zinc-300"
+                  {customTemplateEnabled && (
+                    <button
+                      type="button"
+                      data-testid="guide-template-btn"
+                      title={t('homeGuide.starterTemplate')}
+                      aria-label={t('homeGuide.starterTemplate')}
+                      aria-expanded={activePresetPopover === 'template'}
+                      aria-haspopup="dialog"
+                      aria-controls={activePresetPopover === 'template' ? templatePopoverId : undefined}
+                      onClick={() => setActivePresetPopover((current) => current === 'template' ? null : 'template')}
+                      className="flex items-center gap-1.5 rounded-full bg-blue-50/90 dark:bg-blue-950/45 border border-blue-200/70 dark:border-blue-800/50 p-2 text-blue-600 hover:bg-blue-100/80 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors"
                     >
-                      {activePreset.name}
-                    </span>
+                      <LayoutTemplate aria-hidden="true" className="h-4 w-4 shrink-0" />
+                      <span className="hidden max-w-28 truncate text-[11px] font-medium md:block">{selectedTemplate?.name ?? t('homeGuide.starterTemplate')}</span>
+                    </button>
                   )}
-                </button>
-
-                {/* 风格 Popover 弹层 */}
-                {activePresetPopover === 'style' && (
-                  <div
-                    id={stylePopoverId}
-                    role="dialog"
-                    aria-label={t('homeGuide.stylePresetsTitle')}
-                    className={presetPopoverClass}
-                  >
-                    {/* 端形态分类胶囊筛选栏：All | Web | Desktop | App */}
-                    <div className="flex items-center p-0.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700/80 select-none text-[11px]">
-                      <button
-                        type="button"
-                        data-testid="guide-style-filter-all"
-                        onClick={() => setPopoverStyleFilter('all')}
-                        className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                          popoverStyleFilter === 'all'
-                            ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-2xs'
-                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                        }`}
-                      >
-                        {locale === 'zh' ? '全部' : 'All'}
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="guide-style-filter-web"
-                        onClick={() => setPopoverStyleFilter('web')}
-                        className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                          popoverStyleFilter === 'web'
-                            ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-2xs'
-                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                        }`}
-                      >
-                        Web
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="guide-style-filter-desktop"
-                        onClick={() => setPopoverStyleFilter('desktop')}
-                        className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                          popoverStyleFilter === 'desktop'
-                            ? 'bg-white dark:bg-zinc-700 text-emerald-600 dark:text-emerald-400 shadow-2xs'
-                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                        }`}
-                      >
-                        Desktop
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="guide-style-filter-app"
-                        onClick={() => setPopoverStyleFilter('app')}
-                        className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${
-                          popoverStyleFilter === 'app'
-                            ? 'bg-white dark:bg-zinc-700 text-purple-600 dark:text-purple-400 shadow-2xs'
-                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-                        }`}
-                      >
-                        App
-                      </button>
-                    </div>
-
-                    <div className="border-t border-slate-100 dark:border-zinc-800 pt-2 flex flex-col gap-1">
-                      <div className="flex items-center justify-between px-2 mb-1">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                          {t('homeGuide.stylePresetsTitle')}
-                        </span>
-                        <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
-                          {filteredStylePresets.length}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
-                        {filteredStylePresets.map((preset) => {
-                          const isSelected = selectedStyle === preset.id;
-                          const presetAppType = preset.appType;
+                  {customTemplateEnabled && activePresetPopover === 'template' && (
+                    <div id={templatePopoverId} role="dialog" aria-label={t('homeGuide.customTemplate')} className={presetPopoverClass}>
+                      <p className="px-2 text-xs font-semibold text-slate-700 dark:text-zinc-300">{t('homeGuide.starterTemplate')}</p>
+                      <div role="radiogroup" aria-label={t('homeGuide.starterTemplate')} className="flex max-h-56 flex-col gap-1 overflow-y-auto border-t border-slate-100 pt-2 dark:border-zinc-800">
+                        {templateOptions.map(({ id, name, description, platform }) => {
+                          const isSelected = id === customTemplateId;
+                          const PlatformIcon = platform === 'app' ? Smartphone : platform === 'desktop' ? Monitor : Globe;
                           return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              data-testid={`preset-${preset.id}`}
-                              aria-pressed={isSelected}
-                              onClick={() => {
-                                handleSelectStyle(preset.id);
-                                setActivePresetPopover(null);
-                              }}
-                              className={presetRowClass(isSelected)}
-                            >
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                {preset.swatch}
-                                <div className="flex flex-col text-left truncate">
-                                  <div className="flex items-center gap-1.5 truncate">
-                                    <span className="font-medium truncate">{preset.name}</span>
-                                    {presetAppType && (
-                                      <span
-                                        data-testid={`preset-badge-${preset.id}`}
-                                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-medium border shrink-0 ${
-                                          presetAppType === 'app'
-                                            ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200/50 dark:border-purple-800/50'
-                                            : presetAppType === 'desktop'
-                                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
-                                            : 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50'
-                                        }`}
-                                      >
-                                        {presetAppType === 'app' ? (
-                                          <Smartphone className="w-2.5 h-2.5" />
-                                        ) : presetAppType === 'desktop' ? (
-                                          <Monitor className="w-2.5 h-2.5" />
-                                        ) : (
-                                          <Globe className="w-2.5 h-2.5" />
-                                        )}
-                                        <span>
-                                          {presetAppType === 'app'
-                                            ? 'App'
-                                            : presetAppType === 'desktop'
-                                            ? 'Desktop'
-                                            : 'Web'}
-                                        </span>
-                                      </span>
-                                    )}
-                                  </div>
-                                  {preset.desc && (
-                                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate max-w-[190px]">
-                                      {preset.desc}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {isSelected && (
-                                <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 ml-1.5" />
-                              )}
-                            </button>
+                            <label key={id} className={`${presetRowClass(isSelected)} relative has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-blue-500`}>
+                              <input
+                                type="radio"
+                                name={templatePopoverId}
+                                value={id}
+                                aria-label={name}
+                                checked={isSelected}
+                                onChange={() => setCustomTemplateId(id)}
+                                className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
+                              />
+                              <PlatformIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+                              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                                <span className="truncate font-medium">{name}</span>
+                                <span className="truncate text-[10px] text-slate-500 dark:text-zinc-400">{description}</span>
+                              </span>
+                              {isSelected && <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />}
+                            </label>
                           );
                         })}
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+                {/* 风格 Popover 容器与触发按钮 */}
+                <div ref={stylePopoverRef} className="relative">
+                  <button
+                    type="button"
+                    data-testid="guide-style-btn"
+                    title={t('homeGuide.stylePresetsTitle')}
+                    aria-expanded={activePresetPopover === 'style'}
+                    aria-haspopup="dialog"
+                    aria-controls={activePresetPopover === 'style' ? stylePopoverId : undefined}
+                    onClick={() => setActivePresetPopover((current) => current === 'style' ? null : 'style')}
+                    className={`flex items-center gap-1.5 p-2 rounded-full transition-all ${activePreset
+                      ? 'bg-blue-50/90 dark:bg-blue-950/45 border border-blue-200/70 dark:border-blue-800/50 text-blue-600 dark:text-blue-400'
+                      : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-slate-200/60 dark:hover:bg-zinc-800/80'
+                      }`}
+                  >
+                    <Palette className="w-4 h-4" />
+                    {activePreset && (
+                      <span
+                        data-testid="guide-selected-style-badge"
+                        className="hidden md:inline-flex text-[11px] font-medium pr-1 text-slate-700 dark:text-zinc-300"
+                      >
+                        {activePreset.name}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* 风格 Popover 弹层 */}
+                  {activePresetPopover === 'style' && (
+                    <div
+                      id={stylePopoverId}
+                      role="dialog"
+                      aria-label={t('homeGuide.stylePresetsTitle')}
+                      className={presetPopoverClass}
+                    >
+                      {/* 端形态分类胶囊筛选栏：All | Web | Desktop | App */}
+                      <div className="flex items-center p-0.5 rounded-xl bg-slate-100/90 dark:bg-zinc-800/90 border border-slate-200/80 dark:border-zinc-700/80 select-none text-[11px]">
+                        <button
+                          type="button"
+                          data-testid="guide-style-filter-all"
+                          onClick={() => setPopoverStyleFilter('all')}
+                          className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${popoverStyleFilter === 'all'
+                            ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-zinc-100 shadow-2xs'
+                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                            }`}
+                        >
+                          {locale === 'zh' ? '全部' : 'All'}
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="guide-style-filter-web"
+                          onClick={() => setPopoverStyleFilter('web')}
+                          className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${popoverStyleFilter === 'web'
+                            ? 'bg-white dark:bg-zinc-700 text-blue-600 dark:text-blue-400 shadow-2xs'
+                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                            }`}
+                        >
+                          Web
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="guide-style-filter-desktop"
+                          onClick={() => setPopoverStyleFilter('desktop')}
+                          className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${popoverStyleFilter === 'desktop'
+                            ? 'bg-white dark:bg-zinc-700 text-emerald-600 dark:text-emerald-400 shadow-2xs'
+                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                            }`}
+                        >
+                          Desktop
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="guide-style-filter-app"
+                          onClick={() => setPopoverStyleFilter('app')}
+                          className={`flex-1 text-center py-1 rounded-lg font-medium transition-all cursor-pointer ${popoverStyleFilter === 'app'
+                            ? 'bg-white dark:bg-zinc-700 text-sky-600 dark:text-sky-400 shadow-2xs'
+                            : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+                            }`}
+                        >
+                          App
+                        </button>
+                      </div>
+
+                      <div className="border-t border-slate-100 dark:border-zinc-800 pt-2 flex flex-col gap-1">
+                        <div className="flex items-center justify-between px-2 mb-1">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                            {t('homeGuide.stylePresetsTitle')}
+                          </span>
+                          <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
+                            {filteredStylePresets.length}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-col gap-1 max-h-56 overflow-y-auto">
+                          {filteredStylePresets.map((preset) => {
+                            const isSelected = selectedStyle === preset.id;
+                            const presetAppType = preset.appType;
+                            return (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                data-testid={`preset-${preset.id}`}
+                                aria-pressed={isSelected}
+                                onClick={() => {
+                                  handleSelectStyle(preset.id);
+                                  setActivePresetPopover(null);
+                                }}
+                                className={presetRowClass(isSelected)}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  {preset.swatch}
+                                  <div className="flex flex-col text-left truncate">
+                                    <div className="flex items-center gap-1.5 truncate">
+                                      <span className="font-medium truncate">{preset.name}</span>
+                                      {presetAppType && (
+                                        <span
+                                          data-testid={`preset-badge-${preset.id}`}
+                                          className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-medium border shrink-0 ${presetAppType === 'app'
+                                            ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border-sky-200/60 dark:border-sky-800/50'
+                                            : presetAppType === 'desktop'
+                                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
+                                              : 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50'
+                                            }`}
+                                        >
+                                          {presetAppType === 'app' ? (
+                                            <Smartphone className="w-2.5 h-2.5" />
+                                          ) : presetAppType === 'desktop' ? (
+                                            <Monitor className="w-2.5 h-2.5" />
+                                          ) : (
+                                            <Globe className="w-2.5 h-2.5" />
+                                          )}
+                                          <span>
+                                            {presetAppType === 'app'
+                                              ? 'App'
+                                              : presetAppType === 'desktop'
+                                                ? 'Desktop'
+                                                : 'Web'}
+                                          </span>
+                                        </span>
+                                      )}
+                                    </div>
+                                    {preset.desc && (
+                                      <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate max-w-[190px]">
+                                        {preset.desc}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0 ml-1.5" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 模型选择下拉组件 */}
+                <ModelSelector
+                  value={selectedModel}
+                  onChange={onSelectModel}
+                  settings={settings}
+                  configuredProvider={settings?.['llm.provider']}
+                  configuredModel={settings?.['llm.model']}
+                  onOpenSettings={onOpenSettings}
+                />
+
+                {/* 提交按钮：雕塑感圆形 ArrowUp */}
+                <button
+                  type="button"
+                  data-testid="guide-submit-btn"
+                  title={t('homeGuide.enterBuilder')}
+                  onClick={handleStart}
+                  disabled={!canStart}
+                  className="group/submit w-8 h-8 rounded-full bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-600 text-white flex items-center justify-center shadow-[0_6px_18px_-4px_rgba(37,99,235,0.55)] hover:shadow-[0_8px_22px_-4px_rgba(37,99,235,0.7)] transition-all duration-200 active:scale-95 enabled:cursor-pointer disabled:opacity-40 shrink-0"
+                >
+                  <ArrowUp className="w-4 h-4 stroke-[2.5] transition-transform duration-200 group-hover/submit:-translate-y-0.5" />
+                </button>
               </div>
-
-              {/* 模型选择下拉组件 */}
-              <ModelSelector
-                value={selectedModel}
-                onChange={onSelectModel}
-                settings={settings}
-                configuredProvider={settings?.['llm.provider']}
-                configuredModel={settings?.['llm.model']}
-                onOpenSettings={onOpenSettings}
-              />
-
-              {/* 提交按钮：圆形 ArrowUp */}
-              <button
-                type="button"
-                data-testid="guide-submit-btn"
-                title={t('homeGuide.enterBuilder')}
-                onClick={handleStart}
-                disabled={!canStart}
-                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-900 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 flex items-center justify-center shadow-sm hover:shadow transition-all active:scale-95 enabled:cursor-pointer disabled:opacity-40 shrink-0"
-              >
-                <ArrowUp className="w-4 h-4 stroke-[2.5]" />
-              </button>
             </div>
           </div>
         </div>

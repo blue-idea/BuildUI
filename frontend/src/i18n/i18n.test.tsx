@@ -145,7 +145,7 @@ describe('TASK-026: i18n Localization Engine and Dictionaries', () => {
     const { App } = await import('../App');
     render(<App initialDockTab="home" />);
 
-    expect(screen.getByText('欢迎使用 Blot-UI..')).toBeDefined();
+    expect(screen.getByText('Blot-UI · 你定义边界，光便落入其中。')).toBeDefined();
     expect(screen.getByText('Web')).toBeDefined();
     expect(screen.getByText('Desktop')).toBeDefined();
     expect(screen.getByText('App')).toBeDefined();

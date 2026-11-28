@@ -61,3 +61,226 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* 首页艺术画布：极细建筑网格、有机极光漂浮与精密轨道动效 */
+@keyframes homeOrbDriftA {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(3.5%, -4%, 0) scale(1.06);
+  }
+  66% {
+    transform: translate3d(-2.5%, 3%, 0) scale(0.96);
+  }
+}
+
+@keyframes homeOrbDriftB {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  40% {
+    transform: translate3d(-4%, 3.5%, 0) scale(1.08);
+  }
+  75% {
+    transform: translate3d(3%, -2.5%, 0) scale(0.95);
+  }
+}
+
+@keyframes homeOrbDriftC {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate3d(2%, -3%, 0) scale(1.09);
+    opacity: 0.95;
+  }
+}
+
+@keyframes homeOrbitSpin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes homeOrbitSpinReverse {
+  from {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+}
+
+@keyframes homeFadeUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.home-art-grid {
+  background-image:
+    linear-gradient(to right, rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(15, 23, 42, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 76% 68% at 50% 46%, rgba(0, 0, 0, 0.95) 28%, transparent 100%);
+  mask-image: radial-gradient(ellipse 76% 68% at 50% 46%, rgba(0, 0, 0, 0.95) 28%, transparent 100%);
+}
+
+html.dark .home-art-grid {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.065) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.065) 1px, transparent 1px);
+}
+
+.home-orb-a {
+  animation: homeOrbDriftA 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+.home-orb-b {
+  animation: homeOrbDriftB 26s ease-in-out infinite;
+  will-change: transform;
+}
+
+.home-orb-c {
+  animation: homeOrbDriftC 18s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.home-orbit-slow {
+  animation: homeOrbitSpin 64s linear infinite;
+  will-change: transform;
+}
+
+.home-orbit-reverse {
+  animation: homeOrbitSpinReverse 84s linear infinite;
+  will-change: transform;
+}
+
+.home-fade-up {
+  animation: homeFadeUp 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.home-fade-up-delay {
+  animation: homeFadeUp 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+/* 首页标题圣光照耀：字形流光扫耀 + 轮廓辉光 + 穹顶倾泻天光（文字容器背景完全透明） */
+@keyframes homeSacredShimmer {
+  0% {
+    background-position: 180% 50%;
+  }
+  100% {
+    background-position: -40% 50%;
+  }
+}
+
+@keyframes homeSacredRayPulse {
+  0%, 100% {
+    opacity: 0.72;
+    transform: translate(-50%, 0) scaleX(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, 0) scaleX(1.06);
+  }
+}
+
+.home-sacred-title {
+  background-color: transparent;
+  background-image: linear-gradient(
+    108deg,
+    #0f172a 0%,
+    #1e3a8a 26%,
+    #2563eb 43%,
+    #38bdf8 50%,
+    #0284c7 57%,
+    #1e293b 76%,
+    #0f172a 100%
+  );
+  background-size: 230% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter:
+    drop-shadow(0 0 10px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 0 22px rgba(56, 189, 248, 0.45))
+    drop-shadow(0 0 44px rgba(37, 99, 235, 0.24));
+  animation: homeSacredShimmer 7.5s ease-in-out infinite;
+  will-change: background-position;
+}
+
+html.dark .home-sacred-title {
+  background-image: linear-gradient(
+    108deg,
+    #cbd5e1 0%,
+    #f8fafc 26%,
+    #bae6fd 42%,
+    #ffffff 49%,
+    #fef3c7 52%,
+    #7dd3fc 58%,
+    #f1f5f9 76%,
+    #cbd5e1 100%
+  );
+  filter:
+    drop-shadow(0 0 10px rgba(255, 255, 255, 0.58))
+    drop-shadow(0 0 26px rgba(56, 189, 248, 0.48))
+    drop-shadow(0 0 54px rgba(37, 99, 235, 0.34));
+}
+
+.home-sacred-ray {
+  background:
+    conic-gradient(
+      from 180deg at 50% 0%,
+      transparent 148deg,
+      rgba(56, 189, 248, 0.14) 166deg,
+      rgba(255, 251, 235, 0.62) 177deg,
+      rgba(255, 255, 255, 0.78) 180deg,
+      rgba(255, 251, 235, 0.62) 183deg,
+      rgba(56, 189, 248, 0.14) 194deg,
+      transparent 212deg
+    );
+  -webkit-mask-image: radial-gradient(ellipse 68% 92% at 50% 10%, rgba(0, 0, 0, 1) 18%, transparent 100%);
+  mask-image: radial-gradient(ellipse 68% 92% at 50% 10%, rgba(0, 0, 0, 1) 18%, transparent 100%);
+  animation: homeSacredRayPulse 9s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+html.dark .home-sacred-ray {
+  background:
+    conic-gradient(
+      from 180deg at 50% 0%,
+      transparent 146deg,
+      rgba(37, 99, 235, 0.18) 165deg,
+      rgba(125, 211, 252, 0.34) 176deg,
+      rgba(255, 255, 255, 0.44) 180deg,
+      rgba(125, 211, 252, 0.34) 184deg,
+      rgba(37, 99, 235, 0.18) 195deg,
+      transparent 214deg
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-orb-a,
+  .home-orb-b,
+  .home-orb-c,
+  .home-orbit-slow,
+  .home-orbit-reverse,
+  .home-fade-up,
+  .home-fade-up-delay,
+  .home-sacred-title,
+  .home-sacred-ray {
+    animation: none !important;
+  }
+}

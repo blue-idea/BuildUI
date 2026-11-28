@@ -31,7 +31,7 @@ export const en: I18nDictionary = {
     help: 'Help & Feedback',
   },
   homeGuide: {
-    welcome: 'Welcome to Blot-UI..',
+    welcome: 'Blot-UI · Define the frame, and let the light enter.',
     placeholderWeb: 'What web application shall we design?',
     placeholderDesktop: 'What desktop client shall we design?',
     placeholderApp: 'What native mobile app shall we design?',
