@@ -138,6 +138,9 @@ export interface I18nDictionary {
     resumeBuild: string;
     stepsCompleted: string;
     createOrOpenProject: string;
+    noActiveProjectTitle: string;
+    noActiveProjectDesc: string;
+    newProjectFromHome: string;
     approvedAndStarting: string;
     designSystemInjected: string;
     viewStyleSpec: string;
@@ -216,6 +219,10 @@ export interface I18nDictionary {
     systemMessages: string;
     reload: string;
     restart: string;
+    startPreview: string;
+    previewIdleTitle: string;
+    previewIdleDesc: string;
+    previewDisabledHint: string;
     captureCover: string;
     capturingCover: string;
     coverCaptured: string;

@@ -262,3 +262,27 @@ describe('TemplateCenterView macOS Flat UI & Fluid Viewport Scaling (v32 TDD)', 
     expect(container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
   });
 });
+
+describe('Builder Empty Project & Start Preview Cards (v32 TDD)', () => {
+  it('renders a centered macOS flat empty-project card with primary and Home actions when no active project is selected', async () => {
+    const { default: App } = await import('../App');
+    render(<App initialDockTab="builder" />);
+
+    // 关闭当前默认项目，进入构建区无激活项目状态
+    fireEvent.click(screen.getByTestId('close-project-tab'));
+
+    const card = screen.getByTestId('builder-no-project-card');
+    const primaryBtn = screen.getByTestId('builder-create-or-open-btn');
+    const homeBtn = screen.getByTestId('builder-go-home-btn');
+
+    expect(card).toBeDefined();
+    expect(card.className).not.toMatch(/shadow-(md|lg|xl|2xl)/);
+    expect(card.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
+    expect(primaryBtn.className).toContain('#0071e3');
+    expect(homeBtn).toBeDefined();
+
+    // 点击“前往首页新建”应切换至首页视图
+    fireEvent.click(homeBtn);
+    expect(screen.getByTestId('guide-user-input')).toBeDefined();
+  });
+});

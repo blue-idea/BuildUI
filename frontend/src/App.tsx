@@ -58,7 +58,8 @@ import {
   isWailsAvailable,
   DiagnosticItem,
 } from './services/wailsBridge';
-import { Plus, Send, Square, Hammer, ChevronDown, Wand2, X, Sparkles } from 'lucide-react';
+import { Plus, Send, Square, Hammer, ChevronDown, Wand2, X, Sparkles, FolderKanban, FolderOpen } from 'lucide-react';
+import { MACOS_CONTROLS, MACOS_FLAT_CARD } from './config/macosFlatUi';
 import type { PluginAutomation } from './types/plugin';
 
 export interface AttachmentItem {
@@ -1610,35 +1611,69 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
           </div>
 
           {/* 消息滚动流 */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/40 dark:bg-zinc-950/30">
+          <div
+            className={`flex-1 overflow-y-auto p-4 bg-[#f5f5f7]/60 dark:bg-[#121214]/60 ${
+              !activeApp && messages.length === 0 && !questionnaire && !blueprint
+                ? 'flex flex-col justify-center items-center gap-4'
+                : 'space-y-4'
+            }`}
+          >
             {projectError && (
-              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/50 dark:text-rose-300">
+              <div role="alert" className="w-full rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/50 dark:text-rose-300">
                 {projectError}
               </div>
             )}
             {!activeApp && (
-              <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 p-5 text-center dark:border-zinc-700 dark:bg-zinc-900/60">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPreviousDockTab(activeDockTab);
-                    setActiveDockTab('projects');
-                  }}
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 cursor-pointer"
-                >
-                  {t('chat.createOrOpenProject')}
-                </button>
+              <div
+                data-testid="builder-no-project-card"
+                className={`${MACOS_FLAT_CARD.surface} w-full max-w-[340px] mx-auto p-6 text-center select-none`}
+              >
+                <div className="mx-auto mb-3.5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#0071e3]/10 dark:bg-[#0a84ff]/15 border border-[#0071e3]/15 dark:border-[#0a84ff]/20 text-[#0071e3] dark:text-[#0a84ff]">
+                  <FolderKanban className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <h3 className="text-[14px] font-semibold tracking-[-0.01em] text-[#1d1d1f] dark:text-[#f5f5f7]">
+                  {t('chat.noActiveProjectTitle')}
+                </h3>
+                <p className="mt-1.5 text-[12px] leading-relaxed text-[#6e6e73] dark:text-[#98989d]">
+                  {t('chat.noActiveProjectDesc')}
+                </p>
+                <div className="mt-5 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    data-testid="builder-create-or-open-btn"
+                    onClick={() => {
+                      setPreviousDockTab(activeDockTab);
+                      setActiveDockTab('projects');
+                    }}
+                    className={`${MACOS_CONTROLS.primaryButton} w-full py-2.5`}
+                  >
+                    <FolderOpen className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>{t('chat.createOrOpenProject')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="builder-go-home-btn"
+                    onClick={() => {
+                      setPreviousDockTab(activeDockTab);
+                      setActiveDockTab('home');
+                    }}
+                    className={`${MACOS_CONTROLS.secondaryButton} w-full py-2`}
+                  >
+                    <Plus className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span>{t('chat.newProjectFromHome')}</span>
+                  </button>
+                </div>
               </div>
             )}
             {activeApp && messages.length === 0 && !questionnaire && !blueprint && !projectError && (
-              <div className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 text-center shadow-2xs dark:border-zinc-800 dark:bg-zinc-900/80">
-                <div className="mx-auto mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+              <div className={`${MACOS_FLAT_CARD.surface} p-5 text-center`}>
+                <div className="mx-auto mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl bg-[#0071e3]/10 text-[#0071e3] dark:bg-[#0a84ff]/15 dark:text-[#0a84ff] border border-[#0071e3]/15 dark:border-[#0a84ff]/20">
                   <Sparkles className="h-4 w-4" />
                 </div>
-                <h4 className="text-xs font-semibold text-slate-800 dark:text-zinc-100">
+                <h4 className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
                   {t('chat.emptyChatTitle')}
                 </h4>
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-zinc-400">
+                <p className="mt-1 text-[11px] leading-relaxed text-[#6e6e73] dark:text-[#98989d]">
                   {t('chat.emptyChatDesc')}
                 </p>
               </div>
@@ -1675,13 +1710,13 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             )}
 
             {/* 依赖安装指示 */}
-            {installingDeps && (
+            {activeApp && installingDeps && (
               <div className="flex items-center gap-2 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-700 dark:text-amber-300">
                 <span className="h-2 w-2 animate-spin rounded-full border border-amber-500 border-t-transparent" />
                 <span>{t('chat.installingDeps')} {installingDeps}...</span>
               </div>
             )}
-            {installedDependencies.length > 0 && (
+            {activeApp && installedDependencies.length > 0 && (
               <div className="flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 dark:bg-emerald-950/40 p-2 text-xs text-emerald-700 dark:text-emerald-300">
                 <span>✓</span>
                 <span>{t('chat.installedDeps')} {installedDependencies.join(', ')}</span>
@@ -1696,7 +1731,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               <button
                 type="button"
                 onClick={() => void runDesktopTurn('', [], 'build', { resume: true })}
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+                className={`${MACOS_CONTROLS.primaryButton} px-3 py-1.5 rounded-[8px]`}
               >
                 {t('chat.resumeBuild')}
               </button>
@@ -1866,7 +1901,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
           isLoading={isStartingApp}
           loadingMessage={previewProgress}
           previewUrl={previewUrl}
-          previewDoc={desktop ? undefined : generateSandboxDoc(activeApp?.name ?? '', activeThemeId, blueprint, locale, extraSandboxItems)}
+          previewDoc={desktop || !activeApp ? undefined : generateSandboxDoc(activeApp.name, activeThemeId, blueprint, locale, extraSandboxItems)}
           previewKey={previewKey}
           sourcePaths={desktop ? sourcePaths : undefined}
           sourceRevision={sourceRevision}

@@ -27,6 +27,7 @@ import { ComponentInspector } from './ComponentInspector';
 import { locateCodeRegion } from '../utils/sourceLocator';
 import { captureIframeScreenshot } from '../utils/projectScreenshot';
 import { SCREENSHOT_FEEDBACK_DURATION_MS } from '../config/screenshot';
+import { MACOS_CONTROLS, MACOS_FLAT_CARD } from '../config/macosFlatUi';
 import type { InspectedElement } from '../types/inspect';
 import type { DiagnosticItem } from '../services/wailsBridge';
 import type { BlueprintDTO } from './BlueprintCard';
@@ -147,12 +148,10 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   const previewOrigin = previewUrl && !previewDoc ? new URL(previewUrl).origin : '';
 
   useEffect(() => {
-    if (previewUrl) {
-      setActiveUrl(previewUrl);
-      setFrameUrl(previewUrl);
-      if (!isAddressFocused) {
-        setAddressInput(previewUrl);
-      }
+    setActiveUrl(previewUrl || '');
+    setFrameUrl(previewUrl || '');
+    if (!isAddressFocused) {
+      setAddressInput(previewUrl || '');
     }
   }, [previewUrl]);
 
@@ -630,9 +629,79 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                 />
               </div>
             ) : (
-              <button type="button" onClick={onReload} disabled={previewActionsDisabled} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 transition-colors">
-                Start preview
-              </button>
+              <div
+                data-testid="preview-idle-card"
+                className={`${MACOS_FLAT_CARD.surface} w-full max-w-[380px] overflow-hidden text-center select-none`}
+              >
+                {/* 顶部微缩预览画布骨架，呼应全局 macOS 扁平设计语言 */}
+                <div className="relative h-28 w-full border-b border-black/[0.06] dark:border-white/[0.07] bg-[#eceef2] dark:bg-[#161618] px-6 pt-5 pb-0 flex items-end justify-center overflow-hidden">
+                  {device ? (
+                    <div className="w-[128px] h-full rounded-t-[16px] border-t border-x border-black/[0.1] dark:border-white/[0.12] bg-white dark:bg-[#1f1f22] px-3 pt-2.5 flex flex-col items-center gap-2">
+                      <div className="w-9 h-[3px] rounded-full bg-black/20 dark:bg-white/25" />
+                      <div className="w-full h-3 rounded-[5px] bg-[#f5f5f7] dark:bg-[#2a2a2e]" />
+                      <div className="w-full flex-1 rounded-t-[6px] bg-[#0071e3]/12 dark:bg-[#0a84ff]/15 border-t border-x border-[#0071e3]/15 dark:border-[#0a84ff]/20" />
+                    </div>
+                  ) : (
+                    <div className="w-full h-full rounded-t-[10px] border-t border-x border-black/[0.09] dark:border-white/[0.11] bg-white dark:bg-[#1f1f22] overflow-hidden flex flex-col">
+                      <div className="h-5 px-2.5 flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] bg-[#f7f7f9] dark:bg-[#26262a] shrink-0">
+                        <div className="flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#ff5f57]" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#febc2e]" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#28c840]" />
+                        </div>
+                        <span className="h-1.5 w-20 rounded-full bg-black/[0.08] dark:bg-white/[0.12]" />
+                        <span className="w-3" />
+                      </div>
+                      <div className="flex-1 p-2.5 grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-4 h-full rounded-[6px] bg-[#f5f5f7] dark:bg-[#26262a] border border-black/[0.05] dark:border-white/[0.06] p-1.5 flex flex-col gap-1">
+                          <div className="h-1.5 w-full rounded-full bg-[#0071e3]/75 dark:bg-[#0a84ff]/80" />
+                          <div className="h-1.5 w-3/4 rounded-full bg-black/15 dark:bg-white/20" />
+                          <div className="h-1.5 w-1/2 rounded-full bg-black/10 dark:bg-white/15" />
+                        </div>
+                        <div className="col-span-8 h-full rounded-[6px] bg-[#f5f5f7] dark:bg-[#26262a] border border-black/[0.05] dark:border-white/[0.06] p-2 flex flex-col justify-between">
+                          <div className="space-y-1">
+                            <div className="h-1.5 w-1/2 rounded-full bg-black/25 dark:bg-white/30" />
+                            <div className="h-1 w-3/4 rounded-full bg-black/12 dark:bg-white/18" />
+                          </div>
+                          <div className="flex items-center justify-end">
+                            <span className="h-2.5 w-10 rounded-[4px] bg-[#0071e3] dark:bg-[#0a84ff]" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 卡片内容与主操作按钮 */}
+                <div className="px-6 py-5">
+                  <h3 className="text-[14px] font-semibold tracking-[-0.01em] text-[#1d1d1f] dark:text-[#f5f5f7]">
+                    {t('workspace.previewIdleTitle')}
+                  </h3>
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-[#6e6e73] dark:text-[#98989d]">
+                    {t('workspace.previewIdleDesc')}
+                  </p>
+                  <div className="mt-5 flex flex-col items-center gap-2">
+                    <button
+                      type="button"
+                      data-testid="start-preview-btn"
+                      onClick={onReload}
+                      disabled={previewActionsDisabled}
+                      className={`${MACOS_CONTROLS.primaryButton} px-5 py-2.5`}
+                    >
+                      <Play className="h-3.5 w-3.5 fill-current shrink-0" aria-hidden="true" />
+                      <span>{t('workspace.startPreview')}</span>
+                    </button>
+                    {previewActionsDisabled && (
+                      <p
+                        data-testid="preview-disabled-hint"
+                        className="text-[11px] text-[#86868b] dark:text-[#8e8e93]"
+                      >
+                        {t('workspace.previewDisabledHint')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}

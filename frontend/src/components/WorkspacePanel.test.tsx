@@ -529,4 +529,44 @@ describe('WorkspacePanel Code Review Layout', () => {
       expect((screen.getByTestId('capture-screenshot-btn') as HTMLButtonElement).disabled).toBe(true);
     });
   });
+
+  describe('Idle Start Preview Card Layout (v32 TDD)', () => {
+    it('renders a refined macOS flat idle card and primary Start preview button when preview is stopped', () => {
+      const onReload = vi.fn();
+      const { container } = renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl=""
+          onReload={onReload}
+        />
+      );
+
+      const idleCard = screen.getByTestId('preview-idle-card');
+      const startBtn = screen.getByTestId('start-preview-btn');
+
+      expect(idleCard).toBeDefined();
+      expect(idleCard.className).not.toMatch(/shadow-(md|lg|xl|2xl)/);
+      expect(startBtn.className).toContain('#0071e3');
+      expect(screen.getByRole('button', { name: 'Start preview' })).toBe(startBtn);
+      expect(container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
+
+      fireEvent.click(startBtn);
+      expect(onReload).toHaveBeenCalledTimes(1);
+    });
+
+    it('disables Start preview button and renders guidance hint when previewActionsDisabled is true', () => {
+      renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl=""
+          previewActionsDisabled={true}
+          onReload={vi.fn()}
+        />
+      );
+
+      const startBtn = screen.getByTestId('start-preview-btn') as HTMLButtonElement;
+      expect(startBtn.disabled).toBe(true);
+      expect(screen.getByTestId('preview-disabled-hint')).toBeDefined();
+    });
+  });
 });
