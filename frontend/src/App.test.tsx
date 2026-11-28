@@ -1211,3 +1211,169 @@ describe('App Main Split Layout & Workflow', () => {
     }
   });
 });
+
+// v33.REQ-003：构建区与工程管理页双入口截图、首次自动截图与图片替换集成验证
+describe('Project Screenshot Dual Entry & Replacement (v33 TDD)', () => {
+  it('桌面端在构建区与工程管理页点击截图按钮均能实时替换项目列表封面图', async () => {
+    const project = {
+      appId: 51,
+      name: 'Analytics Studio',
+      path: '/workspace/analytics-studio',
+      previewUrl: 'http://127.0.0.1:5179',
+      blueprintApproved: true,
+    };
+    const captureAppScreenshot = vi
+      .fn()
+      .mockResolvedValueOnce('data:image/png;base64,FIRST_SHOT')
+      .mockResolvedValueOnce('data:image/png;base64,REPLACED_SHOT');
+
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: vi.fn().mockResolvedValue({}),
+          ListApps: vi.fn().mockResolvedValue([
+            {
+              id: 51,
+              name: project.name,
+              path: project.path,
+              thumbnailUrl: 'data:image/png;base64,INITIAL_SHOT',
+            },
+          ]),
+          GetActiveApp: vi.fn().mockResolvedValue(project),
+          SwitchApp: vi.fn().mockResolvedValue(project),
+          GetProjectChat: vi.fn().mockResolvedValue({ chatId: 11, messages: [] }),
+          GetVersions: vi.fn().mockResolvedValue([]),
+          ListProjectFiles: vi.fn().mockResolvedValue([]),
+          CaptureAppScreenshot: captureAppScreenshot,
+        },
+      },
+    });
+
+    try {
+      render(<App initialDockTab="builder" />);
+      await waitFor(() => expect(screen.getByTitle('App live preview')).toBeDefined());
+
+      // 入口 1：构建区预览工具栏点击截图按钮
+      fireEvent.click(screen.getByTestId('capture-screenshot-btn'));
+      await waitFor(() =>
+        expect(captureAppScreenshot).toHaveBeenCalledWith(51, 'http://127.0.0.1:5179')
+      );
+
+      // 切换到工程管理页验证图片已替换为 FIRST_SHOT
+      fireEvent.click(screen.getByTestId('dock-projects'));
+      const preview = await screen.findByTestId('project-card-preview-51');
+      expect(preview.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,FIRST_SHOT');
+
+      // 入口 2：在工程管理页点击卡片截图按钮替换图片为 REPLACED_SHOT
+      fireEvent.click(screen.getByTestId('capture-project-screenshot-btn-51'));
+      await waitFor(() => expect(captureAppScreenshot).toHaveBeenCalledWith(51, ''));
+      await waitFor(() => {
+        const updatedImg = screen.getByTestId('project-card-preview-51').querySelector('img');
+        expect(updatedImg?.getAttribute('src')).toBe('data:image/png;base64,REPLACED_SHOT');
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('项目在构建区首次预览就绪且尚无封面时自动静默截取并写入工程列表', async () => {
+    const project = {
+      appId: 52,
+      name: 'Auto Capture App',
+      path: '/workspace/auto-capture',
+      previewUrl: 'http://127.0.0.1:5180',
+      blueprintApproved: true,
+    };
+    const captureAppScreenshot = vi.fn().mockResolvedValue('data:image/png;base64,AUTO_CAPTURED');
+
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: vi.fn().mockResolvedValue({}),
+          ListApps: vi.fn().mockResolvedValue([
+            { id: 52, name: project.name, path: project.path },
+          ]),
+          GetActiveApp: vi.fn().mockResolvedValue(project),
+          SwitchApp: vi.fn().mockResolvedValue(project),
+          GetProjectChat: vi.fn().mockResolvedValue({ chatId: 12, messages: [] }),
+          GetVersions: vi.fn().mockResolvedValue([]),
+          ListProjectFiles: vi.fn().mockResolvedValue([]),
+          CaptureAppScreenshot: captureAppScreenshot,
+        },
+      },
+    });
+
+    try {
+      render(<App initialDockTab="builder" />);
+      const iframe = await screen.findByTitle('App live preview');
+      fireEvent.load(iframe);
+
+      await waitFor(() =>
+        expect(captureAppScreenshot).toHaveBeenCalledWith(52, 'http://127.0.0.1:5180'),
+        { timeout: 3000 }
+      );
+
+      fireEvent.click(screen.getByTestId('dock-projects'));
+      const preview = await screen.findByTestId('project-card-preview-52');
+      expect(preview.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AUTO_CAPTURED');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('当后端无头截图失败时，构建区自动降级为前端 iframe 截图并调用 SaveAppThumbnail 持久化', async () => {
+    const project = {
+      appId: 53,
+      name: 'Fallback App',
+      path: '/workspace/fallback-app',
+      previewUrl: 'http://127.0.0.1:5181',
+      blueprintApproved: true,
+    };
+    const captureAppScreenshot = vi.fn().mockRejectedValue(new Error('no headless browser found'));
+    const saveAppThumbnail = vi.fn().mockResolvedValue('data:image/png;base64,FALLBACK_SAVED');
+
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: vi.fn().mockResolvedValue({}),
+          ListApps: vi.fn().mockResolvedValue([
+            {
+              id: 53,
+              name: project.name,
+              path: project.path,
+              thumbnailUrl: 'data:image/png;base64,OLD_COVER',
+            },
+          ]),
+          GetActiveApp: vi.fn().mockResolvedValue(project),
+          SwitchApp: vi.fn().mockResolvedValue(project),
+          GetProjectChat: vi.fn().mockResolvedValue({ chatId: 13, messages: [] }),
+          GetVersions: vi.fn().mockResolvedValue([]),
+          ListProjectFiles: vi.fn().mockResolvedValue([]),
+          CaptureAppScreenshot: captureAppScreenshot,
+          SaveAppThumbnail: saveAppThumbnail,
+        },
+      },
+    });
+
+    try {
+      render(<App initialDockTab="builder" />);
+      const iframe = (await screen.findByTitle('App live preview')) as HTMLIFrameElement;
+      // 模拟同源预览内容以便触发前端降级 DOM 截图
+      const doc = iframe.contentDocument!;
+      doc.open();
+      doc.write('<!DOCTYPE html><html><body><h1>Fallback Preview</h1></body></html>');
+      doc.close();
+
+      fireEvent.click(screen.getByTestId('capture-screenshot-btn'));
+      await waitFor(() => expect(saveAppThumbnail).toHaveBeenCalledTimes(1));
+      expect(saveAppThumbnail.mock.calls[0][0]).toBe(53);
+      expect(saveAppThumbnail.mock.calls[0][1]).toMatch(/^data:image\/(png|svg\+xml);base64,/);
+
+      fireEvent.click(screen.getByTestId('dock-projects'));
+      const preview = await screen.findByTestId('project-card-preview-53');
+      expect(preview.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,FALLBACK_SAVED');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

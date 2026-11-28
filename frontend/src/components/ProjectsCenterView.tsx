@@ -17,6 +17,8 @@ import {
   Monitor,
   Smartphone,
   LayoutGrid,
+  Camera,
+  Loader2,
 } from 'lucide-react';
 import { AppItem, ProjectPlatform, inferAppPlatform } from './AppDrawer';
 import { useI18n } from '../i18n/I18nContext';
@@ -37,6 +39,8 @@ export interface ProjectsCenterViewProps {
   onDeleteApp: (id: number) => void;
   onRenameApp?: (id: number, newName: string) => void;
   onExportProject?: (app: AppItem) => void;
+  onCaptureScreenshot?: (app: AppItem) => Promise<void> | void;
+  capturingAppId?: number | null;
   onOpenInFileManager?: (path: string) => void;
   busy?: boolean;
   error?: string;
@@ -191,6 +195,8 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
   onDeleteApp,
   onRenameApp,
   onExportProject,
+  onCaptureScreenshot,
+  capturingAppId = null,
   onOpenInFileManager,
   busy = false,
   error,
@@ -450,6 +456,36 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
 
                       {renderPlatformBadge(platform, app.id)}
                     </div>
+
+                    {/* 右下角工程截图捕获/替换按钮（与顶部徽章零遮挡） */}
+                    {onCaptureScreenshot && (
+                      <button
+                        type="button"
+                        data-testid={`capture-project-screenshot-btn-${app.id}`}
+                        onClick={() => void onCaptureScreenshot(app)}
+                        disabled={busy || capturingAppId !== null}
+                        title={
+                          app.thumbnailUrl
+                            ? t('projectsPage.refreshScreenshot')
+                            : t('projectsPage.captureScreenshot')
+                        }
+                        aria-label={t('projectsPage.captureScreenshotAria', { name: app.name })}
+                        className={`absolute right-2 bottom-2 z-10 ${MACOS_CONTROLS.previewActionPill}`}
+                      >
+                        {capturingAppId === app.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin text-[#0071e3] dark:text-[#0a84ff]" />
+                        ) : (
+                          <Camera className="w-3 h-3" />
+                        )}
+                        <span>
+                          {capturingAppId === app.id
+                            ? t('projectsPage.capturingScreenshot')
+                            : app.thumbnailUrl
+                              ? t('projectsPage.refreshScreenshot')
+                              : t('projectsPage.captureScreenshot')}
+                        </span>
+                      </button>
+                    )}
                   </div>
 
                   {/* 卡片主体信息区 */}

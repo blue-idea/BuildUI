@@ -310,4 +310,68 @@ describe('ProjectsCenterView Component', () => {
       expect(screen.getByTestId('project-platform-badge-3')).toBeDefined();
     });
   });
+
+  // v33.REQ-003-AC-002：工程管理页卡片截图替换按钮与加载态
+  describe('Project Screenshot Capture Action (v33 TDD)', () => {
+    it('每张工程卡片渲染截图按钮，点击后调用 onCaptureScreenshot 并传入目标项目', () => {
+      const onCaptureScreenshot = vi.fn();
+      renderWithProviders(
+        <ProjectsCenterView
+          apps={mockApps}
+          activeAppId={1}
+          onNewProject={vi.fn()}
+          onDeleteApp={vi.fn()}
+          onCaptureScreenshot={onCaptureScreenshot}
+        />
+      );
+
+      const captureBtn = screen.getByTestId('capture-project-screenshot-btn-2') as HTMLButtonElement;
+      expect(captureBtn.disabled).toBe(false);
+      fireEvent.click(captureBtn);
+
+      expect(onCaptureScreenshot).toHaveBeenCalledTimes(1);
+      expect(onCaptureScreenshot).toHaveBeenCalledWith(mockApps[1]);
+    });
+
+    it('当项目处于截图加载态时禁用按钮并展示加载文案，更新 thumbnailUrl 后替换卡片图片', () => {
+      const { rerender } = renderWithProviders(
+        <ProjectsCenterView
+          apps={mockApps}
+          activeAppId={1}
+          onNewProject={vi.fn()}
+          onDeleteApp={vi.fn()}
+          onCaptureScreenshot={vi.fn()}
+          capturingAppId={1}
+        />
+      );
+
+      const btn1 = screen.getByTestId('capture-project-screenshot-btn-1') as HTMLButtonElement;
+      expect(btn1.disabled).toBe(true);
+      expect(btn1.textContent).toMatch(/Capturing/i);
+
+      const updatedApps: AppItem[] = [
+        { ...mockApps[0], thumbnailUrl: 'data:image/png;base64,NEW_SHOT_DATA' },
+        mockApps[1],
+      ];
+      rerender(
+        <ThemeProvider>
+          <I18nProvider>
+            <ProjectsCenterView
+              apps={updatedApps}
+              activeAppId={1}
+              onNewProject={vi.fn()}
+              onDeleteApp={vi.fn()}
+              onCaptureScreenshot={vi.fn()}
+              capturingAppId={null}
+            />
+          </I18nProvider>
+        </ThemeProvider>
+      );
+
+      const preview = screen.getByTestId('project-card-preview-1');
+      const img = preview.querySelector('img');
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute('src')).toBe('data:image/png;base64,NEW_SHOT_DATA');
+    });
+  });
 });

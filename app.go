@@ -173,6 +173,7 @@ func (a *App) startup(ctx context.Context) {
 		a.appService = app.NewAppService(a.appRepo, database)
 		a.appService.SetTemplateCacheRoot(appDataDir)
 		a.appService.SetWorkspaceRoot(defaultRoot)
+		a.appService.SetThumbnailDir(filepath.Join(appDataDir, config.ThumbnailDirName))
 		a.appService.SetRunner(runner.NewAppRunner(emitter))
 		a.blueprintService = blueprint.NewBlueprintService(a.bpRepo, a.appRepo, database)
 		a.blueprintService.SetEmitter(emitter)
@@ -240,6 +241,22 @@ func (a *App) CreateApp(req app.CreateAppRequest) (*app.CreateAppResponse, error
 // ListApps 暴露给前端的 Wails RPC 方法
 func (a *App) ListApps() ([]app.AppDTO, error) {
 	return a.appService.ListApps(a.ctx)
+}
+
+// CaptureAppScreenshot 暴露给前端的实时项目截图 RPC 方法
+func (a *App) CaptureAppScreenshot(appID int64, targetURL string) (string, error) {
+	if a.appService == nil {
+		return "", errors.New("the project service is unavailable")
+	}
+	return a.appService.CaptureAppScreenshot(a.ctx, appID, targetURL)
+}
+
+// SaveAppThumbnail 暴露给前端的项目封面持久化 RPC 方法（供前端降级截图保存）
+func (a *App) SaveAppThumbnail(appID int64, dataURL string) (string, error) {
+	if a.appService == nil {
+		return "", errors.New("the project service is unavailable")
+	}
+	return a.appService.SaveAppThumbnail(a.ctx, appID, dataURL)
 }
 
 // GetBlueprint 暴露给前端的获取蓝图 RPC 方法

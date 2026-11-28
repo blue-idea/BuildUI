@@ -68,6 +68,9 @@ export const MACOS_CONTROLS = {
   /** 悬浮在微缩预览图上的半透明高可读中性微徽章 */
   previewOverlayBadge:
     'inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10.5px] font-medium bg-white/90 dark:bg-[#1c1c1e]/90 text-[#3a3a3c] dark:text-[#d1d1d6] border border-black/[0.08] dark:border-white/[0.12] shrink-0',
+  /** 悬浮在预览图右下角的 macOS 扁平截图操作胶囊按钮 */
+  previewActionPill:
+    'inline-flex items-center gap-1 px-2 py-1 rounded-[7px] text-[10.5px] font-medium bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-sm text-[#1d1d1f] dark:text-[#f5f5f7] border border-black/[0.12] dark:border-white/[0.16] hover:border-[#0071e3] dark:hover:border-[#0a84ff] hover:text-[#0071e3] dark:hover:text-[#0a84ff] transition-colors cursor-pointer disabled:opacity-55 disabled:cursor-not-allowed',
   /** Apple System Blue 激活状态扁平胶囊 */
   activePill:
     'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0071e3] dark:bg-[#0a84ff] text-white shrink-0',

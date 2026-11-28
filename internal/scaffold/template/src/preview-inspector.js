@@ -27,8 +27,81 @@
       parentOrigin = event.data.active ? (event.origin === 'null' ? '*' : event.origin) : '';
       doc.documentElement.style.cursor = parentOrigin ? 'crosshair' : '';
       if (!parentOrigin) resetHighlight();
+    } else if (event.data?.type === 'buildui:capture-screenshot') {
+      const requestId = event.data.requestId;
+      const width = Number(event.data.width) || Math.max(win.innerWidth || 1280, 320);
+      const height = Number(event.data.height) || Math.max(win.innerHeight || 800, 240);
+      const replyOrigin = event.origin && event.origin !== 'null' ? event.origin : '*';
+      captureViewportScreenshot(width, height)
+        .then((dataUrl) => {
+          win.parent.postMessage({ type: 'buildui:screenshot-captured', requestId, dataUrl }, replyOrigin);
+        })
+        .catch((err) => {
+          win.parent.postMessage({
+            type: 'buildui:screenshot-captured',
+            requestId,
+            error: err instanceof Error ? err.message : 'Failed to capture preview screenshot',
+          }, replyOrigin);
+        });
     }
   });
+
+  // 在沙箱 iframe 同源内部截取当前视口快照（作为无头浏览器不可用时的前端降级能力）
+  async function captureViewportScreenshot(width, height) {
+    const prevDisplay = overlay ? overlay.style.display : '';
+    if (overlay) overlay.style.display = 'none';
+    try {
+      const clone = (doc.body || doc.documentElement).cloneNode(true);
+      clone.querySelectorAll('script, #__buildui_inspector_overlay__').forEach((n) => n.remove());
+      const cssParts = [];
+      doc.querySelectorAll('style').forEach((s) => {
+        if (s.textContent) cssParts.push(s.textContent);
+      });
+      try {
+        Array.from(doc.styleSheets || []).forEach((sheet) => {
+          if (sheet.ownerNode && sheet.ownerNode.tagName === 'STYLE') return;
+          try {
+            const rules = Array.from(sheet.cssRules || []).map((r) => r.cssText).join('\n');
+            if (rules) cssParts.push(rules);
+          } catch {}
+        });
+      } catch {}
+      const bg = (doc.body && win.getComputedStyle(doc.body).backgroundColor) || '#ffffff';
+      const serialized = new XMLSerializer().serializeToString(clone);
+      const svg =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+        `<rect width="100%" height="100%" fill="${bg === 'rgba(0, 0, 0, 0)' ? '#ffffff' : bg}"/>` +
+        `<foreignObject width="100%" height="100%">` +
+        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden;">` +
+        (cssParts.length ? `<style><![CDATA[${cssParts.join('\n').replace(/]]>/g, ']]]]><![CDATA[>')}]]></style>` : '') +
+        serialized +
+        `</div></foreignObject></svg>`;
+      const bytes = new TextEncoder().encode(svg);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      const svgUrl = 'data:image/svg+xml;base64,' + btoa(bin);
+      return await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = doc.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject(new Error('Canvas context unavailable'));
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/png'));
+          } catch (e) {
+            reject(e);
+          }
+        };
+        img.onerror = () => reject(new Error('Failed to render screenshot image'));
+        img.src = svgUrl;
+      });
+    } finally {
+      if (overlay) overlay.style.display = prevDisplay;
+    }
+  }
 
   function describe(target) {
     const marked = target.closest('[data-buildui-source], [data-dyad-id]');

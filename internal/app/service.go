@@ -38,8 +38,10 @@ type AppDTO struct {
 	ID                int64  `json:"id"`
 	Name              string `json:"name"`
 	Path              string `json:"path"`
+	CreatedAt         string `json:"createdAt,omitempty"`
 	NeedsAppBlueprint bool   `json:"needsAppBlueprint"`
 	Platform          string `json:"platform,omitempty"`
+	ThumbnailURL      string `json:"thumbnailUrl,omitempty"`
 }
 
 // ActiveAppResponse 活跃应用状态响应
@@ -55,14 +57,16 @@ type ActiveAppResponse struct {
 
 // AppService 负责应用管理与脚手架初始化
 type AppService struct {
-	appRepo        *db.AppRepository
-	db             *db.DB
-	runner         *runner.AppRunner
-	workspaceRoot  string
-	verifyPreview  func(context.Context, *db.AppEntity) (*tsc.RemediationResult, error)
-	activePreviews sync.Map
-	templates      *template.TemplateService
-	createMu       sync.Mutex
+	appRepo            *db.AppRepository
+	db                 *db.DB
+	runner             *runner.AppRunner
+	workspaceRoot      string
+	thumbnailDir       string
+	screenshotCapturer ScreenshotCapturer
+	verifyPreview      func(context.Context, *db.AppEntity) (*tsc.RemediationResult, error)
+	activePreviews     sync.Map
+	templates          *template.TemplateService
+	createMu           sync.Mutex
 }
 
 // SetWorkspaceRoot 定位新建项目的默认目录。
@@ -265,12 +269,18 @@ func (s *AppService) ListApps(ctx context.Context) ([]AppDTO, error) {
 		if workspace.UsesExpo(a.Path) {
 			platform = "app"
 		}
+		createdAt := ""
+		if !a.CreatedAt.IsZero() {
+			createdAt = a.CreatedAt.UTC().Format(time.RFC3339)
+		}
 		dtos = append(dtos, AppDTO{
 			ID:                a.ID,
 			Name:              a.Name,
 			Path:              a.Path,
+			CreatedAt:         createdAt,
 			NeedsAppBlueprint: a.NeedsAppBlueprint,
 			Platform:          platform,
+			ThumbnailURL:      s.loadAppThumbnail(a.ID),
 		})
 	}
 
@@ -427,7 +437,10 @@ func (s *AppService) DeleteApp(ctx context.Context, appID int64) error {
 		return err
 	}
 
-	// 4. 执行目录防灾安全校验并递归物理删除工程工作区
+	// 4. 清理关联的项目封面缩略图
+	s.deleteAppThumbnail(appID)
+
+	// 5. 执行目录防灾安全校验并递归物理删除工程工作区
 	if appEntity.Path != "" && IsSafeProjectDirectory(appEntity.Path) {
 		_ = os.RemoveAll(appEntity.Path)
 	}

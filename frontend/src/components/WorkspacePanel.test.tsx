@@ -478,4 +478,55 @@ describe('WorkspacePanel Code Review Layout', () => {
     expect(publishRender.container.innerHTML).toContain('bg-blue-600');
     expect(publishRender.container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
   });
+
+  // v33.REQ-003-AC-001：构建区预览工具栏截图为封面按钮
+  describe('Project Screenshot Capture Button (v33 TDD)', () => {
+    it('预览就绪时展示截图按钮，点击后触发 onCaptureScreenshot 并携带当前地址与 iframe 捕获器', async () => {
+      const onCaptureScreenshot = vi.fn().mockResolvedValue(undefined);
+      renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl="http://127.0.0.1:5173/dashboard"
+          onCaptureScreenshot={onCaptureScreenshot}
+        />
+      );
+
+      const captureBtn = screen.getByTestId('capture-screenshot-btn') as HTMLButtonElement;
+      expect(captureBtn.disabled).toBe(false);
+      fireEvent.click(captureBtn);
+
+      await waitFor(() => expect(onCaptureScreenshot).toHaveBeenCalledTimes(1));
+      expect(onCaptureScreenshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          previewUrl: 'http://127.0.0.1:5173/dashboard',
+          captureFrame: expect.any(Function),
+        })
+      );
+    });
+
+    it('无可用预览或正在截图中时禁用截图按钮', () => {
+      const { rerender } = renderWorkspace(
+        <WorkspacePanel
+          activeView="preview"
+          previewUrl=""
+          onCaptureScreenshot={vi.fn()}
+        />
+      );
+
+      expect((screen.getByTestId('capture-screenshot-btn') as HTMLButtonElement).disabled).toBe(true);
+
+      rerender(
+        <I18nProvider>
+          <WorkspacePanel
+            activeView="preview"
+            previewUrl="http://127.0.0.1:5173"
+            isCapturingScreenshot={true}
+            onCaptureScreenshot={vi.fn()}
+          />
+        </I18nProvider>
+      );
+
+      expect((screen.getByTestId('capture-screenshot-btn') as HTMLButtonElement).disabled).toBe(true);
+    });
+  });
 });

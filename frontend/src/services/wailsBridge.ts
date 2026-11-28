@@ -73,6 +73,8 @@ interface DesktopMethods {
   CancelChat: (chatId: number) => Promise<void>;
   RunApp: (req: { appId: number; restart?: boolean }) => Promise<{ previewUrl: string; typeScriptChecked?: boolean; repairAttempts?: number }>;
   StopApp?: (req: { appId: number }) => Promise<void>;
+  CaptureAppScreenshot?: (appId: number, targetUrl: string) => Promise<string>;
+  SaveAppThumbnail?: (appId: number, dataUrl: string) => Promise<string>;
   ListProjectFiles: (appId: number) => Promise<string[]>;
   ReadProjectFile: (appId: number, path: string) => Promise<string>;
   SetAppTheme: (appId: number, themeId: string) => Promise<void>;

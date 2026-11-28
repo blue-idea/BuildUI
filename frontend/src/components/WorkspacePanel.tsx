@@ -17,12 +17,16 @@ import {
   AlertTriangle,
   Clock,
   Sparkles,
+  Camera,
+  Check,
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { FileTree } from './FileTree';
 import { CodeEditorViewer } from './CodeEditorViewer';
 import { ComponentInspector } from './ComponentInspector';
 import { locateCodeRegion } from '../utils/sourceLocator';
+import { captureIframeScreenshot } from '../utils/projectScreenshot';
+import { SCREENSHOT_FEEDBACK_DURATION_MS } from '../config/screenshot';
 import type { InspectedElement } from '../types/inspect';
 import type { DiagnosticItem } from '../services/wailsBridge';
 import type { BlueprintDTO } from './BlueprintCard';
@@ -49,6 +53,11 @@ const phonePreviewSizes = {
   standard: { width: 390, height: 844 },
   compact: { width: 360, height: 800 },
 };
+
+export interface PreviewCaptureContext {
+  previewUrl: string;
+  captureFrame: () => Promise<string | null>;
+}
 
 export interface WorkspacePanelProps {
   activeView?: WorkspaceView;
@@ -77,6 +86,9 @@ export interface WorkspacePanelProps {
   onPublish?: () => void;
   blueprint?: BlueprintDTO | null;
   onApproveBlueprint?: (chatId: number) => void;
+  onCaptureScreenshot?: (context: PreviewCaptureContext) => Promise<void> | void;
+  onPreviewLoaded?: (context: PreviewCaptureContext) => void;
+  isCapturingScreenshot?: boolean;
 }
 
 export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
@@ -106,10 +118,15 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
   onPublish,
   blueprint,
   onApproveBlueprint,
+  onCaptureScreenshot,
+  onPreviewLoaded,
+  isCapturingScreenshot = false,
 }) => {
   const { t } = useI18n();
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [isProblemsOpen, setIsProblemsOpen] = useState(true);
+  const [justCapturedCover, setJustCapturedCover] = useState(false);
+  const captureFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState<string>(files[0]?.path || '');
   const [source, setSource] = useState<{ path: string; text: string; error: boolean } | null>(null);
@@ -184,6 +201,47 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
       iframeRef.current?.contentWindow?.postMessage({ type: 'buildui:inspect-mode', active: isInspectMode }, previewOrigin);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (captureFeedbackTimerRef.current) {
+        clearTimeout(captureFeedbackTimerRef.current);
+      }
+    };
+  }, []);
+
+  const buildCaptureContext = (): PreviewCaptureContext => ({
+    previewUrl: previewDoc ? '' : activeUrl || previewUrl || '',
+    captureFrame: async () => {
+      if (!iframeRef.current) return null;
+      return captureIframeScreenshot(iframeRef.current, {
+        targetOrigin: previewOrigin || '*',
+      });
+    },
+  });
+
+  const handleCaptureClick = async () => {
+    if (!onCaptureScreenshot) return;
+    try {
+      await onCaptureScreenshot(buildCaptureContext());
+      setJustCapturedCover(true);
+      if (captureFeedbackTimerRef.current) {
+        clearTimeout(captureFeedbackTimerRef.current);
+      }
+      captureFeedbackTimerRef.current = setTimeout(() => {
+        setJustCapturedCover(false);
+      }, SCREENSHOT_FEEDBACK_DURATION_MS);
+    } catch {
+      // 错误由外层统一上报，此处不显示成功反馈
+    }
+  };
+
+  const canCapturePreview =
+    !previewActionsDisabled &&
+    !isCapturingScreenshot &&
+    !isLoading &&
+    !(blueprint && !blueprint.approved) &&
+    Boolean(previewDoc || previewUrl);
 
   useEffect(syncInspector, [previewOrigin, isInspectMode, activeView, previewKey]);
   useEffect(() => {
@@ -428,6 +486,34 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
           </select>
         )}
 
+        {/* 截图为项目封面按钮 */}
+        {onCaptureScreenshot && (
+          <button
+            type="button"
+            data-testid="capture-screenshot-btn"
+            onClick={() => void handleCaptureClick()}
+            disabled={!canCapturePreview}
+            aria-label={t('workspace.captureCover')}
+            title={t('workspace.captureCover')}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-slate-600 hover:bg-slate-200/60 hover:text-blue-600 disabled:opacity-45 disabled:cursor-not-allowed dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-blue-400 transition-colors cursor-pointer"
+          >
+            {isCapturingScreenshot ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-600 dark:text-blue-400" aria-hidden="true" />
+            ) : justCapturedCover ? (
+              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+            ) : (
+              <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            <span className="hidden md:inline">
+              {isCapturingScreenshot
+                ? t('workspace.capturingCover')
+                : justCapturedCover
+                  ? t('workspace.coverCaptured')
+                  : t('workspace.captureCover')}
+            </span>
+          </button>
+        )}
+
         {/* 刷新按钮 */}
         <button
           type="button"
@@ -529,7 +615,10 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                 <iframe
                   key={previewKey}
                   ref={iframeRef}
-                  onLoad={syncInspector}
+                  onLoad={() => {
+                    syncInspector();
+                    onPreviewLoaded?.(buildCaptureContext());
+                  }}
                   title="App live preview"
                   src={previewDoc ? undefined : frameUrl || previewUrl}
                   srcDoc={previewDoc}

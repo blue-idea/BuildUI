@@ -23,7 +23,7 @@ import { ComponentCenterView } from './components/ComponentCenterView';
 import { StyleCenterView } from './components/StyleCenterView';
 import { ProjectsCenterView } from './components/ProjectsCenterView';
 import { ChatMessageBubble } from './components/ChatMessageBubble';
-import { WorkspacePanel, WorkspaceView } from './components/WorkspacePanel';
+import { WorkspacePanel, WorkspaceView, type PreviewCaptureContext } from './components/WorkspacePanel';
 import { FileActionItem } from './types/fileAction';
 import { ThemePreset } from './components/ThemeSelector';
 import { getBenchmarkThemePresets } from './utils/styleExtractor';
@@ -33,8 +33,15 @@ import { generateSandboxDoc } from './utils/sandboxTemplate';
 import { generateSafeAppName } from './utils/appName';
 import { parseConfiguredProviders } from './config/providers';
 import { DEFAULT_HOME_STYLE } from './config/homeStyle';
+import { SCREENSHOT_AUTO_CAPTURE_DELAY_MS } from './config/screenshot';
 import { extractLocalEditDraft, type PendingLocalEdit } from './utils/targetedPrompt';
 import { buildLocalEditSubmission, formatClarificationAnswersPrompt } from './utils/chatMessageParser';
+import {
+  captureHtmlDocumentScreenshot,
+  loadPersistedProjectThumbnails,
+  removePersistedProjectThumbnail,
+  savePersistedProjectThumbnail,
+} from './utils/projectScreenshot';
 import {
   fetchSettings,
   saveSettings,
@@ -178,20 +185,29 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const [previousDockTab, setPreviousDockTab] = useState<DockTab>('home');
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>('preview');
   const [activeAppId, setActiveAppId] = useState<number>(desktop ? 0 : 1);
-  const [apps, setApps] = useState<AppItem[]>(desktop ? [] : [
-    {
-      id: 1,
-      name: 'Pantry Planner',
-      path: '/workspace/pantry-planner',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 2,
-      name: 'Default Application',
-      path: '/workspace/default-app',
-      createdAt: new Date().toISOString(),
-    },
-  ]);
+  const [apps, setApps] = useState<AppItem[]>(() => {
+    if (desktop) return [];
+    const savedThumbs = loadPersistedProjectThumbnails();
+    return [
+      {
+        id: 1,
+        name: 'Pantry Planner',
+        path: '/workspace/pantry-planner',
+        createdAt: new Date().toISOString(),
+        thumbnailUrl: savedThumbs[1],
+      },
+      {
+        id: 2,
+        name: 'Default Application',
+        path: '/workspace/default-app',
+        createdAt: new Date().toISOString(),
+        thumbnailUrl: savedThumbs[2],
+      },
+    ];
+  });
+  const [capturingAppId, setCapturingAppId] = useState<number | null>(null);
+  const autoCapturedAppIdsRef = useRef<Set<number>>(new Set());
+  const autoCaptureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeApp = apps.find((a) => a.id === activeAppId);
   const readProjectFile = useCallback((path: string) => desktopApp().ReadProjectFile(activeAppId, path), [activeAppId]);
@@ -339,6 +355,119 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const reportError = (error: unknown) => setProjectError(error instanceof Error ? error.message : String(error));
+
+  // 统一的项目封面截图捕获与列表替换逻辑（覆盖 v33.REQ-003-AC-001 ~ AC-003）
+  const handleCaptureProjectScreenshot = async (
+    targetAppId: number,
+    options: { targetUrl?: string; captureFrame?: () => Promise<string | null>; silent?: boolean } = {}
+  ): Promise<void> => {
+    if (!targetAppId || capturingAppId !== null) return;
+    setCapturingAppId(targetAppId);
+    if (!options.silent) {
+      setProjectError('');
+    }
+    try {
+      let capturedUrl = '';
+      if (desktop) {
+        const api = desktopApp();
+        if (api.CaptureAppScreenshot) {
+          try {
+            capturedUrl = await api.CaptureAppScreenshot(targetAppId, options.targetUrl ?? '');
+          } catch (backendErr) {
+            // 无头浏览器不可用或失败时，自动降级为前端 iframe DOM 截图并落盘持久化
+            if (options.captureFrame) {
+              const fallbackDataUrl = await options.captureFrame().catch(() => null);
+              if (fallbackDataUrl) {
+                capturedUrl = api.SaveAppThumbnail
+                  ? await api.SaveAppThumbnail(targetAppId, fallbackDataUrl)
+                  : fallbackDataUrl;
+              } else {
+                throw backendErr;
+              }
+            } else {
+              throw backendErr;
+            }
+          }
+        } else if (options.captureFrame) {
+          const fallbackDataUrl = await options.captureFrame();
+          if (fallbackDataUrl) {
+            capturedUrl = api.SaveAppThumbnail
+              ? await api.SaveAppThumbnail(targetAppId, fallbackDataUrl)
+              : fallbackDataUrl;
+          }
+        }
+      } else {
+        if (options.captureFrame) {
+          capturedUrl = (await options.captureFrame().catch(() => null)) || '';
+        }
+        if (!capturedUrl) {
+          const targetApp = apps.find((a) => a.id === targetAppId);
+          const html = generateSandboxDoc(
+            targetApp?.name ?? 'Project',
+            activeThemeId,
+            targetAppId === activeAppId ? blueprint : null,
+            locale,
+            targetAppId === activeAppId ? extraSandboxItems : []
+          );
+          capturedUrl = await captureHtmlDocumentScreenshot(html);
+        }
+        if (capturedUrl) {
+          savePersistedProjectThumbnail(targetAppId, capturedUrl);
+        }
+      }
+
+      if (capturedUrl) {
+        setApps((prev) =>
+          prev.map((a) => (a.id === targetAppId ? { ...a, thumbnailUrl: capturedUrl } : a))
+        );
+      }
+    } catch (error) {
+      if (!options.silent) {
+        reportError(error);
+        throw error;
+      }
+    } finally {
+      setCapturingAppId((current) => (current === targetAppId ? null : current));
+    }
+  };
+
+  // 构建区首次预览就绪且尚无项目封面时，自动静默截取一次（覆盖 v33.REQ-003-AC-003）
+  const handlePreviewLoaded = (captureCtx: PreviewCaptureContext) => {
+    const targetApp = activeApp;
+    if (
+      !targetApp ||
+      targetApp.thumbnailUrl ||
+      autoCapturedAppIdsRef.current.has(targetApp.id) ||
+      isStartingApp ||
+      isGenerating ||
+      (blueprint && !blueprint.approved)
+    ) {
+      return;
+    }
+    if (desktop && !desktopApp().CaptureAppScreenshot) {
+      return;
+    }
+    autoCapturedAppIdsRef.current.add(targetApp.id);
+    if (autoCaptureTimerRef.current) {
+      clearTimeout(autoCaptureTimerRef.current);
+    }
+    const appIdSnapshot = targetApp.id;
+    autoCaptureTimerRef.current = setTimeout(() => {
+      void handleCaptureProjectScreenshot(appIdSnapshot, {
+        targetUrl: captureCtx.previewUrl,
+        captureFrame: captureCtx.captureFrame,
+        silent: true,
+      });
+    }, SCREENSHOT_AUTO_CAPTURE_DELAY_MS);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (autoCaptureTimerRef.current) {
+        clearTimeout(autoCaptureTimerRef.current);
+      }
+    };
+  }, []);
 
   const refreshProject = async (id: number) => {
     const [history, paths] = await Promise.all([
@@ -1394,6 +1523,7 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
                 });
                 return;
               }
+              removePersistedProjectThumbnail(id);
               setApps((prev) => prev.filter((a) => a.id !== id));
             }}
             onRenameApp={(id, newName) => {
@@ -1403,6 +1533,10 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               setExportTargetAppId(app.id);
               setIsExportOpen(true);
             }}
+            onCaptureScreenshot={(app) =>
+              handleCaptureProjectScreenshot(app.id, { targetUrl: '' }).catch(() => {})
+            }
+            capturingAppId={capturingAppId}
             onOpenInFileManager={desktop ? (path) => desktopApp().OpenInFileManager(path) : openInFileManager}
           />
         ) : activeDockTab === 'templates' ? (
@@ -1789,6 +1923,17 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
             setTimeout(() => setIsStartingApp(false), 500);
           }}
           onRestart={desktop && activeAppId ? () => void startPreview(activeAppId, true).catch(reportError) : undefined}
+          onCaptureScreenshot={
+            activeAppId
+              ? (ctx) =>
+                  handleCaptureProjectScreenshot(activeAppId, {
+                    targetUrl: ctx.previewUrl,
+                    captureFrame: ctx.captureFrame,
+                  })
+              : undefined
+          }
+          onPreviewLoaded={handlePreviewLoaded}
+          isCapturingScreenshot={capturingAppId === activeAppId && activeAppId > 0}
           previewActionsDisabled={isStartingApp || (desktop && (isGenerating || isChangingProject))}
           onOpenExternal={previewUrl ? () => window.open(previewUrl, '_blank', 'noopener,noreferrer') : undefined}
           onPublish={() => setIsExportOpen(true)}

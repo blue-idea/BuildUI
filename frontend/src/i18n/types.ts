@@ -79,6 +79,10 @@ export interface I18nDictionary {
     openProject: string;
     exportProject: string;
     previewAlt: string;
+    captureScreenshot: string;
+    refreshScreenshot: string;
+    capturingScreenshot: string;
+    captureScreenshotAria: string;
     revealInFinder: string;
     deleteProject: string;
     deleteConfirm: string;
@@ -212,6 +216,9 @@ export interface I18nDictionary {
     systemMessages: string;
     reload: string;
     restart: string;
+    captureCover: string;
+    capturingCover: string;
+    coverCaptured: string;
     openExternal: string;
     back: string;
     forward: string;
