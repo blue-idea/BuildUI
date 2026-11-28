@@ -93,4 +93,19 @@ describe('FileTree Component', () => {
 
     expect(screen.getByText(/No files/i)).toBeDefined();
   });
+
+  it('选中态与目录图标使用 Apple System Blue 且不含紫色类名', () => {
+    const { container } = render(
+      <FileTree
+        paths={samplePaths}
+        selectedPath="src/App.tsx"
+        onSelectPath={vi.fn()}
+      />
+    );
+
+    const selectedNode = screen.getByRole('treeitem', { name: /App\.tsx/i });
+    expect(selectedNode.className).toContain('bg-blue-50');
+    expect(selectedNode.className).toContain('text-blue-700');
+    expect(container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
+  });
 });

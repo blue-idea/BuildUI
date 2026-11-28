@@ -111,4 +111,31 @@ describe('UpdateNotifier Component', () => {
     expect(mockOpenUrl).toHaveBeenCalledWith(mockPayload.downloadUrl);
     expect(screen.queryByRole('status')).toBeNull();
   });
+
+  it('renders adaptive light/dark frosted glass card with Apple System Blue primary CTA', () => {
+    let triggerEvent: ((payload: UpdatePayload) => void) | undefined;
+    const mockSubscribe = vi.fn((_eventName: string, handler: (payload: UpdatePayload) => void) => {
+      triggerEvent = handler;
+      return () => {};
+    });
+
+    render(
+      <I18nProvider>
+        <UpdateNotifier subscribe={mockSubscribe} />
+      </I18nProvider>
+    );
+
+    act(() => {
+      triggerEvent!(mockPayload);
+    });
+
+    const card = screen.getByRole('status');
+    expect(card.className).toContain('bg-white/85');
+    expect(card.className).toContain('dark:bg-zinc-900/85');
+    expect(card.className).toContain('backdrop-blur-xl');
+    expect(card.className).not.toContain('bg-slate-900/95');
+
+    const downloadBtn = screen.getByTestId('btn-update-download');
+    expect(downloadBtn.className).toContain('bg-blue-600');
+  });
 });

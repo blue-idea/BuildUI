@@ -81,34 +81,34 @@ export function UpdateNotifier({
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-6 right-6 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-xl border border-sky-500/20 bg-slate-900/95 p-4 text-slate-100 shadow-2xl backdrop-blur-md"
+      className="fixed bottom-6 right-6 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-2xl border border-slate-200/80 dark:border-zinc-700/70 bg-white/85 dark:bg-zinc-900/85 p-4 text-slate-800 dark:text-zinc-100 shadow-2xl backdrop-blur-xl transition-colors"
     >
       <div className="flex gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 ring-1 ring-blue-500/15 dark:ring-blue-400/20">
           <Sparkles className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <h4 className="text-sm font-semibold text-white">
+            <h4 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
               New Version v{update.version} Available
             </h4>
           </div>
-          <p className="mt-1 text-xs text-slate-300 leading-relaxed">
+          <p className="mt-1 text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
             A new version of BuildUI is ready. macOS users can upgrade seamlessly via Homebrew:
           </p>
 
-          <div className="mt-2.5 flex items-center justify-between gap-2 rounded-lg bg-black/40 px-2.5 py-1.5 font-mono text-xs text-sky-300 border border-white/5">
+          <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl bg-slate-100/85 dark:bg-zinc-950/75 px-2.5 py-1.5 font-mono text-xs text-blue-700 dark:text-blue-300 border border-slate-200/80 dark:border-zinc-800">
             <div className="flex items-center gap-1.5 truncate">
-              <Terminal className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <Terminal className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500" />
               <span className="truncate">{brewCmd}</span>
             </div>
             <button
               type="button"
               onClick={handleCopyBrew}
-              className="shrink-0 text-[11px] text-slate-400 hover:text-white transition-colors"
+              className="shrink-0 text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
               title="Copy command"
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : 'Copy'}
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : 'Copy'}
             </button>
           </div>
 
@@ -117,7 +117,7 @@ export function UpdateNotifier({
               type="button"
               data-testid="btn-update-later"
               onClick={handleLater}
-              className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200 transition-colors"
+              className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors"
             >
               Later
             </button>
@@ -125,7 +125,7 @@ export function UpdateNotifier({
               type="button"
               data-testid="btn-update-download"
               onClick={handleDownload}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
               Download

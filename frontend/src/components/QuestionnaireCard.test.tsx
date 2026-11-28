@@ -79,4 +79,31 @@ describe('QuestionnaireCard Component', () => {
     fireEvent.click(screen.getByTestId('questionnaire-skip-btn'));
     expect(onSkip).toHaveBeenCalledTimes(1);
   });
+
+  it('uses restrained Apple System Blue highlights without indigo or purple classes', () => {
+    const { container } = render(
+      <QuestionnaireCard
+        questions={[
+          {
+            id: 'q1',
+            category: 'ui',
+            question: 'Select layout style',
+            type: 'single_choice',
+            options: ['Sidebar', 'Topbar'],
+            allowCustom: true,
+          },
+        ]}
+        onSubmit={vi.fn()}
+      />
+    );
+
+    const card = screen.getByTestId('questionnaire-card');
+    expect(card.className).toContain('border-blue-200');
+
+    const submitBtn = screen.getByTestId('questionnaire-submit-btn');
+    expect(submitBtn.className).toContain('bg-blue-600');
+
+    fireEvent.click(screen.getByText('Sidebar'));
+    expect(container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
+  });
 });

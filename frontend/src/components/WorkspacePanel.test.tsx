@@ -444,4 +444,38 @@ describe('WorkspacePanel Code Review Layout', () => {
       expect(screen.getByTitle('App live preview')).toBeDefined();
     });
   });
+
+  it('交互高亮与主操作统一收拢为 Apple System Blue，不包含紫色类名', () => {
+    const { container } = renderWorkspace(
+      <WorkspacePanel
+        activeView="preview"
+        previewUrl="http://localhost:8081"
+        blueprint={{
+          chatId: 9,
+          appName: 'Demo',
+          designDirection: 'Clean',
+          primaryColor: '#007aff',
+          themeId: 'default',
+          visuals: [],
+          approved: false,
+        }}
+        onApproveBlueprint={vi.fn()}
+      />
+    );
+
+    const previewTab = screen.getByTestId('tab-preview');
+    expect(previewTab.className).toContain('blue');
+    expect(previewTab.className).not.toMatch(/purple|indigo|violet/);
+
+    const approveBtn = screen.getByTestId('preview-approve-blueprint-btn');
+    expect(approveBtn.className).toContain('bg-blue-600');
+    expect(approveBtn.className).not.toMatch(/purple|indigo|violet/);
+    expect(container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
+
+    const publishRender = renderWorkspace(
+      <WorkspacePanel activeView="publish" onPublish={vi.fn()} />
+    );
+    expect(publishRender.container.innerHTML).toContain('bg-blue-600');
+    expect(publishRender.container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
+  });
 });

@@ -123,4 +123,20 @@ describe('ComponentInspector (TDD)', () => {
     expect(handleJumpToCode).toHaveBeenCalledTimes(1);
     expect(handleJumpToCode).toHaveBeenCalledWith('src/components/Hero.tsx', 14);
   });
+
+  it('renders top inspection banner with adaptive light/dark frosted glass surface', () => {
+    const { container } = render(
+      <ComponentInspector
+        isActive={true}
+        onExit={vi.fn()}
+        onSelectComponent={vi.fn()}
+      />
+    );
+
+    const html = container.innerHTML;
+    expect(html).toContain('bg-white/85');
+    expect(html).toContain('dark:bg-zinc-900/85');
+    expect(html).toContain('backdrop-blur-xl');
+    expect(html).not.toContain('bg-blue-950/90');
+  });
 });

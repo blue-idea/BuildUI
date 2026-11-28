@@ -96,15 +96,15 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
 
   return (
     <>
-      {/* 顶部审查模式悬浮条 */}
-      <div className="absolute inset-x-0 top-0 z-40 flex items-center justify-between border-b border-blue-500/40 bg-blue-950/90 px-4 py-2 text-xs text-blue-100 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2">
+      {/* 顶部审查模式悬浮条（浅色/深色双模毛玻璃材质） */}
+      <div className="absolute inset-x-0 top-0 z-40 flex items-center justify-between border-b border-blue-200/80 dark:border-blue-500/30 bg-white/85 dark:bg-zinc-900/85 px-4 py-2 text-xs text-slate-700 dark:text-zinc-200 shadow-lg backdrop-blur-xl animate-in fade-in slide-in-from-top-2 transition-colors">
         <div className="flex items-center gap-2.5">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-blue-400" />
-          <span className="font-bold text-white flex items-center gap-1.5">
-            <MousePointerClick className="w-3.5 h-3.5 text-blue-300" />
+          <span className="h-2 w-2 animate-pulse rounded-full bg-blue-600 dark:bg-blue-400" />
+          <span className="font-semibold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
+            <MousePointerClick className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             <span>{t('localEdit.modeBannerTitle')}</span>
           </span>
-          <span className="text-blue-200 hidden md:inline">
+          <span className="text-slate-500 dark:text-zinc-400 hidden md:inline">
             {t('localEdit.modeBannerDesc')}
           </span>
         </div>
@@ -112,14 +112,14 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
         <div className="flex items-center gap-2">
           {/* 交互式点选快捷药丸 */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-blue-300 font-medium select-none">{t('localEdit.selectTarget')}</span>
+            <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium select-none">{t('localEdit.selectTarget')}</span>
             {availableElements.map((el) => (
               <button
                 key={el.id}
                 type="button"
                 data-testid={`inspect-target-${el.tagName}`}
                 onClick={() => handleSelectTarget(el)}
-                className="px-2 py-0.5 rounded-lg text-[11px] font-mono font-medium border border-blue-400/40 bg-blue-900/60 hover:bg-blue-800 text-blue-200 hover:text-white transition-all cursor-pointer"
+                className="px-2 py-0.5 rounded-lg text-[11px] font-mono font-medium border border-blue-200/80 dark:border-blue-500/35 bg-blue-50/80 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 transition-all cursor-pointer"
               >
                 &lt;{el.tagName}&gt;
               </button>

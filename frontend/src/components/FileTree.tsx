@@ -172,9 +172,9 @@ export const FileTree: React.FC<FileTreeProps> = ({
                 )}
               </span>
               {isExpanded ? (
-                <FolderOpen className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                <FolderOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
               ) : (
-                <Folder className="w-3.5 h-3.5 text-purple-500/80 dark:text-purple-400/80 shrink-0" />
+                <Folder className="w-3.5 h-3.5 text-blue-500/80 dark:text-blue-400/80 shrink-0" />
               )}
               <span className="truncate font-medium">{node.name}</span>
             </button>
@@ -200,7 +200,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
           style={{ paddingLeft: `${depth * 14 + 24}px` }}
           className={`w-full flex items-center gap-2 py-1 pr-2 text-xs rounded-md transition-all text-left font-mono ${
             isSelected
-              ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 font-semibold shadow-2xs'
+              ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-semibold shadow-2xs'
               : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800/60 hover:text-slate-900 dark:hover:text-zinc-200'
           }`}
         >
@@ -224,7 +224,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
       {/* 顶部标题区 */}
       <div className="h-9 px-3 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between text-xs text-slate-500 dark:text-zinc-400 shrink-0 bg-slate-50/80 dark:bg-zinc-900/80">
         <div className="flex items-center gap-1.5 font-medium">
-          <Files className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+          <Files className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
           <span>{t('workspace.files', 'Files')}</span>
         </div>
         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-zinc-800 font-mono text-slate-600 dark:text-zinc-400">

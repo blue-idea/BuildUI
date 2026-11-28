@@ -45,7 +45,7 @@ function renderInlineTokens(text: string): React.ReactNode[] {
       return (
         <code
           key={idx}
-          className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-indigo-700 dark:bg-zinc-800 dark:text-indigo-300"
+          className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-blue-700 dark:bg-zinc-800 dark:text-blue-300"
         >
           {part.slice(1, -1)}
         </code>
@@ -71,7 +71,7 @@ function renderFormattedAssistantText(raw: string): React.ReactNode {
         if (bulletMatch) {
           return (
             <div key={index} className="flex items-start gap-2 pl-1">
-              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400 dark:bg-indigo-400" />
+              <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500 dark:bg-blue-400" />
               <span className="flex-1">{renderInlineTokens(bulletMatch[1])}</span>
             </div>
           );
@@ -80,7 +80,7 @@ function renderFormattedAssistantText(raw: string): React.ReactNode {
         if (orderedMatch) {
           return (
             <div key={index} className="flex items-start gap-2 pl-1">
-              <span className="mt-0.5 shrink-0 font-mono text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+              <span className="mt-0.5 shrink-0 font-mono text-[11px] font-semibold text-blue-600 dark:text-blue-400">
                 {orderedMatch[1]}.
               </span>
               <span className="flex-1">{renderInlineTokens(orderedMatch[2])}</span>
@@ -112,7 +112,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 
     return (
       <div className="flex flex-col items-end">
-        <div className="max-w-[94%] rounded-2xl rounded-br-md border border-indigo-200/80 bg-gradient-to-br from-indigo-50 via-violet-50/90 to-white px-4 py-3 text-[13px] leading-relaxed text-slate-800 shadow-xs dark:border-indigo-500/30 dark:from-indigo-950/75 dark:via-slate-900/90 dark:to-zinc-900 dark:text-indigo-100">
+        <div className="max-w-[94%] rounded-2xl rounded-br-md border border-blue-200/80 bg-gradient-to-br from-blue-50/90 via-sky-50/50 to-white px-4 py-3 text-[13px] leading-relaxed text-slate-800 shadow-xs dark:border-blue-500/30 dark:from-blue-950/60 dark:via-zinc-900/95 dark:to-zinc-900 dark:text-blue-50">
           {parsed.kind === 'local-edit' && (
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -121,11 +121,11 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                   <span>{t('chat.localEditTag')}</span>
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-md bg-white/80 px-2 py-0.5 font-mono text-[11px] font-medium text-slate-700 ring-1 ring-slate-200/80 dark:bg-zinc-800/90 dark:text-zinc-200 dark:ring-zinc-700">
-                  <FileCode2 className="h-3 w-3 text-indigo-500" />
+                  <FileCode2 className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                   <span className="truncate max-w-[180px]">{parsed.componentPath}</span>
                 </span>
                 {parsed.tagName && (
-                  <span className="rounded bg-indigo-100/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+                  <span className="rounded bg-blue-100/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                     &lt;{parsed.tagName}&gt;
                   </span>
                 )}
@@ -149,7 +149,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
               <div className="flex flex-wrap items-center gap-1.5">
                 {parsed.platform && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium text-slate-600 ring-1 ring-slate-200/80 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700">
-                    <Layout className="h-3 w-3 text-indigo-500" />
+                    <Layout className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                     <span>{parsed.platform.split('(')[0].trim()}</span>
                   </span>
                 )}
@@ -159,7 +159,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                   </span>
                 )}
                 {parsed.styleName && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-300/60 dark:bg-violet-900/40 dark:text-violet-300 dark:ring-violet-700/50">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100/80 px-2 py-0.5 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-300/60 dark:bg-blue-900/40 dark:text-blue-300 dark:ring-blue-700/50">
                     <Palette className="h-3 w-3" />
                     <span>{parsed.styleName}</span>
                   </span>
@@ -170,14 +170,14 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowStyleSpec((prev) => !prev)}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-300 dark:hover:text-indigo-200"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                   >
                     <Sparkles className="h-3 w-3" />
                     <span>{showStyleSpec ? t('chat.hideStyleSpec') : t('chat.viewStyleSpec')}</span>
                     {showStyleSpec ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                   </button>
                   {showStyleSpec && (
-                    <div className="mt-1.5 rounded-xl border border-indigo-200/70 bg-white/85 p-2.5 text-[11px] leading-relaxed text-slate-600 dark:border-zinc-700 dark:bg-zinc-950/70 dark:text-zinc-300">
+                    <div className="mt-1.5 rounded-xl border border-blue-200/70 bg-white/85 p-2.5 text-[11px] leading-relaxed text-slate-600 dark:border-zinc-700 dark:bg-zinc-950/70 dark:text-zinc-300">
                       {parsed.stylePrompt}
                     </div>
                   )}
@@ -188,7 +188,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
 
           {parsed.kind === 'clarification-answers' && (
             <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 dark:text-blue-300">
                 <ListChecks className="h-3.5 w-3.5" />
                 <span>{t('questionnaire.submittedTitle')}</span>
               </div>
@@ -199,7 +199,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                   {parsed.items.map((item, idx) => (
                     <div
                       key={idx}
-                      className="rounded-xl bg-white/80 px-2.5 py-1.5 text-xs ring-1 ring-indigo-100 dark:bg-zinc-800/70 dark:ring-zinc-700"
+                      className="rounded-xl bg-white/80 px-2.5 py-1.5 text-xs ring-1 ring-blue-100 dark:bg-zinc-800/70 dark:ring-zinc-700"
                     >
                       <div className="text-[11px] text-slate-500 dark:text-zinc-400">{item.question}</div>
                       <div className="mt-0.5 font-medium text-slate-800 dark:text-zinc-100">{item.answer}</div>
@@ -250,7 +250,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
       {hasText && (
         <div className="max-w-[96%] rounded-2xl rounded-bl-md border border-slate-200/90 bg-white px-4 py-3 shadow-xs dark:border-zinc-800 dark:bg-zinc-900/95">
           <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-md bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
               <Bot className="h-3 w-3" />
             </span>
             <span>{t('chat.assistantLabel')}</span>

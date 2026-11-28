@@ -83,4 +83,26 @@ describe('AppDrawer', () => {
     fireEvent.click(deleteBtn);
     expect(handleDelete).toHaveBeenCalledWith(2);
   });
+
+  it('adapts to light and dark frosted glass materials without hardcoded dark-only surfaces', () => {
+    const { container } = render(
+      <AppDrawer
+        isOpen={true}
+        onClose={vi.fn()}
+        apps={mockApps}
+        activeAppId={1}
+        onSelectApp={vi.fn()}
+        onCreateApp={vi.fn()}
+        onOpenTemplates={vi.fn()}
+        onDeleteApp={vi.fn()}
+      />
+    );
+
+    const html = container.innerHTML;
+    expect(html).toContain('bg-white/85');
+    expect(html).toContain('dark:bg-zinc-900/85');
+    expect(html).toContain('backdrop-blur-xl');
+    expect(html).not.toContain('bg-slate-900 ');
+    expect(html).not.toContain('bg-slate-950');
+  });
 });

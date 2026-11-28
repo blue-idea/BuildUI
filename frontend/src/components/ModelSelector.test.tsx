@@ -235,4 +235,24 @@ describe('ModelSelector Component', () => {
     fireEvent.click(slowOption);
     expect(handleChange).toHaveBeenCalledWith('provider:custom_slow');
   });
+
+  it('uses Apple System Blue highlights without purple classes', () => {
+    const { container } = renderWithI18n(
+      <ModelSelector
+        value="auto"
+        onChange={vi.fn()}
+        configuredProvider="deepseek"
+        configuredModel="deepseek-v4-flash"
+      />
+    );
+
+    const triggerBtn = screen.getByRole('button', { name: /model selector/i });
+    expect(triggerBtn.className).toContain('focus:ring-blue-500');
+    expect(triggerBtn.className).not.toMatch(/purple|indigo|violet/);
+
+    fireEvent.click(triggerBtn);
+    const autoOption = screen.getByRole('option', { name: /auto/i });
+    expect(autoOption.className).toContain('bg-blue-50');
+    expect(container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
+  });
 });

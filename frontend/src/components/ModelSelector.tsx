@@ -143,7 +143,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label="Model selector"
-        className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-700/70 border border-slate-200 dark:border-zinc-600 rounded-md hover:bg-slate-50 dark:hover:bg-zinc-650 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-400 disabled:opacity-50"
+        className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-700/70 border border-slate-200 dark:border-zinc-600 rounded-md hover:bg-slate-50 dark:hover:bg-zinc-650 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-500/60 disabled:opacity-50"
       >
         <span className="truncate max-w-[140px]">{displayLabel}</span>
         <ChevronDown
@@ -156,7 +156,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         <div
           role="listbox"
           aria-label="Model options"
-          className={`absolute ${placement === 'bottom' ? 'right-0 top-full mt-1.5' : 'left-0 bottom-full mb-1.5'} min-w-[230px] rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100`}
+          className={`absolute ${placement === 'bottom' ? 'right-0 top-full mt-1.5' : 'left-0 bottom-full mb-1.5'} min-w-[230px] rounded-xl border border-slate-200/90 dark:border-zinc-700/80 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100`}
         >
           <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
             {t('chat.selectModelProvider') || 'Select Model / Provider'}
@@ -170,12 +170,12 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             onClick={() => handleSelect('auto')}
             className={`w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-lg transition-colors ${
               value === 'auto'
-                ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-medium'
+                ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium'
                 : 'text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700/60'
             }`}
           >
             <div className="flex items-center gap-2 truncate">
-              <Sparkles className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
+              <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
               <div className="flex flex-col text-left truncate">
                 <span className="truncate">Auto</span>
                 <span className="text-[10px] text-slate-400 dark:text-zinc-500">
@@ -183,7 +183,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 </span>
               </div>
             </div>
-            {value === 'auto' && <Check className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />}
+            {value === 'auto' && <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />}
           </button>
 
           {/* 已配置的 Provider / Model 列表 */}
@@ -199,7 +199,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                   onClick={() => handleSelect(opt.id)}
                   className={`w-full flex items-center justify-between px-2 py-1.5 mt-0.5 text-xs rounded-lg transition-colors ${
                     isSelected
-                      ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-medium'
+                      ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-medium'
                       : 'text-slate-700 dark:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700/60'
                   }`}
                 >
@@ -210,7 +210,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                     </span>
                   </div>
                   {isSelected && (
-                    <Check className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                    <Check className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                   )}
                 </button>
               );

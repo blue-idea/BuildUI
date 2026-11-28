@@ -74,7 +74,7 @@ export const QuestionnaireCard: React.FC<QuestionnaireProps> = ({
     }
     if (category === 'ui') {
       return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-semibold text-purple-700 ring-1 ring-purple-200/80 dark:bg-purple-950/60 dark:text-purple-300 dark:ring-purple-800/60">
+        <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 ring-1 ring-sky-200/80 dark:bg-sky-950/60 dark:text-sky-300 dark:ring-sky-800/60">
           <Layers className="h-2.5 w-2.5" />
           <span>{t('questionnaire.catUi')}</span>
         </span>
@@ -94,11 +94,11 @@ export const QuestionnaireCard: React.FC<QuestionnaireProps> = ({
   return (
     <div
       data-testid="questionnaire-card"
-      className="w-full rounded-2xl border border-indigo-200/90 bg-gradient-to-b from-white to-slate-50/90 p-4 shadow-md dark:border-indigo-500/30 dark:from-zinc-900 dark:to-zinc-900/95 text-slate-800 dark:text-slate-100"
+      className="w-full rounded-2xl border border-blue-200/80 bg-gradient-to-b from-white to-slate-50/90 p-4 shadow-md dark:border-blue-500/25 dark:from-zinc-900 dark:to-zinc-900/95 text-slate-800 dark:text-slate-100"
     >
       <div className="mb-4 flex items-start justify-between gap-3 border-b border-slate-200/80 dark:border-zinc-800 pb-3">
         <div className="flex items-start gap-2.5 min-w-0">
-          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200/70 dark:bg-indigo-950/70 dark:text-indigo-400 dark:ring-indigo-500/30">
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 ring-1 ring-blue-200/70 dark:bg-blue-950/60 dark:text-blue-400 dark:ring-blue-500/30">
             <Sparkles className="h-4 w-4" />
           </div>
           <div className="min-w-0">
@@ -110,7 +110,7 @@ export const QuestionnaireCard: React.FC<QuestionnaireProps> = ({
             </p>
           </div>
         </div>
-        <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-indigo-200/80 dark:bg-indigo-950/60 dark:text-indigo-300 dark:ring-indigo-800/60">
+        <span className="shrink-0 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700 ring-1 ring-blue-200/80 dark:bg-blue-950/60 dark:text-blue-300 dark:ring-blue-800/60">
           {t('questionnaire.answeredCount', { answered: answeredCount, total: questions.length })}
         </span>
       </div>
@@ -150,7 +150,7 @@ export const QuestionnaireCard: React.FC<QuestionnaireProps> = ({
                   value={(answers[q.id] as string) || ''}
                   onChange={(e) => handleTextChange(q.id, e.target.value)}
                   placeholder={q.placeholder || t('questionnaire.textPlaceholder')}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-indigo-400"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:bg-white focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-500 dark:focus:border-blue-400"
                 />
               ) : (
                 <>
@@ -169,8 +169,8 @@ export const QuestionnaireCard: React.FC<QuestionnaireProps> = ({
                           onClick={() => handleOptionSelect(q.id, opt, isMulti)}
                           className={`group flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-medium transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
                             isSelected
-                              ? 'border-indigo-500 bg-indigo-50/90 text-indigo-800 shadow-2xs ring-1 ring-indigo-500/20 dark:border-indigo-400 dark:bg-indigo-950/60 dark:text-indigo-200'
-                              : 'border-slate-200 bg-slate-50/70 text-slate-700 hover:border-indigo-300 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:border-zinc-700 dark:hover:bg-zinc-800'
+                              ? 'border-blue-500 bg-blue-50/90 text-blue-800 shadow-2xs ring-1 ring-blue-500/20 dark:border-blue-400 dark:bg-blue-950/50 dark:text-blue-200'
+                              : 'border-slate-200 bg-slate-50/70 text-slate-700 hover:border-blue-300 hover:bg-white dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:border-zinc-700 dark:hover:bg-zinc-800'
                           }`}
                         >
                           <span className="leading-snug">{opt}</span>
@@ -179,7 +179,7 @@ export const QuestionnaireCard: React.FC<QuestionnaireProps> = ({
                               isMulti ? 'rounded-md' : 'rounded-full'
                             } ${
                               isSelected
-                                ? 'bg-indigo-600 text-white dark:bg-indigo-500'
+                                ? 'bg-blue-600 text-white dark:bg-blue-500'
                                 : 'border border-slate-300 bg-white dark:border-zinc-600 dark:bg-zinc-800'
                             }`}
                           >
@@ -192,7 +192,7 @@ export const QuestionnaireCard: React.FC<QuestionnaireProps> = ({
 
                   {q.allowCustom && (
                     <div className="pt-1">
-                      <div className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-2.5 py-1.5 focus-within:border-indigo-400 dark:border-zinc-800 dark:bg-zinc-900/40">
+                      <div className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-2.5 py-1.5 focus-within:border-blue-400 dark:border-zinc-800 dark:bg-zinc-900/40">
                         <MessageSquarePlus className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-zinc-500" />
                         <input
                           type="text"
@@ -217,7 +217,7 @@ export const QuestionnaireCard: React.FC<QuestionnaireProps> = ({
             type="submit"
             disabled={disabled}
             data-testid="questionnaire-submit-btn"
-            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-indigo-500 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-blue-500 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
           >
             <Sparkles className="h-3.5 w-3.5" />
             <span>{disabled ? t('questionnaire.submitting') : t('questionnaire.submitBtn')}</span>

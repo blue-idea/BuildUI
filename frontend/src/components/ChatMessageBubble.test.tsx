@@ -93,4 +93,34 @@ Design System & Visual Language Specification: Cyberpunk Neon (#00ffcc).`;
     expect(screen.queryByText(/console\.log/)).toBeNull();
     expect(screen.getByText('App.tsx')).toBeDefined();
   });
+
+  it('uses restrained Apple System Blue tokens instead of indigo or violet across user and assistant bubbles', () => {
+    const prompt = `Create a high-quality Web Application (Responsive Browser):
+• Core Goal: 构建个人播客社区
+• Platform: Web Application (Responsive Browser)
+• Design System & Palette: Cyberpunk Neon
+• Base Starter Template: React
+
+[Design System Style Prompt]
+Design System & Visual Language Specification: Cyberpunk Neon.`;
+
+    const userRender = render(
+      <I18nProvider initialLocale="zh">
+        <ChatMessageBubble sender="user" content={prompt} />
+      </I18nProvider>
+    );
+    expect(userRender.container.innerHTML).toContain('border-blue-200');
+    expect(userRender.container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
+
+    const assistantRender = render(
+      <I18nProvider initialLocale="zh">
+        <ChatMessageBubble
+          sender="assistant"
+          content={`检查 \`src/App.tsx\`：\n- 更新导航栏\n1. 优化配色`}
+        />
+      </I18nProvider>
+    );
+    expect(assistantRender.container.innerHTML).toContain('text-blue-');
+    expect(assistantRender.container.innerHTML).not.toMatch(/\b(purple|indigo|violet)-\d+/);
+  });
 });

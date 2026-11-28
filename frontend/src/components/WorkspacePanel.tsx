@@ -302,7 +302,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             onClick={() => onViewChange?.('preview')}
             className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
               activeView === 'preview'
-                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-200 shadow-2xs font-semibold'
+                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shadow-2xs font-semibold'
                 : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
             }`}
           >
@@ -316,7 +316,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             onClick={() => onViewChange?.('code')}
             className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
               activeView === 'code'
-                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-200 shadow-2xs font-semibold'
+                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shadow-2xs font-semibold'
                 : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
             }`}
           >
@@ -330,7 +330,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             onClick={() => onViewChange?.('publish')}
             className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
               activeView === 'publish'
-                ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-200 shadow-2xs font-semibold'
+                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shadow-2xs font-semibold'
                 : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100'
             }`}
           >
@@ -483,7 +483,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             {isLoading ? (
               <div className="flex flex-col items-center gap-4 text-center select-none">
                 <div className="relative w-12 h-12 flex items-center justify-center">
-                  <Loader2 className="w-10 h-10 text-purple-500 animate-spin" />
+                  <Loader2 className="w-10 h-10 text-blue-600 dark:text-blue-400 animate-spin" />
                 </div>
                 <span role="status" className="text-sm font-medium text-slate-500 dark:text-zinc-400">
                   {loadingMessage || t('workspace.startingApp')}
@@ -514,7 +514,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                     type="button"
                     data-testid="preview-approve-blueprint-btn"
                     onClick={() => onApproveBlueprint(blueprint.chatId)}
-                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-xs font-medium text-white shadow-xs transition-colors hover:bg-purple-700 active:scale-95"
+                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-medium text-white shadow-xs transition-colors hover:bg-blue-500 active:scale-95"
                   >
                     <Sparkles className="h-4 w-4" />
                     <span>{t('blueprint.startBuilding')}</span>
@@ -541,7 +541,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                 />
               </div>
             ) : (
-              <button type="button" onClick={onReload} disabled={previewActionsDisabled} className="text-sm font-medium text-purple-600">
+              <button type="button" onClick={onReload} disabled={previewActionsDisabled} className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 transition-colors">
                 Start preview
               </button>
             )}
@@ -643,7 +643,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
                             )}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono text-purple-600 dark:text-purple-300 text-[11px] group-hover:underline font-medium">
+                                <span className="font-mono text-blue-600 dark:text-blue-400 text-[11px] group-hover:underline font-medium">
                                   {diag.file}:{diag.line}:{diag.column}
                                 </span>
                                 <span
@@ -673,8 +673,8 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
 
         {activeView === 'publish' && (
           <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 flex items-center justify-center mb-4">
-              <Globe className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 flex items-center justify-center mb-4">
+              <Globe className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <h3 className="text-base font-semibold text-slate-800 dark:text-zinc-100 mb-2">
               {t('workspace.publish')}
@@ -685,7 +685,7 @@ export const WorkspacePanel: React.FC<WorkspacePanelProps> = ({
             <button
               type="button"
               onClick={onPublish}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-lg shadow-sm transition-colors"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg shadow-sm transition-colors"
             >
               {t('workspace.exportZipBtn')}
             </button>
