@@ -412,6 +412,79 @@ describe('App Guided Mode Home & Navigation', () => {
     // Should transition to Builder view
     expect(screen.getByText(/Chat & Blueprint/i)).toBeDefined();
   });
+
+  it('scopes project delete cooldown to the deleted project and auto-cancels once the project is removed', () => {
+    render(<App initialDockTab="projects" />);
+
+    // 确认删除项目 2（默认预览模式下会立即从 apps 中移除）
+    fireEvent.click(screen.getByTestId('delete-project-btn-2'));
+    fireEvent.click(screen.getByTestId('confirm-delete-project-btn-2'));
+
+    // 项目 2 已删除，其冷静期自动取消；项目 1 的删除按钮保持立即可用且不受影响
+    expect(screen.queryByTestId('project-card-2')).toBeNull();
+    const deleteBtn1 = screen.getByTestId('delete-project-btn-1') as HTMLButtonElement;
+    expect(deleteBtn1.disabled).toBe(false);
+    expect(deleteBtn1.textContent?.trim()).toBe('');
+  });
+
+  it('keeps per-project delete cooldown across dock tab switches when the project still exists', async () => {
+    vi.useFakeTimers();
+    const appsList = [
+      { id: 1, name: 'Pantry Planner', path: '/workspace/pantry-planner' },
+      { id: 2, name: 'Default Application', path: '/workspace/default-app' },
+    ];
+    vi.stubGlobal('go', {
+      main: {
+        App: {
+          GetSettings: async () => ({}),
+          ListApps: async () => appsList,
+          GetActiveApp: async () => ({ app: appsList[0] }),
+          ListPlugins: async () => [],
+          DeleteApp: vi.fn().mockRejectedValue(new Error('cannot delete active app')),
+        },
+      },
+    });
+    try {
+      vi.setSystemTime(new Date('2026-11-28T10:00:00.000Z'));
+      render(<App initialDockTab="projects" />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // 尝试确认删除项目 1（后端拒绝删除，项目 1 仍在列表中）
+      fireEvent.click(screen.getByTestId('delete-project-btn-1'));
+      fireEvent.click(screen.getByTestId('confirm-delete-project-btn-1'));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // 仅项目 1 进入 20 秒冷静期，项目 2 按钮保持可点击
+      expect((screen.getByTestId('delete-project-btn-1') as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByTestId('delete-project-btn-1').textContent).toContain('20s');
+      expect((screen.getByTestId('delete-project-btn-2') as HTMLButtonElement).disabled).toBe(false);
+
+      // 切到首页并推进 5 秒后再切回工程管理页
+      fireEvent.click(screen.getByTestId('dock-home'));
+      act(() => {
+        vi.advanceTimersByTime(5_000);
+      });
+      fireEvent.click(screen.getByTestId('dock-projects'));
+
+      // 项目 1 仍保持剩余 15 秒冷静期，项目 2 依然可用
+      expect((screen.getByTestId('delete-project-btn-1') as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByTestId('delete-project-btn-1').textContent).toContain('15s');
+      expect((screen.getByTestId('delete-project-btn-2') as HTMLButtonElement).disabled).toBe(false);
+
+      // 再推进 15 秒后项目 1 冷静期自动结束
+      act(() => {
+        vi.advanceTimersByTime(15_000);
+      });
+      expect((screen.getByTestId('delete-project-btn-1') as HTMLButtonElement).disabled).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('App Main Split Layout & Workflow', () => {

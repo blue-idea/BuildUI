@@ -10,6 +10,7 @@
     "lint:staged": "node frontend/node_modules/lint-staged/bin/lint-staged.js",
     "typecheck": "pnpm --prefix frontend exec tsc -p tsconfig.json --noEmit",
     "test": "pnpm --prefix frontend test",
+    "test:readme": "node --test scripts/readme-contract.test.mjs",
     "test:scripts": "node --test scripts/update-homebrew-cask.test.mjs",
     "build": "pnpm --prefix frontend build"
   }

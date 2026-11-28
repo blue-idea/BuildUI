@@ -86,6 +86,9 @@ export interface I18nDictionary {
     revealInFinder: string;
     deleteProject: string;
     deleteConfirm: string;
+    deleteConfirmAria: string;
+    deleteCancelAria: string;
+    deleteCooldownTooltip: string;
     renameProject: string;
     emptyTitle: string;
     emptyDesc: string;

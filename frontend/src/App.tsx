@@ -22,6 +22,7 @@ import { TemplateCenterView } from './components/TemplateCenterView';
 import { ComponentCenterView } from './components/ComponentCenterView';
 import { StyleCenterView } from './components/StyleCenterView';
 import { ProjectsCenterView } from './components/ProjectsCenterView';
+import { ProjectDeleteCooldownMap } from './config/projectDelete';
 import { ChatMessageBubble } from './components/ChatMessageBubble';
 import { WorkspacePanel, WorkspaceView, type PreviewCaptureContext } from './components/WorkspacePanel';
 import { FileActionItem } from './types/fileAction';
@@ -207,6 +208,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
     ];
   });
   const [capturingAppId, setCapturingAppId] = useState<number | null>(null);
+  // 按项目 ID 维护的删除冷静期截止时间戳，跨页签切换时不丢失，且项目删除后自动取消
+  const [projectDeleteCooldowns, setProjectDeleteCooldowns] = useState<ProjectDeleteCooldownMap>({});
   const autoCapturedAppIdsRef = useRef<Set<number>>(new Set());
   const autoCaptureTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1516,6 +1519,8 @@ const AppContent: React.FC<AppProps> = ({ initialDockTab = 'home' }) => {
               setActiveDockTab('builder');
             }}
             onNewProject={() => setActiveDockTab('home')}
+            deleteCooldowns={projectDeleteCooldowns}
+            onDeleteCooldownsChange={setProjectDeleteCooldowns}
             onDeleteApp={(id) => {
               if (desktop) {
                 void updateProject(async () => {

@@ -29,6 +29,11 @@ import {
   MACOS_FLAT_PAGE,
   MACOS_SEGMENTED,
 } from '../config/macosFlatUi';
+import {
+  PROJECT_DELETE_COOLDOWN_SECONDS,
+  ProjectDeleteCooldownMap,
+} from '../config/projectDelete';
+import { useProjectDeleteCooldowns } from '../hooks/useDeleteCooldown';
 
 export interface ProjectsCenterViewProps {
   apps: AppItem[];
@@ -37,6 +42,12 @@ export interface ProjectsCenterViewProps {
   onOpenProject?: (id: number) => void;
   onNewProject: () => void;
   onDeleteApp: (id: number) => void;
+  /** 单项目删除后的冷静期时长（秒），默认 20 秒 */
+  deleteCooldownSeconds?: number;
+  /** 可选受控冷静期映射（appId -> cooldownUntilMs），用于跨页切换时保持未删除项目的冷静期 */
+  deleteCooldowns?: ProjectDeleteCooldownMap;
+  /** 受控冷静期映射变更回调 */
+  onDeleteCooldownsChange?: (next: ProjectDeleteCooldownMap) => void;
   onRenameApp?: (id: number, newName: string) => void;
   onExportProject?: (app: AppItem) => void;
   onCaptureScreenshot?: (app: AppItem) => Promise<void> | void;
@@ -193,6 +204,9 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
   onOpenProject,
   onNewProject,
   onDeleteApp,
+  deleteCooldownSeconds = PROJECT_DELETE_COOLDOWN_SECONDS,
+  deleteCooldowns,
+  onDeleteCooldownsChange,
   onRenameApp,
   onExportProject,
   onCaptureScreenshot,
@@ -207,6 +221,17 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
+
+  const appIds = useMemo(() => apps.map((app) => app.id), [apps]);
+
+  // 仅针对当前项目按钮生效的删除冷静期（默认 20 秒），项目被删除后自动取消
+  const { getRemainingSeconds, isProjectCoolingDown, startProjectCooldown } =
+    useProjectDeleteCooldowns({
+      appIds,
+      cooldownSeconds: deleteCooldownSeconds,
+      cooldowns: deleteCooldowns,
+      onCooldownsChange: onDeleteCooldownsChange,
+    });
 
   // 按照平台形态（Web、Desktop、App）与搜索关键字联合过滤
   const filteredApps = useMemo(() => {
@@ -280,9 +305,22 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
     }
   };
 
-  const handleDelete = (id: number) => {
-    onDeleteApp(id);
+  // 防误删第一步：点击当前项目删除按钮仅进入二次确认态，该项目冷静期内禁止触发
+  const handleRequestDelete = (id: number) => {
+    if (busy || isProjectCoolingDown(id)) {
+      return;
+    }
+    setDeletingId(id);
+  };
+
+  // 防误删第二步：确认后仅启动当前项目的默认 20 秒冷静期并执行删除（若项目已移除则自动取消冷静期）
+  const handleConfirmDelete = (id: number) => {
+    if (busy || isProjectCoolingDown(id)) {
+      return;
+    }
     setDeletingId(null);
+    startProjectCooldown(id);
+    onDeleteApp(id);
   };
 
   const handleStartRename = (app: AppItem) => {
@@ -419,7 +457,9 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
           <div data-testid="projects-grid" className={MACOS_FLAT_GRID.cards}>
             {filteredApps.map((app) => {
               const isActive = app.id === activeAppId;
-              const isConfirmingDelete = deletingId === app.id;
+              const cooldownSecondsLeft = getRemainingSeconds(app.id);
+              const isCardCoolingDown = cooldownSecondsLeft > 0;
+              const isConfirmingDelete = !isCardCoolingDown && deletingId === app.id;
               const isEditing = editingId === app.id;
               const platform = app.platform ?? inferAppPlatform(app);
 
@@ -560,80 +600,107 @@ export const ProjectsCenterView: React.FC<ProjectsCenterViewProps> = ({
                       )}
                     </div>
 
-                    {/* 底部扁平操作栏：打开工程 + 导出 + 打开目录 + 删除 */}
-                    <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.07] flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        data-testid={`open-project-btn-${app.id}`}
-                        onClick={() => handleOpen(app.id)}
-                        disabled={busy}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[12px] font-medium transition-colors cursor-pointer disabled:opacity-50 ${
-                          isActive
-                            ? 'bg-[#0071e3] hover:bg-[#0077ed] dark:bg-[#0a84ff] dark:hover:bg-[#2894ff] text-white'
-                            : 'bg-black/[0.045] dark:bg-white/[0.07] hover:bg-[#0071e3]/10 dark:hover:bg-[#0a84ff]/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#0a84ff]'
-                        }`}
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        <span>{t('projectsPage.openProject')}</span>
-                      </button>
-
-                      <div className="flex items-center gap-1">
-                        {/* 导出按钮 */}
-                        <button
-                          type="button"
-                          data-testid={`export-project-btn-${app.id}`}
-                          onClick={() => onExportProject?.(app)}
-                          disabled={busy}
-                          title={t('projectsPage.exportProject')}
-                          aria-label={`${t('projectsPage.exportProject')} ${app.name}`}
-                          className={MACOS_CONTROLS.iconButton}
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">{t('projectsPage.exportProject')}</span>
-                        </button>
-
-                        {onOpenInFileManager && app.path && (
-                          <button
-                            type="button"
-                            data-testid={`reveal-folder-btn-${app.id}`}
-                            onClick={() => onOpenInFileManager(app.path)}
-                            title={t('projectsPage.revealInFinder')}
-                            className="p-1.5 rounded-[8px] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-                          >
-                            <FolderOpen className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        {/* 删除操作 */}
-                        {isConfirmingDelete ? (
-                          <div className="flex items-center gap-1">
+                    {/* 底部扁平操作栏：默认展示打开/导出/目录/删除；确认删除态独占单行防误删确认条，避免窄卡片文字折行 */}
+                    <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.07] flex items-center justify-between gap-2 min-h-[41px]">
+                      {isConfirmingDelete ? (
+                        <>
+                          <span className="text-[11.5px] font-medium text-[#ff3b30] dark:text-[#ff453a] truncate">
+                            {t('projectsPage.deleteConfirm')}
+                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
-                              onClick={() => handleDelete(app.id)}
-                              className="px-2 py-1 rounded-[7px] bg-[#ff3b30] hover:opacity-90 text-white text-[11px] font-medium transition-opacity cursor-pointer"
-                            >
-                              {t('common.confirm')}
-                            </button>
-                            <button
-                              type="button"
+                              data-testid={`cancel-delete-project-btn-${app.id}`}
                               onClick={() => setDeletingId(null)}
-                              className="px-2 py-1 rounded-[7px] text-[#6e6e73] dark:text-[#98989d] text-[11px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                              aria-label={t('projectsPage.deleteCancelAria', { name: app.name })}
+                              className="px-2.5 py-1 rounded-[7px] text-[#6e6e73] dark:text-[#98989d] text-[11.5px] font-medium whitespace-nowrap hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
                             >
                               {t('common.cancel')}
                             </button>
+                            <button
+                              type="button"
+                              data-testid={`confirm-delete-project-btn-${app.id}`}
+                              onClick={() => handleConfirmDelete(app.id)}
+                              disabled={busy || isCardCoolingDown}
+                              aria-label={t('projectsPage.deleteConfirmAria', { name: app.name })}
+                              className="px-2.5 py-1 rounded-[7px] bg-[#ff3b30] hover:opacity-90 text-white text-[11.5px] font-medium whitespace-nowrap transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {t('common.confirm')}
+                            </button>
                           </div>
-                        ) : (
+                        </>
+                      ) : (
+                        <>
                           <button
                             type="button"
-                            data-testid={`delete-project-btn-${app.id}`}
-                            onClick={() => handleDelete(app.id)}
-                            title={t('projectsPage.deleteProject')}
-                            className="p-1.5 rounded-[8px] text-[#86868b] hover:text-[#ff3b30] dark:hover:text-[#ff453a] hover:bg-[#ff3b30]/10 dark:hover:bg-[#ff453a]/15 transition-colors cursor-pointer"
+                            data-testid={`open-project-btn-${app.id}`}
+                            onClick={() => handleOpen(app.id)}
+                            disabled={busy}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[8px] text-[12px] font-medium whitespace-nowrap transition-colors cursor-pointer disabled:opacity-50 ${
+                              isActive
+                                ? 'bg-[#0071e3] hover:bg-[#0077ed] dark:bg-[#0a84ff] dark:hover:bg-[#2894ff] text-white'
+                                : 'bg-black/[0.045] dark:bg-white/[0.07] hover:bg-[#0071e3]/10 dark:hover:bg-[#0a84ff]/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#0a84ff]'
+                            }`}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <ExternalLink className="w-3 h-3" />
+                            <span>{t('projectsPage.openProject')}</span>
                           </button>
-                        )}
-                      </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* 导出按钮 */}
+                            <button
+                              type="button"
+                              data-testid={`export-project-btn-${app.id}`}
+                              onClick={() => onExportProject?.(app)}
+                              disabled={busy}
+                              title={t('projectsPage.exportProject')}
+                              aria-label={`${t('projectsPage.exportProject')} ${app.name}`}
+                              className={MACOS_CONTROLS.iconButton}
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">{t('projectsPage.exportProject')}</span>
+                            </button>
+
+                            {onOpenInFileManager && app.path && (
+                              <button
+                                type="button"
+                                data-testid={`reveal-folder-btn-${app.id}`}
+                                onClick={() => onOpenInFileManager(app.path)}
+                                title={t('projectsPage.revealInFinder')}
+                                className="p-1.5 rounded-[8px] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+                              >
+                                <FolderOpen className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+
+                            {/* 删除操作（触发防误删二次确认；仅当前项目冷静期内禁用并展示倒计时） */}
+                            <button
+                              type="button"
+                              data-testid={`delete-project-btn-${app.id}`}
+                              onClick={() => handleRequestDelete(app.id)}
+                              disabled={busy || isCardCoolingDown}
+                              title={
+                                isCardCoolingDown
+                                  ? t('projectsPage.deleteCooldownTooltip', { seconds: cooldownSecondsLeft })
+                                  : t('projectsPage.deleteProject')
+                              }
+                              aria-label={
+                                isCardCoolingDown
+                                  ? t('projectsPage.deleteCooldownTooltip', { seconds: cooldownSecondsLeft })
+                                  : `${t('projectsPage.deleteProject')} ${app.name}`
+                              }
+                              className="inline-flex items-center gap-1 p-1.5 rounded-[8px] text-[#86868b] hover:text-[#ff3b30] dark:hover:text-[#ff453a] hover:bg-[#ff3b30]/10 dark:hover:bg-[#ff453a]/15 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:text-[#86868b] disabled:hover:bg-transparent"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              {isCardCoolingDown && (
+                                <span className="text-[10.5px] font-medium tabular-nums">
+                                  {cooldownSecondsLeft}s
+                                </span>
+                              )}
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
