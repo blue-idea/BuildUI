@@ -233,7 +233,7 @@ describe('SettingsModal', () => {
     expect(providerList.textContent).toContain('gpt-4o');
   });
 
-  it('supports adding and setting a new local Ollama provider without api key', async () => {
+  it('通过 Add Provider 新建 Custom，并支持配置无需 API Key 的本地端点', async () => {
     const handleSave = vi.fn().mockResolvedValue(undefined);
     render(
       <SettingsModal
@@ -255,16 +255,16 @@ describe('SettingsModal', () => {
 
     // 填写统一配置项：URL、Key（留空）、模型名称
     const nameInput = screen.getByTestId('provider-name-input') as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: 'My Local Ollama' } });
-
     const urlInput = screen.getByTestId('provider-url-input') as HTMLInputElement;
-    fireEvent.change(urlInput, { target: { value: 'http://127.0.0.1:11434/v1' } });
-
-    // Key 保持为空（兼容本地 Ollama 无 key）
     const keyInput = screen.getByTestId('provider-key-input') as HTMLInputElement;
-    fireEvent.change(keyInput, { target: { value: '' } });
-
     const modelInput = screen.getByTestId('provider-model-input') as HTMLInputElement;
+    expect(nameInput.value).toBe('Custom (OpenAI-compatible)');
+    expect(urlInput.value).toBe('');
+    expect(keyInput.value).toBe('');
+    expect(modelInput.value).toBe('');
+
+    fireEvent.change(nameInput, { target: { value: 'My Local Ollama' } });
+    fireEvent.change(urlInput, { target: { value: 'http://127.0.0.1:11434/v1' } });
     fireEvent.change(modelInput, { target: { value: 'deepseek-r1:14b' } });
 
     // 保存 Provider
@@ -278,8 +278,10 @@ describe('SettingsModal', () => {
     await waitFor(() => {
       expect(handleSave).toHaveBeenCalledWith(
         expect.objectContaining({
-          'llm.providers.ollama.base_url': 'http://127.0.0.1:11434/v1',
-          'llm.providers.ollama.model': 'deepseek-r1:14b',
+          'llm.provider_ids': 'openai,custom',
+          'llm.providers.custom.base_url': 'http://127.0.0.1:11434/v1',
+          'llm.providers.custom.api_key': '',
+          'llm.providers.custom.model': 'deepseek-r1:14b',
         })
       );
     });

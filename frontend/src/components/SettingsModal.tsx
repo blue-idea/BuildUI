@@ -31,6 +31,7 @@ import {
 } from '../services/wailsBridge';
 import {
   ProviderConfig,
+  CUSTOM_PROVIDER_PRESET,
   DEFAULT_PROVIDER_PRESETS,
   parseConfiguredProviders,
   serializeProviders,
@@ -214,27 +215,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   // 添加新 Provider 交互
-  const handleAddNewProvider = (presetId?: string) => {
+  const handleAddNewProvider = () => {
     // 暂存当前编辑内容
     setProviders((prev) =>
       prev.map((p) => (p.id === editForm.id ? { ...p, ...editForm } : p))
     );
 
-    let targetId = presetId || 'ollama';
+    let targetId = CUSTOM_PROVIDER_PRESET.id;
     // 若列表中已存在该 targetId，则追加后缀
     if (providers.some((p) => p.id === targetId)) {
       targetId = `${targetId}_${Date.now()}`;
     }
 
-    const preset = DEFAULT_PROVIDER_PRESETS.find((p) => p.id === presetId);
-
     const newProvider: ProviderConfig = {
+      ...CUSTOM_PROVIDER_PRESET,
       id: targetId,
-      name: preset?.name || 'Local Ollama',
-      url: preset?.url || 'http://localhost:11434/v1',
-      key: preset?.key || '',
-      model: preset?.model || 'qwen2.5-coder',
-      isCustom: true,
     };
 
     setProviders((prev) => [...prev, newProvider]);
@@ -383,7 +378,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     { id: 'openai', name: 'OpenAI (Official)' },
     { id: 'deepseek', name: 'DeepSeek' },
     { id: 'ollama', name: 'Ollama (Local)' },
-    { id: 'custom', name: 'Custom (OpenAI-compatible)' },
+    CUSTOM_PROVIDER_PRESET,
   ];
 
   return (
@@ -466,7 +461,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <button
                           type="button"
                           data-testid="add-provider-btn"
-                          onClick={() => handleAddNewProvider()}
+                          onClick={handleAddNewProvider}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-2xs active:scale-95 transition-all"
                         >
                           <Plus className="w-3.5 h-3.5" />

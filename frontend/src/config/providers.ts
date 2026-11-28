@@ -18,6 +18,15 @@ export interface ProviderConfig {
   isCustom?: boolean;
 }
 
+export const CUSTOM_PROVIDER_PRESET: ProviderConfig = {
+  id: 'custom',
+  name: 'Custom (OpenAI-compatible)',
+  url: '',
+  key: '',
+  model: '',
+  isCustom: true,
+};
+
 /** 默认常用预设清单 */
 export const DEFAULT_PROVIDER_PRESETS: ProviderConfig[] = [
   {
@@ -41,14 +50,7 @@ export const DEFAULT_PROVIDER_PRESETS: ProviderConfig[] = [
     key: '', // 本地 Ollama 无需 API Key
     model: 'qwen2.5-coder',
   },
-  {
-    id: 'custom',
-    name: 'Custom (OpenAI-compatible)',
-    url: '',
-    key: '',
-    model: '',
-    isCustom: true,
-  },
+  CUSTOM_PROVIDER_PRESET,
 ];
 
 /**
