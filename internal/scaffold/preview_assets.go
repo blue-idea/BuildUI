@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+
+	"buildui/internal/config"
 )
 
 // preparePreviewAssets 将运行时适配器和浏览器检查脚本放在同一个临时目录，供开发服务器同时加载。
@@ -34,7 +36,7 @@ func preparePreviewAssets(project, cacheDirectory string, adapters fs.FS, entry 
 			return "", nil, err
 		}
 	}
-	if err := write(templateFS, "template/src/preview-inspector.js"); err != nil {
+	if err := write(templateFS, config.ReactPreviewInspectorAsset); err != nil {
 		cleanup()
 		return "", nil, err
 	}

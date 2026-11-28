@@ -35,3 +35,15 @@ const (
 	TemplateArchiveMaxFiles  = 20_000
 	TemplateArchiveMaxUnpack = 128 << 20
 )
+
+const (
+	ReactPreviewInspectorPath  = "src/preview-inspector.js"
+	ReactPreviewInspectorAsset = ReactTemplateDir + "/" + ReactPreviewInspectorPath
+)
+
+// LegacyReactPreviewInspectorHashes 记录随旧版脚手架分发的检查脚本校验值（LF）。
+var LegacyReactPreviewInspectorHashes = []string{
+	"c2c6ea15d18aedb5bddef011634937a576cd9ff32f9a7a90c81e2f01b08bad1b",
+	"3634a29cd4136dec49ffb8355c7629a8d81fbd06cfcf7c09037e1f1cf78d2d12",
+	"e3851a10f930e672a348522b1b32868f3bceebb1955e57410ca31ce44b30dbe6",
+}

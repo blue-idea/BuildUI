@@ -6,10 +6,15 @@
   let parentOrigin = '';
   let overlay;
   let badge;
-  let locked = false;
+  let lockedSelection;
+  let highlightFrame = null;
 
   const resetHighlight = () => {
-    locked = false;
+    lockedSelection = undefined;
+    if (highlightFrame !== null) {
+      win.cancelAnimationFrame(highlightFrame);
+      highlightFrame = null;
+    }
     if (overlay) overlay.style.display = 'none';
   };
 
@@ -106,10 +111,12 @@
   function describe(target) {
     const marked = target.closest('[data-buildui-source], [data-dyad-id]');
     const source = marked?.getAttribute('data-buildui-source') ?? marked?.getAttribute('data-dyad-id') ?? '';
+    const element = marked ?? target;
     return {
+      element,
       source,
       tagName: marked?.getAttribute('data-buildui-tag') ?? target.tagName.toLowerCase(),
-      rect: (marked ?? target).getBoundingClientRect(),
+      rect: element.getBoundingClientRect(),
     };
   }
 
@@ -138,8 +145,21 @@
     badge.style.top = rect.top < 26 ? 'calc(100% + 4px)' : '-24px';
   }
 
+  // 捕获页面和内部容器的滚动，每帧按锁定元素的当前视口坐标重绘。
+  win.addEventListener('scroll', () => {
+    if (!lockedSelection || highlightFrame !== null) return;
+    highlightFrame = win.requestAnimationFrame(() => {
+      highlightFrame = null;
+      if (!lockedSelection.element.isConnected) {
+        resetHighlight();
+        return;
+      }
+      highlight({ ...lockedSelection, rect: lockedSelection.element.getBoundingClientRect() });
+    });
+  }, { capture: true, passive: true });
+
   win.addEventListener('mousemove', (event) => {
-    if (parentOrigin && !locked && event.target instanceof Element) {
+    if (parentOrigin && !lockedSelection && event.target instanceof Element) {
       highlight(describe(event.target));
     }
   }, { passive: true });
@@ -153,7 +173,7 @@
     const selection = describe(target);
     const { source, tagName, rect } = selection;
     const [, file, line, column] = source.match(/^(.*):(\d+):(\d+)$/) ?? [];
-    locked = true;
+    lockedSelection = selection;
     highlight(selection);
 
     // 只发送完整事件，等待用户在局部编辑面板确认后再填入聊天。

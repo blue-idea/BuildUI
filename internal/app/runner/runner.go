@@ -40,6 +40,11 @@ func (d *defaultProcessLauncher) Launch(ctx context.Context, appPath string, onO
 	if err := workspace.EnsureProjectDependencies(ctx, appPath, commands...); err != nil {
 		return 0, err
 	}
+	if !native && !next {
+		if err := scaffold.RefreshVitePreviewInspector(appPath); err != nil {
+			return 0, fmt.Errorf("failed to refresh Vite preview inspector: %w", err)
+		}
+	}
 	cmd := workspace.PnpmCommand(ctx, appPath, "run", "dev", "--host", "127.0.0.1")
 	cleanup := func() {}
 	if next {
